@@ -1,0 +1,22 @@
+<UserControl x:Class="GameLoopOptimizer.Views.Controls.LiveChartControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="120" d:DesignWidth="300">
+    <Grid ClipToBounds="True">
+        <Canvas x:Name="ChartCanvas" Background="Transparent" SizeChanged="ChartCanvas_SizeChanged">
+            <!-- Background Grid Lines -->
+            <Line x:Name="GridLineTop" Stroke="#182030" StrokeDashArray="4 2" StrokeThickness="1" />
+            <Line x:Name="GridLineMid" Stroke="#182030" StrokeDashArray="4 2" StrokeThickness="1" />
+            <Line x:Name="GridLineBot" Stroke="#182030" StrokeDashArray="4 2" StrokeThickness="1" />
+
+            <!-- Filled Area Polygon -->
+            <Polygon x:Name="AreaPolygon" />
+
+            <!-- Stroke Polyline -->
+            <Polyline x:Name="ChartLine" StrokeThickness="2" />
+        </Canvas>
+    </Grid>
+</UserControl>

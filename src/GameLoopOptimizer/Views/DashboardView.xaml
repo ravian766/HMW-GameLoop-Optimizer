@@ -1,0 +1,205 @@
+<UserControl x:Class="GameLoopOptimizer.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:controls="clr-namespace:GameLoopOptimizer.Views.Controls"
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="900">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="24,20,24,24">
+
+            <!-- Top Welcome Banner & Quick Action -->
+            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="System Optimization Health" FontSize="20" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,0,0,6" />
+                        <TextBlock Text="Hardware-aware Windows &amp; GameLoop environment tuning for stutter-free PUBG Mobile gameplay."
+                                   FontSize="13" Foreground="#94A3B8" TextWrapping="Wrap" Margin="0,0,0,12" />
+
+                        <!-- Quick Summary Chips -->
+                        <WrapPanel Orientation="Horizontal">
+                            <Border Background="#1A2436" CornerRadius="6" Padding="10,4" Margin="0,0,8,4">
+                                <TextBlock Text="{Binding Recommendations.TierLabel, StringFormat='Profile: {0}'}" FontSize="11" FontWeight="SemiBold" Foreground="#00E5FF" />
+                            </Border>
+
+                            <Border Background="#1A2436" CornerRadius="6" Padding="10,4" Margin="0,0,8,4">
+                                <TextBlock Text="{Binding GameLoop.IsRunning, Converter={StaticResource BooleanToRunningStatusConverter}}" FontSize="11" FontWeight="SemiBold" Foreground="#00E676" />
+                            </Border>
+                        </WrapPanel>
+                    </StackPanel>
+
+                    <!-- Score Gauge & Buttons -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
+                        <controls:CircularGauge Value="{Binding Score.TotalScore}" Width="130" Height="130" Margin="0,0,20,0" />
+
+                        <StackPanel VerticalAlignment="Center">
+                            <Button Content="Quick Optimize"
+                                    Command="{Binding QuickOptimizeCommand}"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Padding="20,12"
+                                    FontSize="13"
+                                    Margin="0,0,0,8" />
+
+                            <Button Content="Scan System"
+                                    Command="{Binding ScanSystemCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="16,8"
+                                    FontSize="12" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Real-Time Metrics Row -->
+            <TextBlock Text="Live System Telemetry" FontSize="15" FontWeight="SemiBold" Foreground="#F8FAFC" Margin="0,0,0,10" />
+            <Grid Margin="0,0,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- CPU Card -->
+                <Border Grid.Column="0" Style="{StaticResource GlassCard}" Margin="0,0,8,0">
+                    <StackPanel>
+                        <TextBlock Text="CPU USAGE" FontSize="11" FontWeight="SemiBold" Foreground="#94A3B8" />
+                        <TextBlock Text="{Binding CurrentCpu, StringFormat='{}{0:F1}%'}" FontSize="24" FontWeight="Bold" Foreground="#00E5FF" Margin="0,4,0,2" />
+                        <TextBlock Text="{Binding Hardware.CpuName}" FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Border>
+
+                <!-- GPU Card -->
+                <Border Grid.Column="1" Style="{StaticResource GlassCard}" Margin="4,0,4,0">
+                    <StackPanel>
+                        <TextBlock Text="GPU USAGE" FontSize="11" FontWeight="SemiBold" Foreground="#94A3B8" />
+                        <TextBlock Text="{Binding CurrentGpu, StringFormat='{}{0:F1}%'}" FontSize="24" FontWeight="Bold" Foreground="#7C4DFF" Margin="0,4,0,2" />
+                        <TextBlock Text="{Binding Hardware.GpuName}" FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Border>
+
+                <!-- RAM Card -->
+                <Border Grid.Column="2" Style="{StaticResource GlassCard}" Margin="4,0,4,0">
+                    <StackPanel>
+                        <TextBlock Text="RAM USAGE" FontSize="11" FontWeight="SemiBold" Foreground="#94A3B8" />
+                        <TextBlock Text="{Binding CurrentRam, StringFormat='{}{0:F0}%'}" FontSize="24" FontWeight="Bold" Foreground="#00E676" Margin="0,4,0,2" />
+                        <TextBlock Text="{Binding Hardware.TotalRamGb, StringFormat='Total: {0:F1} GB'}" FontSize="10" Foreground="#64748B" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Disk Card -->
+                <Border Grid.Column="3" Style="{StaticResource GlassCard}" Margin="8,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="DISK ACTIVITY" FontSize="11" FontWeight="SemiBold" Foreground="#94A3B8" />
+                        <TextBlock Text="{Binding CurrentDiskMb, StringFormat='{}{0:F1} MB/s'}" FontSize="24" FontWeight="Bold" Foreground="#FFB300" Margin="0,4,0,2" />
+                        <TextBlock Text="{Binding Hardware.SystemDrive, StringFormat='Drive: {0} ({1})', FallbackValue='Drive: C: (SSD)'}" FontSize="10" Foreground="#64748B" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Score Category Breakdown & Honest Recommendations -->
+            <Grid Margin="0,0,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.2*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Category Scores -->
+                <Border Grid.Column="0" Style="{StaticResource GlassCard}" Margin="0,0,10,0">
+                    <StackPanel>
+                        <TextBlock Text="Optimization Breakdown" FontSize="15" FontWeight="SemiBold" Foreground="#FFFFFF" Margin="0,0,0,14" />
+
+                        <!-- Windows -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Windows OS &amp; Game Mode" FontSize="13" Foreground="#FFFFFF" />
+                                <TextBlock Text="{Binding Score.WindowsConfig.Details}" FontSize="11" Foreground="#64748B" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding Score.WindowsConfig.Score, StringFormat='{}{0}/20 pts'}" FontSize="13" FontWeight="Bold" Foreground="#00E5FF" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <!-- Power -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Power Delivery &amp; Core Unparking" FontSize="13" Foreground="#FFFFFF" />
+                                <TextBlock Text="{Binding Score.PowerDelivery.Details}" FontSize="11" Foreground="#64748B" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding Score.PowerDelivery.Score, StringFormat='{}{0}/15 pts'}" FontSize="13" FontWeight="Bold" Foreground="#00E5FF" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <!-- GameLoop Config -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="GameLoop Virtual Engine" FontSize="13" Foreground="#FFFFFF" />
+                                <TextBlock Text="{Binding Score.GameLoopConfig.Details}" FontSize="11" Foreground="#64748B" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding Score.GameLoopConfig.Score, StringFormat='{}{0}/25 pts'}" FontSize="13" FontWeight="Bold" Foreground="#00E5FF" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <!-- Graphics -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="DirectX+ &amp; Shader Caching" FontSize="13" Foreground="#FFFFFF" />
+                                <TextBlock Text="{Binding Score.GraphicsSettings.Details}" FontSize="11" Foreground="#64748B" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding Score.GraphicsSettings.Score, StringFormat='{}{0}/20 pts'}" FontSize="13" FontWeight="Bold" Foreground="#00E5FF" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <!-- Memory/Cache -->
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Memory &amp; Storage Overhead" FontSize="13" Foreground="#FFFFFF" />
+                                <TextBlock Text="{Binding Score.MemoryStorage.Details}" FontSize="11" Foreground="#64748B" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding Score.MemoryStorage.Score, StringFormat='{}{0}/10 pts'}" FontSize="13" FontWeight="Bold" Foreground="#00E5FF" VerticalAlignment="Center" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Technical Analysis & Recommendations -->
+                <Border Grid.Column="1" Style="{StaticResource GlassCard}" Margin="10,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Technical Rationale &amp; Notes" FontSize="15" FontWeight="SemiBold" Foreground="#FFFFFF" Margin="0,0,0,10" />
+                        
+                        <ItemsControl ItemsSource="{Binding ScoreExplanations}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#111622" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
+                                        <TextBlock Text="{Binding}" FontSize="12" Foreground="#CBD5E1" TextWrapping="Wrap" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

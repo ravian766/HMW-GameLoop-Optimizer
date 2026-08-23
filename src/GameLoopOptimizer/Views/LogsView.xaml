@@ -1,0 +1,63 @@
+<UserControl x:Class="GameLoopOptimizer.Views.LogsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="900">
+    <Grid Margin="24,20,24,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Top Header & Filter Bar -->
+        <Border Grid.Row="0" Style="{StaticResource GlassCard}" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Optimization &amp; Telemetry Event Log" FontSize="18" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,0,0,4" />
+                    <TextBlock Text="Live auditable log of all system queries, registry updates, and rollback actions." FontSize="12" Foreground="#94A3B8" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                             Width="220"
+                             Padding="8,6"
+                             Background="#10141E"
+                             Foreground="#FFFFFF"
+                             BorderBrush="#222B3D"
+                             Margin="0,0,10,0" />
+
+                    <Button Content="Copy Logs"
+                            Command="{Binding CopyLogsCommand}"
+                            Style="{StaticResource SecondaryButton}"
+                            Padding="12,8"
+                            Margin="0,0,8,0" />
+
+                    <Button Content="Clear"
+                            Command="{Binding ClearLogsCommand}"
+                            Style="{StaticResource DangerButton}"
+                            Padding="12,8" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Console View -->
+        <Border Grid.Row="1" Background="#090C12" BorderBrush="#1B2333" BorderThickness="1" CornerRadius="8" Padding="12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding FilteredLogs}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Formatted}" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="12" Foreground="#CBD5E1" Margin="0,2" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>
