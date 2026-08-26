@@ -4,13 +4,15 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="130" d:DesignWidth="600">
-    <Border Background="#141923"
-            BorderBrush="#202A3C"
+             d:DesignHeight="130" d:DesignWidth="620">
+    <Border Background="{StaticResource BrushCardGradient}"
+            BorderBrush="{StaticResource BrushBorderSubtle}"
             BorderThickness="1"
             CornerRadius="10"
-            Padding="14"
-            Margin="0,0,0,10">
+            Padding="16"
+            Margin="0,0,0,10"
+            SnapsToDevicePixels="True"
+            UseLayoutRounding="True">
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -21,21 +23,21 @@
             <!-- Checkbox -->
             <CheckBox IsChecked="{Binding IsSelected}"
                       VerticalAlignment="Top"
-                      Margin="0,2,12,0" />
+                      Margin="0,3,14,0" />
 
             <!-- Content Details -->
-            <StackPanel Grid.Column="1" Margin="0,0,12,0">
+            <StackPanel Grid.Column="1" Margin="0,0,14,0">
                 <!-- Title & Tags -->
-                <WrapPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <WrapPanel Orientation="Horizontal" Margin="0,0,0,5">
                     <TextBlock Text="{Binding Title}"
                                FontSize="14"
-                               FontWeight="SemiBold"
-                               Foreground="#FFFFFF"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource BrushTextPrimary}"
                                VerticalAlignment="Center"
                                Margin="0,0,10,0" />
 
                     <!-- Risk Pill -->
-                    <Border Background="#1C2433"
+                    <Border Background="#121826"
                             BorderBrush="{Binding RiskColor}"
                             BorderThickness="1"
                             CornerRadius="10"
@@ -43,49 +45,53 @@
                             Margin="0,0,6,0">
                         <TextBlock Text="{Binding RiskLevel}"
                                    FontSize="10"
-                                   FontWeight="SemiBold"
+                                   FontWeight="Bold"
                                    Foreground="{Binding RiskColor}" />
                     </Border>
 
                     <!-- Admin Tag -->
-                    <Border Background="#33FF9100"
+                    <Border Background="#26F59E0B"
+                            BorderBrush="#4DF59E0B"
+                            BorderThickness="1"
                             CornerRadius="10"
                             Padding="8,2"
                             Visibility="{Binding RequiresAdmin, Converter={StaticResource BooleanToVisibilityConverter}}"
                             Margin="0,0,6,0">
-                        <TextBlock Text="ADMIN" FontSize="10" FontWeight="Bold" Foreground="#FF9100" />
+                        <TextBlock Text="ADMIN" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushAccentAmber}" />
                     </Border>
                 </WrapPanel>
 
                 <!-- Description -->
                 <TextBlock Text="{Binding Description}"
                            FontSize="12"
-                           Foreground="#94A3B8"
+                           Foreground="{StaticResource BrushTextSecondary}"
                            TextWrapping="Wrap"
-                           Margin="0,0,0,6" />
+                           Margin="0,0,0,5" />
 
                 <!-- Technical Rationale -->
                 <TextBlock Text="{Binding TechnicalRationale}"
                            FontSize="11"
-                           Foreground="#64748B"
+                           Foreground="{StaticResource BrushTextMuted}"
                            FontStyle="Italic"
                            TextWrapping="Wrap"
                            Margin="0,0,0,8" />
 
                 <!-- State comparison -->
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Current: " FontSize="11" Foreground="#64748B" />
-                    <TextBlock Text="{Binding CurrentStateDisplay}" FontSize="11" FontWeight="Medium" Foreground="#CBD5E1" Margin="0,0,12,0" />
+                    <TextBlock Text="CURRENT: " FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding CurrentStateDisplay}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" Margin="0,0,16,0" />
                     
-                    <TextBlock Text="Recommended: " FontSize="11" Foreground="#64748B" />
-                    <TextBlock Text="{Binding RecommendedStateDisplay}" FontSize="11" FontWeight="SemiBold" Foreground="#00E5FF" />
+                    <TextBlock Text="RECOMMENDED: " FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding RecommendedStateDisplay}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" VerticalAlignment="Center" />
                 </StackPanel>
             </StackPanel>
 
             <!-- Actions & Status -->
             <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
                 <!-- Status Badge -->
-                <Border Background="#162030"
+                <Border Background="#121B2B"
+                        BorderBrush="{Binding StatusBadgeColor}"
+                        BorderThickness="1"
                         CornerRadius="6"
                         Padding="10,4"
                         HorizontalAlignment="Right"
@@ -101,14 +107,14 @@
                     <Button Content="Apply"
                             Command="{Binding ApplyCommand}"
                             Style="{StaticResource PrimaryButton}"
-                            Padding="12,6"
+                            Padding="14,6"
                             FontSize="11"
                             Margin="0,0,6,0" />
 
                     <Button Content="Rollback"
                             Command="{Binding RollbackCommand}"
                             Style="{StaticResource SecondaryButton}"
-                            Padding="10,6"
+                            Padding="12,6"
                             FontSize="11" />
                 </StackPanel>
             </StackPanel>

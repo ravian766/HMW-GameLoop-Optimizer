@@ -249,4 +249,65 @@ public static class ProcessManager
             }
         });
     }
+
+    public static long CalculateOptimalAffinityMask(int logicalProcessors, int physicalCores)
+    {
+        if (logicalProcessors <= 4)
+        {
+            // All cores
+            return (1L << logicalProcessors) - 1;
+        }
+
+        // On hybrid or high thread count CPUs, bind to first 4-8 threads (P-Cores / primary CCD)
+        int targetThreads = Math.Min(8, logicalProcessors);
+        if (logicalProcessors >= 16) targetThreads = 8;
+        else if (logicalProcessors >= 8) targetThreads = 8;
+        else if (logicalProcessors >= 6) targetThreads = 6;
+
+        return (1L << targetThreads) - 1;
+    }
+
+    public static bool SetGameLoopAffinity(long affinityMask)
+    {
+        var emulatorNames = new[] { "AppMarket", "AndroidEmulator", "AndroidEmulatorEn", "AndroidEmulatorEx", "aow_exe" };
+        int configuredCount = 0;
+
+        foreach (var name in emulatorNames)
+        {
+            try
+            {
+                var procs = Process.GetProcessesByName(name);
+                foreach (var proc in procs)
+                {
+                    try
+                    {
+                        proc.ProcessorAffinity = (IntPtr)affinityMask;
+                        configuredCount++;
+                    }
+                    catch
+                    {
+                        // Some kernel worker processes may be access restricted
+                    }
+                    finally
+                    {
+                        proc.Dispose();
+                    }
+                }
+            }
+            catch { }
+        }
+
+        if (configuredCount > 0)
+        {
+            Logger.Success("ProcessManager", $"Configured CPU core affinity mask (0x{affinityMask:X}) for {configuredCount} GameLoop processes.");
+        }
+
+        return configuredCount > 0;
+    }
+
+    public static bool ResetGameLoopAffinity()
+    {
+        long fullMask = (1L << Math.Min(64, Environment.ProcessorCount)) - 1;
+        return SetGameLoopAffinity(fullMask);
+    }
 }

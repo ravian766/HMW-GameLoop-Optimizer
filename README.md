@@ -29,42 +29,38 @@ Automatically detects your hardware components and dynamically calculates the op
   - `32+ GB Host RAM`: Allocates 8192 MB (optimal Android VM cap).
 - **Graphics Pipeline**: Configures DirectX+ hardware rasterization, local shader caching, and low-latency V-Sync off.
 
-### 2. 12 Independent Optimization Modules
+### 2. 16 Independent Optimization Modules
 Every module implements `IOptimizationModule` with independent analysis, application, verification, and rollback logic:
 1. **Windows Game Mode**: Prioritizes CPU/GPU scheduling for the active emulator process while suppressing background Windows updates.
 2. **High-Performance Power Delivery**: Switches to High/Ultimate performance power scheme, unparking CPU cores.
 3. **GameLoop CPU & RAM Allocation**: Dynamically writes optimal core/RAM keys to `HKCU\Software\Tencent\MobileGamePC`.
 4. **DirectX+ & Persistent Shader Cache**: Eliminates shader compilation stutters (1% lows).
 5. **PUBG Mobile 90/120 FPS & Device Profile**: Sets high-refresh device profile (ROG Phone 2) to unlock 90/120 FPS in PUBG Mobile settings.
-6. **RAM Working Set & Cache Trim**: Flushes idle background process working sets safely via `EmptyWorkingSet`.
-7. **Safe Temp & Emulator Cache Cleanup**: Cleans obsolete download chunks and temp caches without touching assets.
-8. **0.5ms High-Precision Multimedia Timer**: Increases Windows timer frequency from 15.6ms to 0.5ms–1.0ms for lower frame-time variance.
-9. **Emulator Process Priority Boost**: Elevates `AndroidEmulator.exe` / `aow_exe.exe` to `Above Normal` priority.
-10. **Network Latency & TCP ACK Tuning**: Configures `TcpAckFrequency = 1` and `TCPNoDelay = 1` for lower packet jitter.
-11. **Windows Animation & DWM Overhead Check**: Minimizes non-essential UI animations to free GPU compositing queues.
-12. **Background App Overhead Throttle**: Lowers CPU scheduling priority of resource-heavy background applications during gaming sessions without killing them.
+6. **P-Core / High-Performance Core Affinity**: Locks GameLoop worker threads to Performance Cores (P-Cores), preventing thread allocation to low-clock Efficiency Cores.
+7. **Windows Discrete GPU Preference Enforcer**: Enforces `GpuPreference=2;` for all GameLoop executables to guarantee dedicated NVIDIA/AMD GPU rendering.
+8. **Low-Latency WASAPI Audio**: Sets `audioRenderType=1` to eliminate gunshot sound delay.
+9. **RAM Working Set & Cache Trim**: Flushes idle background process working sets safely via `EmptyWorkingSet`.
+10. **Safe Temp & Emulator Cache Cleanup**: Cleans obsolete download chunks and temp caches without touching assets.
+11. **0.5ms High-Precision Multimedia Timer**: Increases Windows timer frequency from 15.6ms to 0.5ms–1.0ms for lower frame-time variance.
+12. **Emulator Process Priority Boost**: Elevates `AndroidEmulator.exe` / `aow_exe.exe` to `Above Normal` priority.
+13. **Network Latency & TCP ACK Tuning**: Configures `TcpAckFrequency = 1` and `TCPNoDelay = 1` for lower packet jitter.
+14. **Cloudflare Low-Latency Gaming DNS**: Configures fast Anycast DNS (`1.1.1.1` & `1.0.0.1`) and flushes DNS cache.
+15. **Windows Animation & DWM Overhead Check**: Minimizes non-essential UI animations to free GPU compositing queues.
+16. **Background App Overhead Throttle**: Lowers CPU scheduling priority of resource-heavy background applications during gaming sessions without killing them.
 
-### 3. Optimization Scoring (0–100)
-Transparently grades your system and emulator state across 6 weighted categories:
-- Windows Configuration (20 pts)
-- Power Delivery (15 pts)
-- GameLoop Virtual Engine (25 pts)
-- DirectX+ & Shader Caching (20 pts)
-- Memory & Storage Health (10 pts)
-- Background Process Overhead (10 pts)
+### 3. Keymap & Sensitivity Profile Vault
+- **1-Click Backup & Restore**: Snapshot custom keymappings and sensitivity configurations from `TxGameAssistant` to timestamped archives, protecting your controls against emulator update resets.
 
-### 4. Real-Time Telemetry & Live Graphs
-- 1-second interval rolling monitoring for:
-  - CPU Total % & Per-Core Load
-  - GPU 3D Rasterizer Utilization %
-  - Physical RAM Usage % & Available Memory (GB)
-  - Disk I/O Throughput (MB/s)
-  - GameLoop Specific RAM Footprint (MB)
-  - Estimated Frame-Time Variance Index
+### 4. Gaming DNS & Multi-Region Ping Benchmark
+- **Server Latency Radar**: Benchmark real-time ICMP ping and jitter to regional PUBG game servers (Middle East, Europe, Asia, North America).
+- **DNS Resolver Flush**: 1-click Windows resolver cache cleaner.
 
-### 5. Gaming Session Controller
-- **Start Gaming Session**: Snapshots system, arms 0.5ms high-precision timer, boosts emulator priority, trims idle memory, throttles background apps, and focuses/launches GameLoop.
-- **End Gaming Session**: Automatically restores standard timer resolution, process priorities, and background app states, providing a comprehensive session performance report.
+### 5. Auto-Gaming Watchdog & Post-Gaming Maintenance
+- **Auto Launch Detection**: Daemon detects GameLoop startup and auto-engages 0.5ms timer resolution, priority boost, and P-core affinity.
+- **Post-Game Maintenance**: Automatically restores normal timers, cleans RAM working sets, and resets affinity upon GameLoop exit.
+
+### 6. HUD In-Game Stutter Radar (Ctrl+Shift+O)
+- Mini draggable overlay with live CPU %, RAM %, GameLoop MB, and real-time **Stutter & Jitter Radar** health badge.
 
 ---
 

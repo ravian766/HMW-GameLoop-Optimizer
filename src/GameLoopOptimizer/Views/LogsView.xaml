@@ -4,15 +4,15 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="700" d:DesignWidth="900">
-    <Grid Margin="24,20,24,24">
+             d:DesignHeight="720" d:DesignWidth="940">
+    <Grid Margin="28,24,28,28">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <!-- Top Header & Filter Bar -->
-        <Border Grid.Row="0" Style="{StaticResource GlassCard}" Margin="0,0,0,16">
+        <Border Grid.Row="0" Style="{StaticResource GlowingHeroCard}" Margin="0,0,0,18">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -20,40 +20,40 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Optimization &amp; Telemetry Event Log" FontSize="18" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,0,0,4" />
-                    <TextBlock Text="Live auditable log of all system queries, registry updates, and rollback actions." FontSize="12" Foreground="#94A3B8" />
+                    <TextBlock Text="Optimization &amp; Telemetry Event Log" FontSize="19" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,4" />
+                    <TextBlock Text="Live auditable log of all system queries, registry updates, and rollback actions." FontSize="12" Foreground="{StaticResource BrushTextSecondary}" />
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
                     <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                              Width="220"
-                             Padding="8,6"
-                             Background="#10141E"
-                             Foreground="#FFFFFF"
-                             BorderBrush="#222B3D"
+                             Padding="10,7"
+                             Background="{StaticResource BrushBgInput}"
+                             Foreground="{StaticResource BrushTextPrimary}"
+                             BorderBrush="{StaticResource BrushBorderLight}"
                              Margin="0,0,10,0" />
 
-                    <Button Content="Copy Logs"
+                    <Button Content="📋 Copy Logs"
                             Command="{Binding CopyLogsCommand}"
                             Style="{StaticResource SecondaryButton}"
-                            Padding="12,8"
+                            Padding="14,8"
                             Margin="0,0,8,0" />
 
-                    <Button Content="Clear"
+                    <Button Content="🗑️ Clear"
                             Command="{Binding ClearLogsCommand}"
                             Style="{StaticResource DangerButton}"
-                            Padding="12,8" />
+                            Padding="14,8" />
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- Console View -->
-        <Border Grid.Row="1" Background="#090C12" BorderBrush="#1B2333" BorderThickness="1" CornerRadius="8" Padding="12">
+        <Border Grid.Row="1" Background="{StaticResource BrushBgDarkest}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="10" Padding="14">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                 <ItemsControl ItemsSource="{Binding FilteredLogs}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding Formatted}" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="12" Foreground="#CBD5E1" Margin="0,2" />
+                            <TextBlock Text="{Binding Formatted}" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,2" />
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

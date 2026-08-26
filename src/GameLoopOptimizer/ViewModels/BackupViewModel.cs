@@ -57,10 +57,22 @@ public class BackupViewModel : ViewModelBase
 
     public void RefreshList()
     {
-        Backups.Clear();
-        foreach (var entry in BackupManager.GetEntries())
+        void UpdateAction()
         {
-            Backups.Add(entry);
+            Backups.Clear();
+            foreach (var entry in BackupManager.GetEntries())
+            {
+                Backups.Add(entry);
+            }
+        }
+
+        if (System.Windows.Application.Current?.Dispatcher != null && !System.Windows.Application.Current.Dispatcher.CheckAccess())
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(UpdateAction);
+        }
+        else
+        {
+            UpdateAction();
         }
     }
 }

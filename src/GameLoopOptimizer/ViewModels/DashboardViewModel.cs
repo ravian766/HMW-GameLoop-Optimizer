@@ -131,10 +131,22 @@ public class DashboardViewModel : ViewModelBase
         Recommendations = RecommendationEngine.Calculate(hw);
         Score = ScoringEngine.CalculateScore(hw, sys, gl, Recommendations);
 
-        ScoreExplanations.Clear();
-        foreach (var exp in Score.HonestExplanations)
+        void UpdateExplanations()
         {
-            ScoreExplanations.Add(exp);
+            ScoreExplanations.Clear();
+            foreach (var exp in Score.HonestExplanations)
+            {
+                ScoreExplanations.Add(exp);
+            }
+        }
+
+        if (global::System.Windows.Application.Current?.Dispatcher != null && !global::System.Windows.Application.Current.Dispatcher.CheckAccess())
+        {
+            global::System.Windows.Application.Current.Dispatcher.Invoke(UpdateExplanations);
+        }
+        else
+        {
+            UpdateExplanations();
         }
 
         OnPropertyChanged(nameof(Hardware));

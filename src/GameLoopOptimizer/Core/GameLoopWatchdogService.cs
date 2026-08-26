@@ -85,17 +85,24 @@ public class GameLoopWatchdogService : IDisposable
 
     private void OnGameLoopLaunched()
     {
-        Logger.Success("Watchdog", "Detected GameLoop launch! Auto-activating 0.5ms high precision timer & priority boost.");
+        Logger.Success("Watchdog", "Detected GameLoop launch! Auto-activating 0.5ms high precision timer, priority boost & P-core affinity.");
         TimerResolutionModule.SetHighPrecision(0.5);
         ProcessManager.SetGameLoopPriority(ProcessPriorityClass.AboveNormal);
+
+        long mask = ProcessManager.CalculateOptimalAffinityMask(Environment.ProcessorCount, Math.Max(1, Environment.ProcessorCount / 2));
+        ProcessManager.SetGameLoopAffinity(mask);
+
         ProcessManager.TrimWorkingSets();
         GameLoopStateChanged?.Invoke(true);
     }
 
     private void OnGameLoopClosed()
     {
-        Logger.Info("Watchdog", "GameLoop closed. Restoring default Windows timer resolution.");
+        Logger.Info("Watchdog", "GameLoop closed. Running post-game cleanup & restoring standard Windows timer.");
         TimerResolutionModule.RestoreTimer();
+        ProcessManager.ResetGameLoopAffinity();
+        int freed = ProcessManager.TrimWorkingSets();
+        Logger.Success("Watchdog", $"Post-gaming maintenance: Cleaned working sets across {freed} processes.");
         GameLoopStateChanged?.Invoke(false);
     }
 

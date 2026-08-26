@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="HMW Mini Overlay"
-        Height="46"
-        Width="460"
+        Height="48"
+        Width="480"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -12,17 +12,22 @@
         WindowStartupLocation="Manual"
         Left="30"
         Top="30"
-        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        TextOptions.TextHintingMode="Fixed"
+        RenderOptions.ClearTypeHint="Enabled">
 
-    <Border Background="#E60A0D14"
-            BorderBrush="#3300F0FF"
+    <Border Background="#F2080B12"
+            BorderBrush="#4D00F2FE"
             BorderThickness="1"
-            CornerRadius="8">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="12" Color="#000000" Opacity="0.75" ShadowDepth="2" />
-        </Border.Effect>
+            CornerRadius="10"
+            SnapsToDevicePixels="True"
+            UseLayoutRounding="True">
 
-        <Grid Margin="12,0">
+        <Grid Margin="14,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -30,39 +35,44 @@
             </Grid.ColumnDefinitions>
 
             <!-- Brand Badge -->
-            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                <Border Background="#1A00F0FF" CornerRadius="4" Padding="6,2">
-                    <TextBlock Text="HMW HUD" FontSize="10" FontWeight="Bold" Foreground="#00F0FF" />
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
+                <Border Background="{StaticResource BrushCyanGradient}" CornerRadius="5" Padding="7,3">
+                    <TextBlock Text="HMW HUD" FontSize="10" FontWeight="Bold" Foreground="#04060A" />
                 </Border>
             </StackPanel>
 
             <!-- Metrics Bar -->
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                 <!-- CPU -->
-                <TextBlock Text="CPU " FontSize="11" Foreground="#94A3B8" />
-                <TextBlock x:Name="TxtCpu" Text="0%" FontSize="11" FontWeight="SemiBold" Foreground="#FFFFFF" Margin="0,0,12,0" />
+                <TextBlock Text="CPU " FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextMuted}" />
+                <TextBlock x:Name="TxtCpu" Text="0%" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,12,0" />
 
                 <!-- Host RAM -->
-                <TextBlock Text="RAM " FontSize="11" Foreground="#94A3B8" />
-                <TextBlock x:Name="TxtRam" Text="0%" FontSize="11" FontWeight="SemiBold" Foreground="#FFFFFF" Margin="0,0,12,0" />
+                <TextBlock Text="RAM " FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextMuted}" />
+                <TextBlock x:Name="TxtRam" Text="0%" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,12,0" />
 
                 <!-- Emulator MB -->
-                <TextBlock Text="GameLoop " FontSize="11" Foreground="#94A3B8" />
-                <TextBlock x:Name="TxtEmulator" Text="0 MB" FontSize="11" FontWeight="SemiBold" Foreground="#00F0FF" Margin="0,0,12,0" />
+                <TextBlock Text="GameLoop " FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextMuted}" />
+                <TextBlock x:Name="TxtEmulator" Text="0 MB" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" Margin="0,0,12,0" />
+
+                <!-- Stutter Radar Badge -->
+                <Border x:Name="BadgeRadar" Background="#2610B981" BorderBrush="#4D10B981" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,10,0">
+                    <TextBlock x:Name="TxtRadar" Text="⚡ Stable" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushAccentGreen}" />
+                </Border>
 
                 <!-- Timer -->
-                <Border Background="#1A00E676" CornerRadius="3" Padding="4,1">
-                    <TextBlock Text="0.50ms" FontSize="10" FontWeight="SemiBold" Foreground="#00E676" />
+                <Border Background="#1A00F2FE" BorderBrush="#3300F2FE" BorderThickness="1" CornerRadius="4" Padding="5,2">
+                    <TextBlock Text="0.50ms" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" />
                 </Border>
             </StackPanel>
 
             <!-- Close overlay button -->
             <Button Grid.Column="2"
                     Content="✕"
-                    Foreground="#94A3B8"
+                    Foreground="{StaticResource BrushTextMuted}"
                     Background="Transparent"
                     BorderThickness="0"
-                    FontSize="10"
+                    FontSize="11"
                     Cursor="Hand"
                     VerticalAlignment="Center"
                     Click="Close_Click" />

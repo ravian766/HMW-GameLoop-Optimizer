@@ -106,12 +106,26 @@ public class GameLoopViewModel : ViewModelBase
         set => SetProperty(ref _statusMessage, value);
     }
 
+    public ObservableCollection<KeymapBackupProfile> KeymapProfiles { get; } = new();
+    public ObservableCollection<RegionPingResult> PingResults { get; } = new();
+
+    private bool _isBenchmarkingPing;
+    public bool IsBenchmarkingPing
+    {
+        get => _isBenchmarkingPing;
+        set => SetProperty(ref _isBenchmarkingPing, value);
+    }
+
     public ICommand ApplySettingsCommand { get; }
     public ICommand ApplyRecommendedCommand { get; }
     public ICommand LaunchGameLoopCommand { get; }
     public ICommand RestartGameLoopCommand { get; }
     public ICommand PurgeShaderCacheCommand { get; }
     public ICommand CreateShortcutCommand { get; }
+    public ICommand BackupKeymapCommand { get; }
+    public ICommand RestoreKeymapCommand { get; }
+    public ICommand BenchmarkPingCommand { get; }
+    public ICommand FlushDnsCommand { get; }
 
     public event EventHandler? SettingsSaved;
 
@@ -120,6 +134,8 @@ public class GameLoopViewModel : ViewModelBase
         _getHw = getHw;
         _getGl = getGl;
         _selectedDeviceProfile = DeviceProfiles.First();
+
+        KeymapBackupManager.ProfilesChanged += (s, e) => RefreshKeymaps();
 
         ApplySettingsCommand = new AsyncRelayCommand(SaveCustomSettingsAsync);
         ApplyRecommendedCommand = new AsyncRelayCommand(ApplyRecommendedSettingsAsync);
@@ -144,7 +160,106 @@ public class GameLoopViewModel : ViewModelBase
             StatusMessage = created ? "Created 'HMW - Launch PUBG Mobile (Optimized)' shortcut on Desktop!" : "Failed to create shortcut.";
         });
 
+        BackupKeymapCommand = new AsyncRelayCommand(async () =>
+        {
+            StatusMessage = "Archiving custom keymapping and sensitivity layout...";
+            var profile = await KeymapBackupManager.CreateBackupAsync(Config);
+            StatusMessage = profile != null 
+                ? $"Keymap snapshot saved ({profile.FilesArchived} files archived)." 
+                : "Failed to backup keymaps.";
+            RefreshKeymaps();
+        });
+
+        RestoreKeymapCommand = new AsyncRelayCommand(async (param) =>
+        {
+            if (param is KeymapBackupProfile profile)
+            {
+                StatusMessage = $"Restoring keymap profile '{profile.Name}'...";
+                bool ok = await KeymapBackupManager.RestoreBackupAsync(profile.Id, Config);
+                StatusMessage = ok ? $"Keymap profile '{profile.Name}' restored!" : "Failed to restore keymap profile.";
+            }
+        });
+
+        BenchmarkPingCommand = new AsyncRelayCommand(async () =>
+        {
+            IsBenchmarkingPing = true;
+            StatusMessage = "Benchmarking regional game servers...";
+            
+            void ClearAction() => PingResults.Clear();
+            if (System.Windows.Application.Current?.Dispatcher != null && !System.Windows.Application.Current.Dispatcher.CheckAccess())
+                System.Windows.Application.Current.Dispatcher.Invoke(ClearAction);
+            else
+                ClearAction();
+
+            try
+            {
+                var results = await DnsOptimizerService.BenchmarkGameRegionsAsync();
+                void AddAction()
+                {
+                    foreach (var r in results) PingResults.Add(r);
+                }
+                if (System.Windows.Application.Current?.Dispatcher != null && !System.Windows.Application.Current.Dispatcher.CheckAccess())
+                    System.Windows.Application.Current.Dispatcher.Invoke(AddAction);
+                else
+                    AddAction();
+
+                StatusMessage = "Ping benchmark complete.";
+            }
+            finally
+            {
+                IsBenchmarkingPing = false;
+            }
+        });
+
+        FlushDnsCommand = new AsyncRelayCommand(async () =>
+        {
+            StatusMessage = "Flushing DNS Resolver Cache...";
+            bool ok = await DnsOptimizerService.FlushDnsCacheAsync();
+            StatusMessage = ok ? "DNS Resolver cache flushed successfully." : "Failed to flush DNS cache.";
+        });
+
+        RecalculateSensitivityCommand = new RelayCommand(() => RecalculateSensitivity());
+
+        StartMouseBenchmarkCommand = new RelayCommand(() =>
+        {
+            IsBenchmarkingMouse = true;
+            _mouseBenchmark.Start();
+            MouseMetrics = _mouseBenchmark.GetCurrentMetrics();
+            StatusMessage = "Mouse Polling Benchmark active. Move your cursor inside the test canvas.";
+        });
+
+        StopMouseBenchmarkCommand = new RelayCommand(() =>
+        {
+            _mouseBenchmark.Stop();
+            IsBenchmarkingMouse = false;
+            MouseMetrics = _mouseBenchmark.GetCurrentMetrics();
+            StatusMessage = "Mouse Polling Benchmark stopped.";
+        });
+
         RefreshData();
+        RefreshKeymaps();
+        RecalculateSensitivity();
+    }
+
+    public void RefreshKeymaps()
+    {
+        void UpdateAction()
+        {
+            KeymapProfiles.Clear();
+            foreach (var p in KeymapBackupManager.GetProfiles())
+            {
+                KeymapProfiles.Add(p);
+            }
+        }
+
+        if (System.Windows.Application.Current?.Dispatcher != null && !System.Windows.Application.Current.Dispatcher.CheckAccess())
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(UpdateAction);
+        }
+        else
+        {
+            UpdateAction();
+        }
     }
 
     public void RefreshData()
@@ -288,5 +403,86 @@ public class GameLoopViewModel : ViewModelBase
 
         await SaveCustomSettingsAsync();
         StatusMessage = "Applied hardware-recommended GameLoop/TGB settings. (Restart GameLoop if open)";
+    }
+
+    // Sensitivity & Recoil Calibration
+    private int _selectedMouseDpi = 800;
+    public int SelectedMouseDpi
+    {
+        get => _selectedMouseDpi;
+        set
+        {
+            if (SetProperty(ref _selectedMouseDpi, value))
+            {
+                RecalculateSensitivity();
+            }
+        }
+    }
+
+    public ObservableCollection<int> DpiOptions { get; } = new() { 400, 800, 1000, 1200, 1600, 2400, 3200 };
+
+    private AimPlaystyle _selectedPlaystyle = AimPlaystyle.BalancedCompetitive;
+    public AimPlaystyle SelectedPlaystyle
+    {
+        get => _selectedPlaystyle;
+        set
+        {
+            if (SetProperty(ref _selectedPlaystyle, value))
+            {
+                RecalculateSensitivity();
+            }
+        }
+    }
+
+    public ObservableCollection<AimPlaystyle> PlaystyleOptions { get; } = new()
+    {
+        AimPlaystyle.PrecisionLowSens,
+        AimPlaystyle.BalancedCompetitive,
+        AimPlaystyle.HighSensFastFlick
+    };
+
+    private SensitivityProfileResult _sensitivityResult = SensitivityCalculator.Calculate(800, AimPlaystyle.BalancedCompetitive);
+    public SensitivityProfileResult SensitivityResult
+    {
+        get => _sensitivityResult;
+        set => SetProperty(ref _sensitivityResult, value);
+    }
+
+    // Mouse Benchmark Tool
+    private readonly MouseBenchmarkService _mouseBenchmark = new();
+    private MouseBenchmarkMetrics _mouseMetrics = new();
+    public MouseBenchmarkMetrics MouseMetrics
+    {
+        get => _mouseMetrics;
+        set => SetProperty(ref _mouseMetrics, value);
+    }
+
+    private bool _isBenchmarkingMouse;
+    public bool IsBenchmarkingMouse
+    {
+        get => _isBenchmarkingMouse;
+        set => SetProperty(ref _isBenchmarkingMouse, value);
+    }
+
+    public ICommand RecalculateSensitivityCommand { get; }
+    public ICommand StartMouseBenchmarkCommand { get; }
+    public ICommand StopMouseBenchmarkCommand { get; }
+
+    public void RecalculateSensitivity()
+    {
+        SensitivityResult = SensitivityCalculator.Calculate(SelectedMouseDpi, SelectedPlaystyle, ResHeight);
+    }
+
+    public void RecordMouseSample()
+    {
+        if (IsBenchmarkingMouse)
+        {
+            MouseMetrics = _mouseBenchmark.RecordMovement();
+        }
+    }
+
+    private void InitAimAndBenchmarkCommands()
+    {
+        // Already initialized
     }
 }

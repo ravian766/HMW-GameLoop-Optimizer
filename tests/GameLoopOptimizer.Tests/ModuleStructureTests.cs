@@ -17,18 +17,21 @@ public class ModuleStructureTests
             new GameLoopResourceModule(),
             new GameLoopGraphicsModule(),
             new GameLoopPUBGConfigModule(),
+            new CpuAffinityModule(),
+            new GpuPreferenceModule(),
             new AudioLatencyModule(),
             new MemoryOptimizerModule(),
             new CleanupOptimizerModule(),
             new TimerResolutionModule(),
             new ProcessPriorityModule(),
             new NetworkLatencyModule(),
+            new NetworkDnsModule(),
             new VisualEffectsModule(),
             new BackgroundThrottleModule()
         };
 
         // Assert
-        Assert.Equal(13, modules.Count);
+        Assert.Equal(16, modules.Count);
 
         var ids = modules.Select(m => m.Id).ToList();
         Assert.Equal(ids.Count, ids.Distinct().Count()); // All IDs unique

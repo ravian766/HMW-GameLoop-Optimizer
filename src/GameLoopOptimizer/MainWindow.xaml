@@ -6,22 +6,30 @@
         xmlns:local="clr-namespace:GameLoopOptimizer"
         xmlns:vm="clr-namespace:GameLoopOptimizer.ViewModels"
         mc:Ignorable="d"
-        Title="HMW - GameLoop &amp; Windows Performance Optimizer"
-        Height="800" Width="1200"
-        MinHeight="680" MinWidth="980"
+        Title="HMW • GameLoop &amp; Windows Precision Optimizer"
+        Height="820" Width="1240"
+        MinHeight="700" MinWidth="1020"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BrushBgMain}"
-        Foreground="{StaticResource BrushTextPrimary}">
+        Foreground="{StaticResource BrushTextPrimary}"
+        FontFamily="Segoe UI, Segoe UI Variable, Arial"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        TextOptions.TextHintingMode="Fixed"
+        RenderOptions.ClearTypeHint="Enabled"
+        RenderOptions.BitmapScalingMode="HighQuality">
     
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="250" />
+            <ColumnDefinition Width="260" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
         <!-- Left Navigation Sidebar -->
         <Border Grid.Column="0" Background="{StaticResource BrushBgSidebar}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,1,0">
-            <Grid Margin="16,20,16,16">
+            <Grid Margin="18,22,18,18">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
@@ -29,15 +37,22 @@
                 </Grid.RowDefinitions>
 
                 <!-- Brand Header -->
-                <StackPanel Grid.Row="0" Margin="4,0,4,24">
+                <StackPanel Grid.Row="0" Margin="4,0,4,28">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <Border Background="{StaticResource BrushCyanGradient}" CornerRadius="6" Width="26" Height="26" Margin="0,0,10,0">
-                            <TextBlock Text="⚡" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#06080D" />
+                        <Border Background="{StaticResource BrushCyanGradient}" CornerRadius="7" Width="30" Height="30" Margin="0,0,12,0">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="12" Color="#00F2FE" Opacity="0.6" ShadowDepth="0" />
+                            </Border.Effect>
+                            <TextBlock Text="⚡" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#04060A" />
                         </Border>
-                        <TextBlock Text="HMW" FontSize="16" FontWeight="Bold" Foreground="#00F0FF" VerticalAlignment="Center" Margin="0,0,6,0" />
-                        <TextBlock Text="GAMELOOP" FontSize="16" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center" />
+                        <StackPanel VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="HMW" FontSize="17" FontWeight="Bold" Foreground="#00F2FE" Margin="0,0,5,0" />
+                                <TextBlock Text="OPTIMIZER" FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" />
+                            </StackPanel>
+                            <TextBlock Text="GameLoop &amp; PUBG Suite" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource BrushTextMuted}" Margin="1,1,0,0" />
+                        </StackPanel>
                     </StackPanel>
-                    <TextBlock Text="PUBG Mobile Performance Suite" FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="36,0,0,0" />
                 </StackPanel>
 
                 <!-- Navigation Tabs -->
@@ -48,7 +63,7 @@
                                  Command="{Binding NavigateCommand}"
                                  CommandParameter="Dashboard" />
 
-                    <RadioButton Content="⚡  Optimizer"
+                    <RadioButton Content="⚡  Optimizer Suite"
                                  Style="{StaticResource NavTabButton}"
                                  Command="{Binding NavigateCommand}"
                                  CommandParameter="Optimizer" />
@@ -80,7 +95,7 @@
                 </StackPanel>
 
                 <!-- Bottom System & Privilege Status Card -->
-                <Border Grid.Row="2" Background="#111622" BorderBrush="#1C2436" BorderThickness="1" CornerRadius="8" Padding="12">
+                <Border Grid.Row="2" Background="{StaticResource BrushBgCard}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14">
                     <StackPanel>
                         <!-- Admin Status -->
                         <Grid Margin="0,0,0,6">
@@ -91,7 +106,7 @@
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="🛡️ " FontSize="11" VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding IsAdmin, Converter={StaticResource BooleanToStatusTextConverter}, FallbackValue='Standard User'}"
-                                           FontSize="11" FontWeight="SemiBold"
+                                           FontSize="11" FontWeight="Bold"
                                            Foreground="{Binding IsAdmin, Converter={StaticResource BooleanToRunningStatusConverter}, FallbackValue='#94A3B8'}"
                                            VerticalAlignment="Center" />
                             </StackPanel>
@@ -100,16 +115,16 @@
                                     Content="Elevate"
                                     Command="{Binding ElevateCommand}"
                                     Style="{StaticResource SecondaryButton}"
-                                    Padding="6,2"
+                                    Padding="8,3"
                                     FontSize="10"
                                     Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Invert}" />
                         </Grid>
 
-                        <Separator Background="#1E273A" Margin="0,4,0,6" />
+                        <Separator Background="{StaticResource BrushBorderSubtle}" Margin="0,4,0,8" />
 
                         <!-- Hardware Mini Summary -->
-                        <TextBlock Text="{Binding Hardware.CpuName}" FontSize="10" Foreground="#94A3B8" TextTrimming="CharacterEllipsis" Margin="0,0,0,2" />
-                        <TextBlock Text="{Binding Hardware.GpuName}" FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Hardware.CpuName}" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" TextTrimming="CharacterEllipsis" Margin="0,0,0,2" />
+                        <TextBlock Text="{Binding Hardware.GpuName}" FontSize="10" Foreground="{StaticResource BrushTextMuted}" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
                 </Border>
 

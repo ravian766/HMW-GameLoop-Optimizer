@@ -4,43 +4,43 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="750" d:DesignWidth="900">
+             d:DesignHeight="780" d:DesignWidth="940">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="24,20,24,24">
+        <StackPanel Margin="28,24,28,28">
 
             <!-- Top Emulator Status Header -->
-            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,16">
+            <Border Style="{StaticResource GlowingHeroCard}" Margin="0,0,0,18">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <StackPanel>
+                    <StackPanel VerticalAlignment="Center">
                         <WrapPanel Orientation="Horizontal" Margin="0,0,0,4">
-                            <TextBlock Text="GameLoop Virtualization Studio" FontSize="18" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,0,10,0" />
-                            <Border Background="#1F293D" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Config.Brand, FallbackValue='GameLoop'}" FontSize="11" FontWeight="SemiBold" Foreground="#00E5FF" />
+                            <TextBlock Text="GameLoop Virtualization Studio" FontSize="19" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,10,0" />
+                            <Border Background="#1A00F2FE" BorderBrush="#3300F2FE" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Config.Brand, FallbackValue='GameLoop'}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" />
                             </Border>
                         </WrapPanel>
-                        <TextBlock Text="Direct hardware-aware emulator engine and PUBG Mobile profile configuration." FontSize="13" Foreground="#94A3B8" Margin="0,0,0,8" />
-                        <TextBlock Text="{Binding Config.InstallPath, StringFormat='Installation: {0}', FallbackValue='Path: Auto-Detected'}" FontSize="11" Foreground="#64748B" />
+                        <TextBlock Text="Direct hardware-aware emulator engine and PUBG Mobile profile configuration." FontSize="13" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,6" />
+                        <TextBlock Text="{Binding Config.InstallPath, StringFormat='Root: {0}', FallbackValue='Root: Auto-Detected'}" FontSize="11" Foreground="{StaticResource BrushTextMuted}" />
                     </StackPanel>
 
                     <Button Grid.Column="1"
-                            Content="Launch / Focus GameLoop"
+                            Content="🚀 Launch / Focus GameLoop"
                             Command="{Binding LaunchGameLoopCommand}"
                             Style="{StaticResource PrimaryButton}"
                             VerticalAlignment="Center"
-                            Padding="16,10" />
+                            Padding="20,12" />
                 </Grid>
             </Border>
 
             <!-- Recommendation Summary Banner -->
-            <Border Background="#121826" BorderBrush="#1F2A3F" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,16">
+            <Border Background="{StaticResource BrushCardGradient}" BorderBrush="{StaticResource BrushBorderLight}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,18">
                 <StackPanel>
-                    <TextBlock Text="Dynamic Hardware Recommendation" FontSize="13" FontWeight="SemiBold" Foreground="#00E5FF" Margin="0,0,0,4" />
-                    <TextBlock Text="{Binding Recommendations.RecommendationSummary}" FontSize="12" Foreground="#CBD5E1" TextWrapping="Wrap" />
+                    <TextBlock Text="⚡ Dynamic Hardware Recommendation" FontSize="13" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" Margin="0,0,0,4" />
+                    <TextBlock Text="{Binding Recommendations.RecommendationSummary}" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 
@@ -54,10 +54,10 @@
                 <!-- Left Column: Engine Settings -->
                 <Border Grid.Column="0" Style="{StaticResource GlassCard}" Margin="0,0,8,0">
                     <StackPanel>
-                        <TextBlock Text="Engine &amp; Resource Allocation" FontSize="15" FontWeight="SemiBold" Foreground="#FFFFFF" Margin="0,0,0,14" />
+                        <TextBlock Text="Virtual Engine &amp; Allocation" FontSize="15" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,14" />
 
                         <!-- CPU Cores -->
-                        <TextBlock Text="CPU Core Count Allocation" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,4" />
+                        <TextBlock Text="CPU Core Count Allocation" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,4" />
                         <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding CpuCores}" Margin="0,0,0,12">
                             <ComboBoxItem Content="2 Cores (Low-End / Dual-Core Host)" Tag="{Binding Path=2, FallbackValue=2}" />
                             <ComboBoxItem Content="4 Cores (Recommended Sweet Spot)" Tag="{Binding Path=4, FallbackValue=4}" />
@@ -66,7 +66,7 @@
                         </ComboBox>
 
                         <!-- RAM MB -->
-                        <TextBlock Text="RAM Memory Size" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,4" />
+                        <TextBlock Text="RAM Memory Allocation" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,4" />
                         <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding RamMb}" Margin="0,0,0,12">
                             <ComboBoxItem Content="2048 MB (2 GB - Minimal)" Tag="{Binding Path=2048, FallbackValue=2048}" />
                             <ComboBoxItem Content="4096 MB (4 GB - Standard)" Tag="{Binding Path=4096, FallbackValue=4096}" />
@@ -84,74 +84,79 @@
                 <!-- Right Column: PUBG Mobile Display & Profile -->
                 <Border Grid.Column="1" Style="{StaticResource GlassCard}" Margin="8,0,0,0">
                     <StackPanel>
-                        <TextBlock Text="PUBG Mobile Display &amp; Frame Rate" FontSize="15" FontWeight="SemiBold" Foreground="#FFFFFF" Margin="0,0,0,14" />
+                        <TextBlock Text="PUBG Mobile Display &amp; FPS" FontSize="15" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,14" />
 
                         <!-- Device Profile -->
-                        <TextBlock Text="PUBG Mobile Device Fingerprint Profile" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,4" />
+                        <TextBlock Text="Device Fingerprint Profile (ROG Phone 2)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,4" />
                         <ComboBox ItemsSource="{Binding DeviceProfiles}"
                                   SelectedItem="{Binding SelectedDeviceProfile}"
                                   DisplayMemberPath="DisplayName"
                                   Margin="0,0,0,12" />
 
                         <!-- Target FPS -->
-                        <TextBlock Text="PUBG Target FPS Level" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,4" />
+                        <TextBlock Text="Target Refresh Level" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,4" />
                         <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding FpsLevel}" Margin="0,0,0,12">
                             <ComboBoxItem Content="60 FPS (Standard 60Hz Displays)" Tag="{Binding Path=60, FallbackValue=60}" />
                             <ComboBoxItem Content="90 FPS (Smooth High Refresh)" Tag="{Binding Path=90, FallbackValue=90}" />
-                            <ComboBoxItem Content="120 FPS (ROG Phone 2 Profile - Ultra Smooth)" Tag="{Binding Path=120, FallbackValue=120}" />
+                            <ComboBoxItem Content="120 FPS (Ultra High Refresh)" Tag="{Binding Path=120, FallbackValue=120}" />
                         </ComboBox>
 
                         <!-- Resolution -->
-                        <TextBlock Text="Emulator Resolution" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,4" />
-                        <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding SelectedResolutionString}" Margin="0,0,0,12">
+                        <TextBlock Text="Internal Rendering Resolution" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,4" />
+                        <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding SelectedResolutionString}" Margin="0,0,0,14">
                             <ComboBoxItem Content="1280 x 720 (720p - Maximum FPS on Low-End)" Tag="1280x720" />
-                            <ComboBoxItem Content="1920 x 1080 (1080p - Balanced 1080p)" Tag="1920x1080" />
-                            <ComboBoxItem Content="2560 x 1440 (2K - High-End Dedicated GPU)" Tag="2560x1440" />
+                            <ComboBoxItem Content="1920 x 1080 (1080p - Balanced FHD)" Tag="1920x1080" />
+                            <ComboBoxItem Content="2560 x 1440 (2K - Dedicated GPU Crisp)" Tag="2560x1440" />
                         </ComboBox>
 
                         <!-- Actions Grid -->
-                        <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
                             <Button Content="Save Custom Settings"
                                     Command="{Binding ApplySettingsCommand}"
                                     Style="{StaticResource PrimaryButton}"
-                                    Padding="10,6"
+                                    Padding="12,7"
+                                    FontSize="11"
                                     Margin="0,0,6,6" />
 
                             <Button Content="Apply Recommended"
                                     Command="{Binding ApplyRecommendedCommand}"
                                     Style="{StaticResource SecondaryButton}"
-                                    Padding="10,6"
+                                    Padding="12,7"
+                                    FontSize="11"
                                     Margin="0,0,6,6" />
 
-                            <Button Content="Restart GameLoop / TGB"
+                            <Button Content="🔄 Restart GameLoop"
                                     Command="{Binding RestartGameLoopCommand}"
                                     Style="{StaticResource SuccessButton}"
-                                    Padding="10,6"
+                                    Padding="12,7"
+                                    FontSize="11"
                                     Margin="0,0,6,6" />
 
                             <Button Content="🧹 Purge Shader Cache"
                                     Command="{Binding PurgeShaderCacheCommand}"
                                     Style="{StaticResource SecondaryButton}"
-                                    Padding="10,6"
+                                    Padding="12,7"
+                                    FontSize="11"
                                     Margin="0,0,6,6" />
 
-                            <Button Content="⚡ Create Desktop Shortcut"
+                            <Button Content="⚡ Desktop Shortcut"
                                     Command="{Binding CreateShortcutCommand}"
                                     Style="{StaticResource SecondaryButton}"
-                                    Padding="10,6"
+                                    Padding="12,7"
+                                    FontSize="11"
                                     Margin="0,0,0,6" />
                         </WrapPanel>
 
-                        <TextBlock Text="{Binding StatusMessage}" FontSize="11" Foreground="#00F0FF" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        <TextBlock Text="{Binding StatusMessage}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushAccentCyan}" TextWrapping="Wrap" Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
             </Grid>
 
             <!-- In-Game PUBG Mobile Settings Recommendation Guide -->
-            <Border Style="{StaticResource GlassCard}">
+            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,18">
                 <StackPanel>
-                    <TextBlock Text="PUBG Mobile In-Game Recommended Settings Guide" FontSize="15" FontWeight="SemiBold" Foreground="#FFFFFF" Margin="0,0,0,10" />
-                    <TextBlock Text="For the lowest frame-time spikes and most responsive input latency, configure your in-game settings as follows:" FontSize="12" Foreground="#94A3B8" Margin="0,0,0,12" />
+                    <TextBlock Text="PUBG Mobile In-Game Configuration Guide" FontSize="15" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,6" />
+                    <TextBlock Text="For the lowest frame-time spikes and most responsive input latency, configure your in-game settings as follows:" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,14" />
 
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -160,33 +165,282 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <Border Grid.Column="0" Background="#101520" CornerRadius="6" Padding="12" Margin="0,0,6,0">
+                        <Border Grid.Column="0" Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,6,0">
                             <StackPanel>
-                                <TextBlock Text="GRAPHICS TAB" FontSize="11" FontWeight="Bold" Foreground="#00E5FF" Margin="0,0,0,4" />
-                                <TextBlock Text="• Graphics: Smooth" FontSize="12" Foreground="#FFFFFF" Margin="0,0,0,2" />
-                                <TextBlock Text="• Frame Rate: 90 fps / Extreme" FontSize="12" Foreground="#FFFFFF" Margin="0,0,0,2" />
-                                <TextBlock Text="• Style: Colorful" FontSize="12" Foreground="#FFFFFF" />
+                                <TextBlock Text="GRAPHICS TAB" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" Margin="0,0,0,6" />
+                                <TextBlock Text="• Graphics: Smooth" FontSize="12" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,3" />
+                                <TextBlock Text="• Frame Rate: 90 fps / Extreme" FontSize="12" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,3" />
+                                <TextBlock Text="• Style: Colorful" FontSize="12" Foreground="{StaticResource BrushTextPrimary}" />
                             </StackPanel>
                         </Border>
 
-                        <Border Grid.Column="1" Background="#101520" CornerRadius="6" Padding="12" Margin="3,0,3,0">
+                        <Border Grid.Column="1" Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="3,0,3,0">
                             <StackPanel>
-                                <TextBlock Text="ADVANCED TAB" FontSize="11" FontWeight="Bold" Foreground="#00E5FF" Margin="0,0,0,4" />
-                                <TextBlock Text="• Anti-Aliasing: Disabled" FontSize="12" Foreground="#FFFFFF" Margin="0,0,0,2" />
-                                <TextBlock Text="• Shadows: Disabled" FontSize="12" Foreground="#FFFFFF" Margin="0,0,0,2" />
-                                <TextBlock Text="• Brightness: 115% - 130%" FontSize="12" Foreground="#FFFFFF" />
+                                <TextBlock Text="ADVANCED TAB" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" Margin="0,0,0,6" />
+                                <TextBlock Text="• Anti-Aliasing: Disabled" FontSize="12" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,3" />
+                                <TextBlock Text="• Shadows: Disabled" FontSize="12" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,3" />
+                                <TextBlock Text="• Brightness: 115% - 130%" FontSize="12" Foreground="{StaticResource BrushTextPrimary}" />
                             </StackPanel>
                         </Border>
 
-                        <Border Grid.Column="2" Background="#101520" CornerRadius="6" Padding="12" Margin="6,0,0,0">
+                        <Border Grid.Column="2" Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="6,0,0,0">
                             <StackPanel>
-                                <TextBlock Text="AUTO-ADJUST" FontSize="11" FontWeight="Bold" Foreground="#00E5FF" Margin="0,0,0,4" />
-                                <TextBlock Text="• Auto-Adjust Graphics: OFF" FontSize="12" Foreground="#FFFFFF" Margin="0,0,0,2" />
-                                <TextBlock Text="• Non-Standard Screens: Normal" FontSize="12" Foreground="#FFFFFF" Margin="0,0,0,2" />
-                                <TextBlock Text="• Sound Quality: Ultra" FontSize="12" Foreground="#FFFFFF" />
+                                <TextBlock Text="AUDIO &amp; SYSTEM" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" Margin="0,0,0,6" />
+                                <TextBlock Text="• Auto-Adjust Graphics: OFF" FontSize="12" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,3" />
+                                <TextBlock Text="• Non-Standard Screens: Normal" FontSize="12" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,3" />
+                                <TextBlock Text="• Sound Quality: High" FontSize="12" Foreground="{StaticResource BrushTextPrimary}" />
                             </StackPanel>
                         </Border>
                     </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Keymap & Sensitivity Vault -->
+            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,18">
+                <StackPanel>
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="💾 Keymap &amp; Sensitivity Profile Vault" FontSize="15" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" />
+                            <TextBlock Text="Backup custom key bindings, mouse curves, and sensitivity layout to protect against emulator update resets." FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,2,0,0" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Content="➕ Backup Current Keymap"
+                                Style="{StaticResource PrimaryButton}"
+                                Padding="16,8"
+                                FontSize="12"
+                                Command="{Binding BackupKeymapCommand}" />
+                    </Grid>
+
+                    <ItemsControl ItemsSource="{Binding KeymapProfiles}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" />
+                                            <TextBlock Text="{Binding FormattedDate}" FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,1,0,0" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1" Text="{Binding FilesArchived, StringFormat='{}{0} files archived'}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" VerticalAlignment="Center" Margin="0,0,16,0" />
+                                        <Button Grid.Column="2"
+                                                Content="Restore Layout"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Padding="12,5"
+                                                FontSize="11"
+                                                Command="{Binding DataContext.RestoreKeymapCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Gaming DNS & Ping Benchmark Tool -->
+            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,18">
+                <StackPanel>
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="🌐 Gaming DNS &amp; Server Latency Benchmark" FontSize="15" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" />
+                            <TextBlock Text="Test regional PUBG server latency and flush your Windows DNS cache for lowest packet jitter." FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,2,0,0" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Content="🧹 Flush DNS Cache"
+                                Style="{StaticResource SecondaryButton}"
+                                Padding="12,8"
+                                Margin="0,0,8,0"
+                                Command="{Binding FlushDnsCommand}" />
+                        <Button Grid.Column="2"
+                                Content="⚡ Benchmark Latency"
+                                Style="{StaticResource SuccessButton}"
+                                Padding="16,8"
+                                Command="{Binding BenchmarkPingCommand}" />
+                    </Grid>
+
+                    <ItemsControl ItemsSource="{Binding PingResults}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding RegionName}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding StatusText}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource BrushAccentGreen}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Pro Sensitivity & Recoil ADS Calculator -->
+            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,18">
+                <StackPanel>
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="🎯 Pro Sensitivity &amp; Recoil ADS Calculator" FontSize="15" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" />
+                            <TextBlock Text="Calculate mathematically optimal GameLoop X/Y keymap sensitivity and PUBG in-game ADS values for laser recoil control." FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="1.2*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="MOUSE DPI" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,0,4" />
+                            <ComboBox ItemsSource="{Binding DpiOptions}"
+                                      SelectedItem="{Binding SelectedMouseDpi}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="8,0,8,0">
+                            <TextBlock Text="AIM PLAYSTYLE" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,0,4" />
+                            <ComboBox ItemsSource="{Binding PlaystyleOptions}"
+                                      SelectedItem="{Binding SelectedPlaystyle}" />
+                        </StackPanel>
+
+                        <Border Grid.Column="2" Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="8,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="GAMELOOP KEYMAP (F1)" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" Margin="0,0,0,3" />
+                                <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}">
+                                    <Run Text="X (Horiz): " /><Run Text="{Binding SensitivityResult.GameLoopKeymapX}" Foreground="{StaticResource BrushAccentGreen}" /><Run Text="%   |   Y (Vert): " /><Run Text="{Binding SensitivityResult.GameLoopKeymapY}" Foreground="{StaticResource BrushAccentGreen}" /><Run Text="%" />
+                                </TextBlock>
+                                <TextBlock Text="1.35x Vertical pull-down bias applied" FontSize="10" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <TextBlock Text="RECOMMENDED IN-GAME PUBG SENSITIVITY (ADS RECOIL CONTROL)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" Margin="0,4,0,8" />
+
+                    <ItemsControl ItemsSource="{Binding SensitivityResult.ScopeSettings}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition Width="110" />
+                                            <ColumnDefinition Width="120" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{Binding ScopeName}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" />
+                                            <TextBlock Text="{Binding IdealFor}" FontSize="10" Foreground="{StaticResource BrushTextMuted}" Margin="0,1,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                            <TextBlock Text="CAMERA" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
+                                            <TextBlock Text="{Binding CameraSensitivity, StringFormat='{}{0}%'}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                            <TextBlock Text="ADS (RECOIL)" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" />
+                                            <TextBlock Text="{Binding AdsSensitivity, StringFormat='{}{0}%'}" FontSize="14" FontWeight="Bold" Foreground="{StaticResource BrushAccentGreen}" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="3" Text="{Binding RecoilTip}" FontSize="11" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="10,0,0,0" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Live Mouse Polling Rate & Raw Input Benchmark -->
+            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,18">
+                <StackPanel>
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="🖱️ Live Mouse Polling Rate &amp; Input Jitter Benchmark" FontSize="15" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" />
+                            <TextBlock Text="Verify your gaming mouse true report rate (1000Hz/500Hz) and detect micro-input stutter before gaming." FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,2,0,0" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Content="▶ Start Polling Test"
+                                Style="{StaticResource SuccessButton}"
+                                Padding="14,8"
+                                Margin="0,0,8,0"
+                                Command="{Binding StartMouseBenchmarkCommand}" />
+                        <Button Grid.Column="2"
+                                Content="⏹ Stop Test"
+                                Style="{StaticResource SecondaryButton}"
+                                Padding="14,8"
+                                Command="{Binding StopMouseBenchmarkCommand}" />
+                    </Grid>
+
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,6,0">
+                            <StackPanel>
+                                <TextBlock Text="CURRENT POLLING" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
+                                <TextBlock Text="{Binding MouseMetrics.CurrentHz, StringFormat='{}{0} Hz'}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource BrushAccentGreen}" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="6,0,6,0">
+                            <StackPanel>
+                                <TextBlock Text="PEAK POLLING" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
+                                <TextBlock Text="{Binding MouseMetrics.PeakHz, StringFormat='{}{0} Hz'}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="6,0,6,0">
+                            <StackPanel>
+                                <TextBlock Text="INTERVAL JITTER" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
+                                <TextBlock Text="{Binding MouseMetrics.IntervalJitterMs, StringFormat='{}±{0} ms'}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource BrushAccentAmber}" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="3" Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="6,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="INPUT SAMPLES" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
+                                <TextBlock Text="{Binding MouseMetrics.SampleCount}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Interactive Test Area -->
+                    <Border Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Height="100" Margin="0,0,0,10"
+                            MouseMove="MouseBenchmarkCanvas_MouseMove" Cursor="Cross">
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <TextBlock Text="🎯 MOVE CURSOR RAPIDLY INSIDE THIS BOX TO BENCHMARK SENSOR" FontSize="12" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding MouseMetrics.RatingText}" FontSize="11" Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="{Binding MouseMetrics.Recommendation}" FontSize="11" Foreground="{StaticResource BrushTextMuted}" TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 

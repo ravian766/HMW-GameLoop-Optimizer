@@ -60,7 +60,7 @@ public class MainViewModel : ViewModelBase
         MonitorService = new PerformanceMonitorService();
         MonitorService.Start();
 
-        // Initialize all 13 Optimization Modules
+        // Initialize all 16 Optimization Modules
         Modules = new List<IOptimizationModule>
         {
             new WindowsGameModeModule(),
@@ -68,12 +68,15 @@ public class MainViewModel : ViewModelBase
             new GameLoopResourceModule(),
             new GameLoopGraphicsModule(),
             new GameLoopPUBGConfigModule(),
+            new CpuAffinityModule(),
+            new GpuPreferenceModule(),
             new AudioLatencyModule(),
             new MemoryOptimizerModule(),
             new CleanupOptimizerModule(),
             new TimerResolutionModule(),
             new ProcessPriorityModule(),
             new NetworkLatencyModule(),
+            new NetworkDnsModule(),
             new VisualEffectsModule(),
             new BackgroundThrottleModule()
         };
@@ -122,11 +125,11 @@ public class MainViewModel : ViewModelBase
             GameLoopVM.RefreshData();
         };
 
-        BackupVM.BackupsRestored += (s, e) =>
+        BackupVM.BackupsRestored += async (s, e) =>
         {
             RefreshSystemData();
             DashboardVM.RefreshDashboard();
-            OptimizerVM.AnalyzeAllAsync();
+            await OptimizerVM.AnalyzeAllAsync();
             GameLoopVM.RefreshData();
         };
 
