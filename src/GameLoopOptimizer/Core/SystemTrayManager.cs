@@ -72,6 +72,26 @@ public class SystemTrayManager : IDisposable
         _source = HwndSource.FromHwnd(_hwnd);
         _source?.AddHook(WndProc);
 
+        IntPtr hIcon = IntPtr.Zero;
+        try
+        {
+            var exePath = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            if (!string.IsNullOrEmpty(exePath) && System.IO.File.Exists(exePath))
+            {
+                using var sysIcon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
+                if (sysIcon != null)
+                {
+                    hIcon = sysIcon.Handle;
+                }
+            }
+        }
+        catch { }
+
+        if (hIcon == IntPtr.Zero)
+        {
+            hIcon = LoadIcon(IntPtr.Zero, (IntPtr)32512); // Fallback IDI_APPLICATION
+        }
+
         var data = new NOTIFYICONDATA
         {
             cbSize = Marshal.SizeOf(typeof(NOTIFYICONDATA)),
@@ -79,7 +99,7 @@ public class SystemTrayManager : IDisposable
             uID = 1001,
             uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP,
             uCallbackMessage = WM_TRAYICON,
-            hIcon = LoadIcon(IntPtr.Zero, (IntPtr)32512), // IDI_APPLICATION
+            hIcon = hIcon,
             szTip = "HMW - GameLoop & Windows Optimizer"
         };
 

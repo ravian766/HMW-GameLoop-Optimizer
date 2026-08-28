@@ -8,23 +8,16 @@
     <Grid SizeChanged="Grid_SizeChanged">
         <Canvas x:Name="GaugeCanvas" HorizontalAlignment="Center" VerticalAlignment="Center">
             <!-- Background Track -->
-            <Path x:Name="TrackPath" Stroke="#1E2638" StrokeThickness="10" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+            <Path x:Name="TrackPath" Stroke="{DynamicResource BrushBorderLight}" StrokeThickness="10" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
             
             <!-- Value Progress Arc -->
-            <Path x:Name="ValuePath" StrokeThickness="10" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
-                <Path.Stroke>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#00E5FF" Offset="0" />
-                        <GradientStop Color="#7C4DFF" Offset="1" />
-                    </LinearGradientBrush>
-                </Path.Stroke>
-            </Path>
+            <Path x:Name="ValuePath" StrokeThickness="10" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stroke="{DynamicResource BrushScoreGradient}" />
         </Canvas>
 
         <!-- Center Readout -->
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-            <TextBlock x:Name="ValueText" Text="0" FontSize="36" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center" />
-            <TextBlock x:Name="UnitText" Text="OPTIMIZATION SCORE" FontSize="9" FontWeight="SemiBold" Foreground="#94A3B8" HorizontalAlignment="Center" Margin="0,-2,0,0" />
+            <TextBlock x:Name="ValueText" Text="0" FontSize="36" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" HorizontalAlignment="Center" />
+            <TextBlock x:Name="UnitText" Text="OPTIMIZATION SCORE" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" Margin="0,-2,0,0" />
         </StackPanel>
     </Grid>
 </UserControl>

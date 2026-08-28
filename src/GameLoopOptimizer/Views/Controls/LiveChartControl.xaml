@@ -8,9 +8,9 @@
     <Grid ClipToBounds="True">
         <Canvas x:Name="ChartCanvas" Background="Transparent" SizeChanged="ChartCanvas_SizeChanged">
             <!-- Background Grid Lines -->
-            <Line x:Name="GridLineTop" Stroke="#182030" StrokeDashArray="4 2" StrokeThickness="1" />
-            <Line x:Name="GridLineMid" Stroke="#182030" StrokeDashArray="4 2" StrokeThickness="1" />
-            <Line x:Name="GridLineBot" Stroke="#182030" StrokeDashArray="4 2" StrokeThickness="1" />
+            <Line x:Name="GridLineTop" Stroke="{DynamicResource BrushBorderSubtle}" StrokeDashArray="4 2" StrokeThickness="1" />
+            <Line x:Name="GridLineMid" Stroke="{DynamicResource BrushBorderSubtle}" StrokeDashArray="4 2" StrokeThickness="1" />
+            <Line x:Name="GridLineBot" Stroke="{DynamicResource BrushBorderSubtle}" StrokeDashArray="4 2" StrokeThickness="1" />
 
             <!-- Filled Area Polygon -->
             <Polygon x:Name="AreaPolygon" />

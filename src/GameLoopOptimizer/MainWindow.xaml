@@ -6,132 +6,197 @@
         xmlns:local="clr-namespace:GameLoopOptimizer"
         xmlns:vm="clr-namespace:GameLoopOptimizer.ViewModels"
         mc:Ignorable="d"
-        Title="HMW • GameLoop &amp; Windows Precision Optimizer"
-        Height="820" Width="1240"
-        MinHeight="700" MinWidth="1020"
+        Title="HMW • GameLoop Precision Engine Optimizer"
+        Icon="Assets/app_icon.png"
+        Height="840" Width="1280"
+        MinHeight="720" MinWidth="1060"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource BrushBgMain}"
-        Foreground="{StaticResource BrushTextPrimary}"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Foreground="{DynamicResource BrushTextPrimary}"
         FontFamily="Segoe UI, Segoe UI Variable, Arial"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType"
-        TextOptions.TextHintingMode="Fixed"
-        RenderOptions.ClearTypeHint="Enabled"
-        RenderOptions.BitmapScalingMode="HighQuality">
-    
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="260" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
+        RenderOptions.ClearTypeHint="Enabled">
 
-        <!-- Left Navigation Sidebar -->
-        <Border Grid.Column="0" Background="{StaticResource BrushBgSidebar}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,1,0">
-            <Grid Margin="18,22,18,18">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+    <!-- Outer Window Border with Holographic Shadow & Stroke -->
+    <Border Background="{DynamicResource BrushWindowBackdropGradient}"
+            BorderBrush="{DynamicResource BrushBorderLight}"
+            BorderThickness="1"
+            CornerRadius="14"
+            ClipToBounds="True">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="28" Color="#000000" Opacity="0.45" ShadowDepth="6" />
+        </Border.Effect>
 
-                <!-- Brand Header -->
-                <StackPanel Grid.Row="0" Margin="4,0,4,28">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <Border Background="{StaticResource BrushCyanGradient}" CornerRadius="7" Width="30" Height="30" Margin="0,0,12,0">
-                            <Border.Effect>
-                                <DropShadowEffect BlurRadius="12" Color="#00F2FE" Opacity="0.6" ShadowDepth="0" />
-                            </Border.Effect>
-                            <TextBlock Text="⚡" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#04060A" />
-                        </Border>
-                        <StackPanel VerticalAlignment="Center">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="46" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- ==================== TOP BESPOKE COMMAND BAR / TITLEBAR ==================== -->
+            <Border Grid.Row="0"
+                    Background="{DynamicResource BrushBgSidebar}"
+                    BorderBrush="{DynamicResource BrushBorderSubtle}"
+                    BorderThickness="0,0,0,1"
+                    MouseLeftButtonDown="TitleBar_MouseDown">
+                <Grid Margin="18,0,10,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left Brand Chip in Titlebar -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Image Source="Assets/app_icon.png" Width="24" Height="24" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality" />
+                        <TextBlock Text="HMW" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,4,0" />
+                        <TextBlock Text="VIRTUALIZATION OPTIMIZER" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,14,0" />
+                        
+                        <!-- Engine State Live Indicator -->
+                        <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{Binding GameLoop.IsRunning, Converter={StaticResource BooleanToRunningStatusConverter}}" BorderThickness="1" CornerRadius="12" Padding="10,2" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="HMW" FontSize="17" FontWeight="Bold" Foreground="#00F2FE" Margin="0,0,5,0" />
-                                <TextBlock Text="OPTIMIZER" FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" />
+                                <Ellipse Width="7" Height="7" Fill="{Binding GameLoop.IsRunning, Converter={StaticResource BooleanToRunningStatusConverter}}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding GameLoop.IsRunning, Converter={StaticResource BooleanToStatusTextConverter}, FallbackValue='Engine Standby'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" />
                             </StackPanel>
-                            <TextBlock Text="GameLoop &amp; PUBG Suite" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource BrushTextMuted}" Margin="1,1,0,0" />
-                        </StackPanel>
+                        </Border>
                     </StackPanel>
-                </StackPanel>
 
-                <!-- Navigation Tabs -->
-                <StackPanel Grid.Row="1">
-                    <RadioButton Content="📊  Dashboard"
-                                 Style="{StaticResource NavTabButton}"
-                                 IsChecked="True"
-                                 Command="{Binding NavigateCommand}"
-                                 CommandParameter="Dashboard" />
+                    <!-- Center Drag Zone (Draggable) -->
+                    <Grid Grid.Column="1" Background="Transparent" />
 
-                    <RadioButton Content="⚡  Optimizer Suite"
-                                 Style="{StaticResource NavTabButton}"
-                                 Command="{Binding NavigateCommand}"
-                                 CommandParameter="Optimizer" />
+                    <!-- Right Window Chrome Control Buttons -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Theme Switcher Toggle Button -->
+                        <Button Content="{Binding ThemeIcon}"
+                                Command="{Binding ToggleThemeCommand}"
+                                ToolTip="{Binding ThemeTooltip}"
+                                Style="{StaticResource ThemeToggleButton}"
+                                Margin="0,0,6,0" />
 
-                    <RadioButton Content="🎮  GameLoop Studio"
-                                 Style="{StaticResource NavTabButton}"
-                                 Command="{Binding NavigateCommand}"
-                                 CommandParameter="GameLoop" />
+                        <Border Width="1" Height="16" Background="{DynamicResource BrushBorderSubtle}" Margin="0,0,8,0" />
 
-                    <RadioButton Content="📈  Performance Monitor"
-                                 Style="{StaticResource NavTabButton}"
-                                 Command="{Binding NavigateCommand}"
-                                 CommandParameter="Monitor" />
+                        <Button Content="—" Click="MinimizeButton_Click" Style="{StaticResource WindowControlButton}" ToolTip="Minimize to Taskbar" Margin="0,0,2,0" />
+                        <Button Content="▢" Click="MaximizeButton_Click" Style="{StaticResource WindowControlButton}" ToolTip="Maximize / Restore" Margin="0,0,2,0" />
+                        <Button Content="✕" Click="CloseButton_Click" Style="{StaticResource WindowCloseButton}" ToolTip="Minimize to System Tray" />
+                    </StackPanel>
+                </Grid>
+            </Border>
 
-                    <RadioButton Content="🚀  Gaming Session"
-                                 Style="{StaticResource NavTabButton}"
-                                 Command="{Binding NavigateCommand}"
-                                 CommandParameter="GamingSession" />
+            <!-- ==================== MAIN BODY WORKSPACE ==================== -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="260" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
 
-                    <RadioButton Content="🔄  Backup &amp; Rollback"
-                                 Style="{StaticResource NavTabButton}"
-                                 Command="{Binding NavigateCommand}"
-                                 CommandParameter="Backup" />
+                <!-- Left Navigation Sidebar HUD -->
+                <Border Grid.Column="0"
+                        Background="{DynamicResource BrushSidebarGradient}"
+                        BorderBrush="{DynamicResource BrushBorderSubtle}"
+                        BorderThickness="0,0,1,0">
+                    <Grid Margin="16,20,16,18">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-                    <RadioButton Content="📋  Optimization Logs"
-                                 Style="{StaticResource NavTabButton}"
-                                 Command="{Binding NavigateCommand}"
-                                 CommandParameter="Logs" />
-                </StackPanel>
+                        <!-- Navigation Capsule Tabs -->
+                        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <TextBlock Text="ENGINE WORKSPACES" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="6,0,0,10" />
 
-                <!-- Bottom System & Privilege Status Card -->
-                <Border Grid.Row="2" Background="{StaticResource BrushBgCard}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14">
-                    <StackPanel>
-                        <!-- Admin Status -->
-                        <Grid Margin="0,0,0,6">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="🛡️ " FontSize="11" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding IsAdmin, Converter={StaticResource BooleanToStatusTextConverter}, FallbackValue='Standard User'}"
-                                           FontSize="11" FontWeight="Bold"
-                                           Foreground="{Binding IsAdmin, Converter={StaticResource BooleanToRunningStatusConverter}, FallbackValue='#94A3B8'}"
-                                           VerticalAlignment="Center" />
+                                <RadioButton Content="📊  System Cockpit"
+                                             Style="{StaticResource NavTabButton}"
+                                             IsChecked="True"
+                                             Command="{Binding NavigateCommand}"
+                                             CommandParameter="Dashboard" />
+
+                                <RadioButton Content="⚡  Optimizer Matrix"
+                                             Style="{StaticResource NavTabButton}"
+                                             Command="{Binding NavigateCommand}"
+                                             CommandParameter="Optimizer" />
+
+                                <RadioButton Content="🎮  GameLoop &amp; ADB Studio"
+                                             Style="{StaticResource NavTabButton}"
+                                             Command="{Binding NavigateCommand}"
+                                             CommandParameter="GameLoop" />
+
+                                <RadioButton Content="🎯  Stretched Res &amp; Keymaps"
+                                             Style="{StaticResource NavTabButton}"
+                                             Command="{Binding NavigateCommand}"
+                                             CommandParameter="KeymapResolution" />
+
+                                <RadioButton Content="📈  Live Telemetry Monitor"
+                                             Style="{StaticResource NavTabButton}"
+                                             Command="{Binding NavigateCommand}"
+                                             CommandParameter="Monitor" />
+
+                                <RadioButton Content="🚀  Turbo Gaming Session"
+                                             Style="{StaticResource NavTabButton}"
+                                             Command="{Binding NavigateCommand}"
+                                             CommandParameter="GamingSession" />
+
+                                <RadioButton Content="🔄  Backup &amp; Rollback"
+                                             Style="{StaticResource NavTabButton}"
+                                             Command="{Binding NavigateCommand}"
+                                             CommandParameter="Backup" />
+
+                                <RadioButton Content="📋  Audit Event Logs"
+                                             Style="{StaticResource NavTabButton}"
+                                             Command="{Binding NavigateCommand}"
+                                             CommandParameter="Logs" />
                             </StackPanel>
+                        </ScrollViewer>
 
-                            <Button Grid.Column="1"
-                                    Content="Elevate"
-                                    Command="{Binding ElevateCommand}"
-                                    Style="{StaticResource SecondaryButton}"
-                                    Padding="8,3"
-                                    FontSize="10"
-                                    Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Invert}" />
-                        </Grid>
+                        <!-- Bottom System Status & Elevation Chip -->
+                        <Border Grid.Row="1"
+                                Background="{DynamicResource BrushCardGradient}"
+                                BorderBrush="{DynamicResource BrushBorderLight}"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                Padding="14"
+                                Margin="0,14,0,0">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
 
-                        <Separator Background="{StaticResource BrushBorderSubtle}" Margin="0,4,0,8" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="🛡️ " FontSize="11" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding IsAdmin, Converter={StaticResource BooleanToStatusTextConverter}, FallbackValue='Standard User'}"
+                                                   FontSize="11" FontWeight="Bold"
+                                                   Foreground="{Binding IsAdmin, Converter={StaticResource BooleanToRunningStatusConverter}, FallbackValue='#94A3B8'}"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
 
-                        <!-- Hardware Mini Summary -->
-                        <TextBlock Text="{Binding Hardware.CpuName}" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" TextTrimming="CharacterEllipsis" Margin="0,0,0,2" />
-                        <TextBlock Text="{Binding Hardware.GpuName}" FontSize="10" Foreground="{StaticResource BrushTextMuted}" TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Content="Elevate"
+                                            Command="{Binding ElevateCommand}"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Padding="8,3"
+                                            FontSize="10"
+                                            Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Invert}" />
+                                </Grid>
+
+                                <Separator Background="{DynamicResource BrushBorderSubtle}" Margin="0,0,0,8" />
+
+                                <TextBlock Text="{Binding Hardware.CpuName}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextSecondary}" TextTrimming="CharacterEllipsis" Margin="0,0,0,2" />
+                                <TextBlock Text="{Binding Hardware.GpuName}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
                 </Border>
 
+                <!-- Right Workspace Content Area -->
+                <ContentControl Grid.Column="1" Content="{Binding CurrentView}" />
             </Grid>
-        </Border>
-
-        <!-- Right Content Area -->
-        <ContentControl Grid.Column="1" Content="{Binding CurrentView}" />
-    </Grid>
+        </Grid>
+    </Border>
 </Window>

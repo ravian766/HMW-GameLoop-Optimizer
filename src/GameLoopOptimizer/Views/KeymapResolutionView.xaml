@@ -1,0 +1,347 @@
+<UserControl x:Class="GameLoopOptimizer.Views.KeymapResolutionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="1200" d:DesignWidth="980">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="28,24,28,28">
+
+            <!-- Hero Control Header -->
+            <Border Style="{StaticResource GlowingHeroCard}" Margin="0,0,0,18">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="🎯 Stretched Resolution &amp; Keymap Studio" FontSize="19" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,4" />
+                        <TextBlock Text="Calibrate competitive stretched aspect ratios, auto-align GameLoop HUD keymapping coordinates, and tune recoil sensitivity profiles."
+                                   FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <!-- Active Aspect Ratio Badge -->
+                    <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="14,8" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="ACTIVE RATIO: " FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding AspectRatioDescription}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Competitive Aspect Ratio & Stretched Resolution Studio -->
+            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,18">
+                <StackPanel>
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <WrapPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="📐 Stretched Aspect Ratio Presets" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding ResWidth, StringFormat='{}{0} x '}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                                        <TextBlock Text="{Binding ResHeight}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                                    </StackPanel>
+                                </Border>
+                            </WrapPanel>
+                            <TextBlock Text="Stretching your horizontal field-of-view widens character hitboxes on-screen for faster target acquisition and easier recoil tracking." FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" />
+                        </StackPanel>
+
+                        <Button Grid.Column="1"
+                                Content="⚡ Apply Stretched Res (Registry &amp; VM)"
+                                Command="{Binding ApplyStretchedResolutionCommand}"
+                                Style="{StaticResource PrimaryButton}"
+                                Padding="16,9"
+                                FontSize="12"
+                                VerticalAlignment="Center" />
+                    </Grid>
+
+                    <!-- Stretched Presets Grid -->
+                    <ItemsControl ItemsSource="{Binding StretchedPresets}" Margin="0,0,0,12">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="3" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Command="{Binding DataContext.SelectStretchedPresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Margin="0,0,6,6"
+                                        Padding="10,8"
+                                        HorizontalContentAlignment="Left">
+                                    <StackPanel>
+                                        <WrapPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,6,0" />
+                                            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentViolet}" BorderThickness="1" CornerRadius="4" Padding="4,1">
+                                                <TextBlock Text="{Binding AspectRatioLabel}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushAccentViolet}" />
+                                            </Border>
+                                        </WrapPanel>
+                                        <TextBlock Text="{Binding AdvantageDescription}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Dimension Fine-Tuning Grid -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,6,0">
+                            <StackPanel>
+                                <TextBlock Text="CUSTOM WIDTH (PX)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
+                                <TextBox Text="{Binding ResWidth, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" Foreground="{DynamicResource BrushTextPrimary}" BorderThickness="0" FontSize="13" FontWeight="Bold" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="3,0,3,0">
+                            <StackPanel>
+                                <TextBlock Text="CUSTOM HEIGHT (PX)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
+                                <TextBox Text="{Binding ResHeight, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" Foreground="{DynamicResource BrushTextPrimary}" BorderThickness="0" FontSize="13" FontWeight="Bold" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="6,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="TARGET SCREEN DPI" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
+                                <TextBox Text="{Binding StretchedDpi, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" Foreground="{DynamicResource BrushAccentCyan}" BorderThickness="0" FontSize="13" FontWeight="Bold" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Resolution-Aware Keymap Auto-Calibration Banner -->
+                    <Border Background="{DynamicResource BrushBgDarkest}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,12,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel VerticalAlignment="Center">
+                                <WrapPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="⌨️ Resolution-Aware Keymap Auto-Calibration" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,8,0" />
+                                    <CheckBox Content="Auto-calibrate on resolution apply" IsChecked="{Binding AutoInjectKeymapWithResolution}" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" />
+                                </WrapPanel>
+                                <TextBlock Text="{Binding KeymapCalibrationStatus}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                                <Button Content="🎯 Calibrate &amp; Inject Keymap"
+                                        Command="{Binding CalibrateAndInjectKeymapCommand}"
+                                        Style="{StaticResource PrimaryButton}"
+                                        Padding="12,6"
+                                        FontSize="11"
+                                        Margin="0,0,6,0" />
+
+                                <Button Content="🔄 Restore 16:9 Keymap"
+                                        Command="{Binding RestoreStockKeymapCommand}"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Padding="10,6"
+                                        FontSize="11" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Precision ADS & Scope Sensitivity Calibration Studio -->
+            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,18">
+                <StackPanel>
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="🎯 Precision ADS &amp; Scope Sensitivity Calibration" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,4" />
+                            <TextBlock Text="Calculates exact mathematical GameLoop keymap X/Y sensitivity and in-game ADS curves tailored to your mouse hardware DPI and stretched aspect ratio." FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="DPI: " FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                            <ComboBox ItemsSource="{Binding DpiOptions}" SelectedItem="{Binding SelectedMouseDpi}" Width="80" Margin="0,0,10,0" />
+
+                            <TextBlock Text="Style: " FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                            <ComboBox ItemsSource="{Binding PlaystyleOptions}" SelectedItem="{Binding SelectedPlaystyle}" Width="160" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Keymap Sensitivity Summary -->
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,6,0">
+                            <StackPanel>
+                                <TextBlock Text="RECOMMENDED KEYMAP X (HORIZONTAL)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                <TextBlock Text="{Binding SensitivityResult.GameLoopKeymapX, StringFormat='{}{0}%'}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,2,0,0" />
+                                <TextBlock Text="GameLoop Keymap Settings" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="3,0,3,0">
+                            <StackPanel>
+                                <TextBlock Text="RECOMMENDED KEYMAP Y (VERTICAL RECOIL)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                <TextBlock Text="{Binding SensitivityResult.GameLoopKeymapY, StringFormat='{}{0}%'}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource BrushAccentViolet}" Margin="0,2,0,0" />
+                                <TextBlock Text="Vertical compensation ratio applied" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="6,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="VERTICAL RATIO MULTIPLIER" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                <TextBlock Text="{Binding SensitivityResult.VerticalMultiplier, StringFormat='{}{0:F2}x'}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" Margin="0,2,0,0" />
+                                <TextBlock Text="Optimal pull-down headroom" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Scope Sensitivity Breakdown Table -->
+                    <ItemsControl ItemsSource="{Binding SensitivityResult.ScopeSettings}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="7" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="8" Margin="0,0,4,0">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding ScopeName}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" HorizontalAlignment="Center" />
+                                        <Separator Background="{DynamicResource BrushBorderSubtle}" Margin="0,4,0,4" />
+                                        <TextBlock Text="{Binding AdsSensitivity, StringFormat='ADS: {0}%'}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" HorizontalAlignment="Center" />
+                                        <TextBlock Text="{Binding CameraSensitivity, StringFormat='Cam: {0}%'}" FontSize="10" Foreground="{DynamicResource BrushTextSecondary}" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Mouse Benchmark & Keymap Vault Row -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Mouse Benchmark Card -->
+                <Border Grid.Column="0" Style="{StaticResource GlassCard}" Margin="0,0,8,0">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,10">
+                            <TextBlock Text="🖱️ Real-Time Mouse Benchmark" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="Start Test"
+                                        Command="{Binding StartMouseBenchmarkCommand}"
+                                        Style="{StaticResource SuccessButton}"
+                                        Padding="10,4"
+                                        FontSize="10"
+                                        Margin="0,0,6,0" />
+                                <Button Content="Stop"
+                                        Command="{Binding StopMouseBenchmarkCommand}"
+                                        Style="{StaticResource DangerButton}"
+                                        Padding="10,4"
+                                        FontSize="10" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Move your mouse inside the test area below to analyze polling frequency stability, interval jitter, and tracking smoothness." FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,10" />
+
+                        <!-- Interactive Test Canvas -->
+                        <Border Background="{DynamicResource BrushBgDarkest}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Height="100" Margin="0,0,0,10"
+                                MouseMove="MouseCanvas_MouseMove" Cursor="Cross">
+                            <Grid>
+                                <TextBlock Text="MOVE CURSOR HERE TO BENCHMARK POLLING RATE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="EST. POLLING RATE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                <TextBlock Text="{Binding MouseMetrics.EstimatedPollingRateHz, StringFormat='{}{0} Hz'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,2,0,0" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="JITTER VARIANCE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                <TextBlock Text="{Binding MouseMetrics.JitterVarianceMs, StringFormat='{}{0:F2} ms'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" Margin="0,2,0,0" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="RATING" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                <TextBlock Text="{Binding MouseMetrics.RatingText}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Keymap Vault & Sensitivity Snapshots Card -->
+                <Border Grid.Column="1" Style="{StaticResource GlassCard}" Margin="8,0,0,0">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,10">
+                            <TextBlock Text="🛡️ Keymap Vault &amp; Snapshots" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" />
+                            <Button Content="💾 Snapshot Keymaps"
+                                    Command="{Binding BackupKeymapCommand}"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Padding="10,4"
+                                    FontSize="10"
+                                    HorizontalAlignment="Right" />
+                        </Grid>
+                        <TextBlock Text="Snapshots of custom keymaps and sensitivity settings saved before modifications." FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,10" />
+
+                        <ScrollViewer Height="160" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding KeymapProfiles}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="10,6" Margin="0,0,0,6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" />
+                                                    <TextBlock Text="{Binding FormattedDate, StringFormat='Created: {0}'}" FontSize="9" Foreground="{DynamicResource BrushTextMuted}" />
+                                                </StackPanel>
+                                                <Button Grid.Column="1"
+                                                        Content="Restore"
+                                                        Command="{Binding DataContext.RestoreKeymapCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        Style="{StaticResource SecondaryButton}"
+                                                        Padding="8,4"
+                                                        FontSize="10" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -23,6 +23,7 @@ public class MainViewModel : ViewModelBase
     public DashboardViewModel DashboardVM { get; }
     public OptimizerViewModel OptimizerVM { get; }
     public GameLoopViewModel GameLoopVM { get; }
+    public KeymapResolutionViewModel KeymapResolutionVM { get; }
     public MonitorViewModel MonitorVM { get; }
     public GamingSessionViewModel GamingSessionVM { get; }
     public BackupViewModel BackupVM { get; }
@@ -49,8 +50,13 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _isAdmin, value);
     }
 
+    public bool IsDarkTheme => ThemeManager.Instance.IsDarkTheme;
+    public string ThemeIcon => ThemeManager.Instance.IsDarkTheme ? "🌙" : "☀️";
+    public string ThemeTooltip => ThemeManager.Instance.IsDarkTheme ? "Switch to Light Theme" : "Switch to Dark Theme";
+
     public ICommand NavigateCommand { get; }
     public ICommand ElevateCommand { get; }
+    public ICommand ToggleThemeCommand { get; }
 
     public MainViewModel()
     {
@@ -60,7 +66,7 @@ public class MainViewModel : ViewModelBase
         MonitorService = new PerformanceMonitorService();
         MonitorService.Start();
 
-        // Initialize all 16 Optimization Modules
+        // Initialize Optimization Modules (including Android VM / ADB Suite)
         Modules = new List<IOptimizationModule>
         {
             new WindowsGameModeModule(),
@@ -68,9 +74,15 @@ public class MainViewModel : ViewModelBase
             new GameLoopResourceModule(),
             new GameLoopGraphicsModule(),
             new GameLoopPUBGConfigModule(),
+            new AdbGpuAccelerationModule(),
+            new AdbAnimationLatencyModule(),
+            new AdbVmHeapTuningModule(),
+            new AdbLogcatSuppressModule(),
+            new AdbBackgroundDozeModule(),
             new CpuAffinityModule(),
             new GpuPreferenceModule(),
             new AudioLatencyModule(),
+            new AudioFootstepClarifierModule(),
             new MemoryOptimizerModule(),
             new CleanupOptimizerModule(),
             new TimerResolutionModule(),
@@ -103,6 +115,10 @@ public class MainViewModel : ViewModelBase
             () => _hardware, 
             () => _gameLoop);
 
+        KeymapResolutionVM = new KeymapResolutionViewModel(
+            () => _hardware,
+            () => _gameLoop);
+
         MonitorVM = new MonitorViewModel(MonitorService);
 
         GamingSessionVM = new GamingSessionViewModel(
@@ -110,6 +126,7 @@ public class MainViewModel : ViewModelBase
             () => _system, 
             () => _gameLoop, 
             MonitorService, 
+            WatchdogService,
             Modules);
 
         BackupVM = new BackupViewModel();
@@ -123,6 +140,7 @@ public class MainViewModel : ViewModelBase
             RefreshSystemData();
             DashboardVM.RefreshDashboard();
             GameLoopVM.RefreshData();
+            KeymapResolutionVM.RefreshKeymaps();
         };
 
         BackupVM.BackupsRestored += async (s, e) =>
@@ -131,6 +149,7 @@ public class MainViewModel : ViewModelBase
             DashboardVM.RefreshDashboard();
             await OptimizerVM.AnalyzeAllAsync();
             GameLoopVM.RefreshData();
+            KeymapResolutionVM.RefreshKeymaps();
         };
 
         NavigateCommand = new RelayCommand(param =>
@@ -143,6 +162,7 @@ public class MainViewModel : ViewModelBase
                     "Dashboard" => DashboardVM,
                     "Optimizer" => OptimizerVM,
                     "GameLoop" => GameLoopVM,
+                    "KeymapResolution" => KeymapResolutionVM,
                     "Monitor" => MonitorVM,
                     "GamingSession" => GamingSessionVM,
                     "Backup" => BackupVM,
@@ -156,6 +176,18 @@ public class MainViewModel : ViewModelBase
         {
             PermissionManager.RestartAsAdministrator();
         });
+
+        ToggleThemeCommand = new RelayCommand(() =>
+        {
+            ThemeManager.Instance.ToggleTheme();
+        });
+
+        ThemeManager.Instance.ThemeChanged += (s, e) =>
+        {
+            OnPropertyChanged(nameof(IsDarkTheme));
+            OnPropertyChanged(nameof(ThemeIcon));
+            OnPropertyChanged(nameof(ThemeTooltip));
+        };
 
         // Initial Data Load
         Task.Run(async () => await InitializeAsync());

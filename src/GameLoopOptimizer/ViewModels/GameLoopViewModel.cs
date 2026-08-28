@@ -89,15 +89,48 @@ public class GameLoopViewModel : ViewModelBase
     public int ResWidth
     {
         get => _resWidth;
-        set => SetProperty(ref _resWidth, value);
+        set
+        {
+            if (SetProperty(ref _resWidth, value))
+            {
+                OnPropertyChanged(nameof(AspectRatioDescription));
+                RecalculateSensitivity();
+            }
+        }
     }
 
     private int _resHeight = 1080;
     public int ResHeight
     {
         get => _resHeight;
-        set => SetProperty(ref _resHeight, value);
+        set
+        {
+            if (SetProperty(ref _resHeight, value))
+            {
+                OnPropertyChanged(nameof(AspectRatioDescription));
+                RecalculateSensitivity();
+            }
+        }
     }
+
+    private int _stretchedDpi = 320;
+    public int StretchedDpi
+    {
+        get => _stretchedDpi;
+        set => SetProperty(ref _stretchedDpi, value);
+    }
+
+    public string AspectRatioDescription => CalculateAspectRatio(ResWidth, ResHeight);
+
+    public ObservableCollection<StretchedResPreset> StretchedPresets { get; } = new()
+    {
+        new StretchedResPreset { Title = "1440 x 1080", Tag = "1440x1080", Width = 1440, Height = 1080, Dpi = 320, AspectRatioLabel = "4:3 Stretched", AdvantageDescription = "+33% Wider Enemy Models & Hitboxes" },
+        new StretchedResPreset { Title = "1728 x 1080", Tag = "1728x1080", Width = 1728, Height = 1080, Dpi = 320, AspectRatioLabel = "16:10 Stretched", AdvantageDescription = "+15% Model Width & Crisp FoV" },
+        new StretchedResPreset { Title = "1080 x 1080", Tag = "1080x1080", Width = 1080, Height = 1080, Dpi = 240, AspectRatioLabel = "1:1 Box Stretch", AdvantageDescription = "Extreme Close-Quarter Combat Stretch" },
+        new StretchedResPreset { Title = "1280 x 960", Tag = "1280x960", Width = 1280, Height = 960, Dpi = 240, AspectRatioLabel = "4:3 Low-End", AdvantageDescription = "Maximum FPS on Budget GPUs" },
+        new StretchedResPreset { Title = "1920 x 1080", Tag = "1920x1080", Width = 1920, Height = 1080, Dpi = 320, AspectRatioLabel = "16:9 Standard", AdvantageDescription = "Standard 1080p FHD Native" },
+        new StretchedResPreset { Title = "2560 x 1440", Tag = "2560x1440", Width = 2560, Height = 1440, Dpi = 400, AspectRatioLabel = "16:9 2K QHD", AdvantageDescription = "High-Res Competitive 1440p" }
+    };
 
     private string _statusMessage = string.Empty;
     public string StatusMessage
@@ -116,6 +149,98 @@ public class GameLoopViewModel : ViewModelBase
         set => SetProperty(ref _isBenchmarkingPing, value);
     }
 
+    // ADB Subsystem Properties
+    private bool _isAdbAvailable;
+    public bool IsAdbAvailable
+    {
+        get => _isAdbAvailable;
+        set => SetProperty(ref _isAdbAvailable, value);
+    }
+
+    private bool _isAdbConnected;
+    public bool IsAdbConnected
+    {
+        get => _isAdbConnected;
+        set => SetProperty(ref _isAdbConnected, value);
+    }
+
+    private string _adbDeviceName = "Not Connected";
+    public string AdbDeviceName
+    {
+        get => _adbDeviceName;
+        set => SetProperty(ref _adbDeviceName, value);
+    }
+
+    private string _adbStatusText = "Checking ADB Status...";
+    public string AdbStatusText
+    {
+        get => _adbStatusText;
+        set => SetProperty(ref _adbStatusText, value);
+    }
+
+    private bool _isAdbBusy;
+    public bool IsAdbBusy
+    {
+        get => _isAdbBusy;
+        set => SetProperty(ref _isAdbBusy, value);
+    }
+
+    private bool _adbZeroAnimations = true;
+    public bool AdbZeroAnimations
+    {
+        get => _adbZeroAnimations;
+        set => SetProperty(ref _adbZeroAnimations, value);
+    }
+
+    private bool _adbGpuAcceleration = true;
+    public bool AdbGpuAcceleration
+    {
+        get => _adbGpuAcceleration;
+        set => SetProperty(ref _adbGpuAcceleration, value);
+    }
+
+    private bool _adbDalvikHeapBoost = true;
+    public bool AdbDalvikHeapBoost
+    {
+        get => _adbDalvikHeapBoost;
+        set => SetProperty(ref _adbDalvikHeapBoost, value);
+    }
+
+    private bool _adbSuppressLogging = true;
+    public bool AdbSuppressLogging
+    {
+        get => _adbSuppressLogging;
+        set => SetProperty(ref _adbSuppressLogging, value);
+    }
+
+    private bool _adbDisableDoze = true;
+    public bool AdbDisableDoze
+    {
+        get => _adbDisableDoze;
+        set => SetProperty(ref _adbDisableDoze, value);
+    }
+
+    private bool _autoInjectKeymapWithResolution = true;
+    public bool AutoInjectKeymapWithResolution
+    {
+        get => _autoInjectKeymapWithResolution;
+        set => SetProperty(ref _autoInjectKeymapWithResolution, value);
+    }
+
+    private string _keymapCalibrationStatus = "Keymaps aligned with native 16:9 standard.";
+    public string KeymapCalibrationStatus
+    {
+        get => _keymapCalibrationStatus;
+        set => SetProperty(ref _keymapCalibrationStatus, value);
+    }
+
+    private bool _isKeymapCalibrating;
+    public bool IsKeymapCalibrating
+    {
+        get => _isKeymapCalibrating;
+        set => SetProperty(ref _isKeymapCalibrating, value);
+    }
+
     public ICommand ApplySettingsCommand { get; }
     public ICommand ApplyRecommendedCommand { get; }
     public ICommand LaunchGameLoopCommand { get; }
@@ -126,6 +251,14 @@ public class GameLoopViewModel : ViewModelBase
     public ICommand RestoreKeymapCommand { get; }
     public ICommand BenchmarkPingCommand { get; }
     public ICommand FlushDnsCommand { get; }
+    public ICommand ConnectAdbCommand { get; }
+    public ICommand ApplyAllAdbOptimizationsCommand { get; }
+    public ICommand TrimInVmCacheCommand { get; }
+    public ICommand RestartAdbServerCommand { get; }
+    public ICommand SelectStretchedPresetCommand { get; }
+    public ICommand ApplyStretchedResolutionCommand { get; }
+    public ICommand CalibrateAndInjectKeymapCommand { get; }
+    public ICommand RestoreStockKeymapCommand { get; }
 
     public event EventHandler? SettingsSaved;
 
@@ -236,9 +369,91 @@ public class GameLoopViewModel : ViewModelBase
             StatusMessage = "Mouse Polling Benchmark stopped.";
         });
 
+        ConnectAdbCommand = new AsyncRelayCommand(async () =>
+        {
+            IsAdbBusy = true;
+            AdbStatusText = "Connecting to GameLoop Android VM via ADB...";
+            try
+            {
+                bool connected = await AdbManager.AutoConnectGameLoopAsync(Config);
+                await RefreshAdbStatusAsync();
+                StatusMessage = connected 
+                    ? $"ADB Connected successfully to {AdbDeviceName}!" 
+                    : "Failed to connect to GameLoop ADB. Ensure GameLoop is running.";
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        ApplyAllAdbOptimizationsCommand = new AsyncRelayCommand(ApplyAllAdbOptimizationsAsync);
+
+        TrimInVmCacheCommand = new AsyncRelayCommand(async () =>
+        {
+            IsAdbBusy = true;
+            StatusMessage = "Trimming GameLoop Android VM application & shader caches...";
+            try
+            {
+                bool trimmed = await AdbManager.TrimAppCacheAsync(Config);
+                StatusMessage = trimmed 
+                    ? "In-VM app and shader caches trimmed successfully!" 
+                    : "Failed to trim Android VM caches. Ensure ADB is connected.";
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        RestartAdbServerCommand = new AsyncRelayCommand(async () =>
+        {
+            IsAdbBusy = true;
+            StatusMessage = "Restarting ADB daemon service...";
+            try
+            {
+                bool ok = await AdbManager.RestartAdbServerAsync(Config);
+                await RefreshAdbStatusAsync();
+                StatusMessage = ok ? "ADB Server restarted and reconnected." : "ADB Server restarted (device not detected).";
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        SelectStretchedPresetCommand = new RelayCommand(param =>
+        {
+            if (param is StretchedResPreset preset)
+            {
+                ResWidth = preset.Width;
+                ResHeight = preset.Height;
+                StretchedDpi = preset.Dpi;
+                SelectedResolutionString = $"{preset.Width}x{preset.Height}";
+                StatusMessage = $"Selected {preset.AspectRatioLabel} ({preset.Width}x{preset.Height}) - {preset.AdvantageDescription}";
+            }
+            else if (param is string str)
+            {
+                var found = StretchedPresets.FirstOrDefault(p => p.Tag.Equals(str, StringComparison.OrdinalIgnoreCase));
+                if (found != null)
+                {
+                    ResWidth = found.Width;
+                    ResHeight = found.Height;
+                    StretchedDpi = found.Dpi;
+                    SelectedResolutionString = $"{found.Width}x{found.Height}";
+                    StatusMessage = $"Selected {found.AspectRatioLabel} ({found.Width}x{found.Height})";
+                }
+            }
+        });
+
+        ApplyStretchedResolutionCommand = new AsyncRelayCommand(ApplyStretchedResolutionAsync);
+        CalibrateAndInjectKeymapCommand = new AsyncRelayCommand(CalibrateAndDeployKeymapAsync);
+        RestoreStockKeymapCommand = new AsyncRelayCommand(RestoreStockKeymapAsync);
+
         RefreshData();
         RefreshKeymaps();
         RecalculateSensitivity();
+        Task.Run(async () => await RefreshAdbStatusAsync());
     }
 
     public void RefreshKeymaps()
@@ -485,4 +700,264 @@ public class GameLoopViewModel : ViewModelBase
     {
         // Already initialized
     }
+
+    public async Task RefreshAdbStatusAsync()
+    {
+        var gl = _getGl();
+        IsAdbAvailable = AdbManager.IsAdbAvailable(gl);
+
+        if (!IsAdbAvailable)
+        {
+            AdbStatusText = "ADB Binary Not Detected";
+            IsAdbConnected = false;
+            AdbDeviceName = "Not Installed";
+            return;
+        }
+
+        var devices = await AdbManager.GetConnectedDevicesAsync(gl);
+        var active = devices.FirstOrDefault(d => d.State.Equals("device", StringComparison.OrdinalIgnoreCase));
+
+        if (active != null)
+        {
+            IsAdbConnected = true;
+            AdbDeviceName = active.Serial;
+            AdbStatusText = $"Connected ({active.Serial} - {active.Model})";
+        }
+        else
+        {
+            // Try auto-connecting to localhost ports
+            bool connected = await AdbManager.AutoConnectGameLoopAsync(gl);
+            if (connected)
+            {
+                IsAdbConnected = true;
+                AdbDeviceName = AdbManager.ActiveDeviceSerial ?? "127.0.0.1:5555";
+                AdbStatusText = $"Connected ({AdbDeviceName})";
+            }
+            else
+            {
+                IsAdbConnected = false;
+                AdbDeviceName = "Disconnected";
+                AdbStatusText = "GameLoop Android VM Offline / Disconnected";
+            }
+        }
+    }
+
+    public async Task ApplyAllAdbOptimizationsAsync()
+    {
+        IsAdbBusy = true;
+        StatusMessage = "Applying Android VM In-Emulator Optimizations via ADB...";
+
+        try
+        {
+            var gl = _getGl();
+            if (!IsAdbConnected)
+            {
+                await AdbManager.AutoConnectGameLoopAsync(gl);
+                await RefreshAdbStatusAsync();
+            }
+
+            int count = 0;
+
+            if (AdbGpuAcceleration)
+            {
+                await AdbManager.SetPropAsync("debug.sf.hw", "1", gl);
+                await AdbManager.SetPropAsync("debug.egl.hw", "1", gl);
+                await AdbManager.SetPropAsync("debug.composition.type", "gpu", gl);
+                await AdbManager.SetPropAsync("debug.sf.latch_unsignaled", "1", gl);
+                await AdbManager.SetPropAsync("debug.sf.early_phase_offset_ns", "500000", gl);
+                await AdbManager.SetPropAsync("debug.sf.early_app_phase_offset_ns", "500000", gl);
+                count++;
+            }
+
+            if (AdbZeroAnimations)
+            {
+                await AdbManager.PutGlobalSettingAsync("window_animation_scale", "0", gl);
+                await AdbManager.PutGlobalSettingAsync("transition_animation_scale", "0", gl);
+                await AdbManager.PutGlobalSettingAsync("animator_duration_scale", "0", gl);
+                count++;
+            }
+
+            if (AdbDalvikHeapBoost)
+            {
+                await AdbManager.SetPropAsync("dalvik.vm.heapgrowthlimit", "512m", gl);
+                await AdbManager.SetPropAsync("dalvik.vm.heapsize", "1024m", gl);
+                await AdbManager.SetPropAsync("dalvik.vm.heaptargetutilization", "0.75", gl);
+                await AdbManager.SetPropAsync("dalvik.vm.dexopt-flags", "v=n,o=v", gl);
+                count++;
+            }
+
+            if (AdbSuppressLogging)
+            {
+                await AdbManager.SetPropAsync("log.tag", "ALL=SUPPRESS", gl);
+                await AdbManager.SetPropAsync("log.tag.stats_log", "OFF", gl);
+                count++;
+            }
+
+            if (AdbDisableDoze)
+            {
+                await AdbManager.PutGlobalSettingAsync("app_standby_enabled", "0", gl);
+                await AdbManager.PutGlobalSettingAsync("adaptive_battery_management_enabled", "0", gl);
+                await AdbManager.ExecuteShellCommandAsync("cmd appops set com.tencent.ig RUN_IN_BACKGROUND allow", null, 4000, gl);
+                count++;
+            }
+
+            StatusMessage = $"Applied {count} Android VM optimizations via ADB successfully!";
+            Logger.Success("GameLoopViewModel", $"Applied {count} ADB in-VM optimization profiles.");
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Failed to apply ADB optimizations: {ex.Message}";
+            Logger.Error("GameLoopViewModel", $"ADB optimization failed: {ex.Message}");
+        }
+        finally
+        {
+            IsAdbBusy = false;
+        }
+    }
+
+    public static string CalculateAspectRatio(int width, int height)
+    {
+        if (width <= 0 || height <= 0) return "16:9 Standard";
+
+        if (width == 1440 && height == 1080) return "4:3 Stretched (+33% Wider Hitboxes)";
+        if (width == 1728 && height == 1080) return "16:10 Stretched (+15% Balanced FoV)";
+        if (width == 1080 && height == 1080) return "1:1 Box Stretched (Extreme Close Range)";
+        if (width == 1280 && height == 960) return "4:3 Low-End Stretched (High FPS)";
+        if (width == 1920 && height == 1080) return "16:9 Standard FHD Native";
+        if (width == 2560 && height == 1440) return "16:9 2K QHD Native";
+
+        double ratio = (double)width / height;
+        if (Math.Abs(ratio - (4.0 / 3.0)) < 0.05) return "4:3 Custom Stretched";
+        if (Math.Abs(ratio - (16.0 / 10.0)) < 0.05) return "16:10 Custom Stretched";
+        if (Math.Abs(ratio - 1.0) < 0.05) return "1:1 Custom Box Stretched";
+        if (Math.Abs(ratio - (16.0 / 9.0)) < 0.05) return "16:9 Standard Widescreen";
+
+        return $"{ratio:F2}:1 Custom Aspect Ratio";
+    }
+
+    public async Task ApplyStretchedResolutionAsync()
+    {
+        try
+        {
+            StatusMessage = $"Configuring {ResWidth}x{ResHeight} ({AspectRatioDescription})...";
+
+            // 1. Save to Registry
+            await Task.Run(() =>
+            {
+                var targetPaths = new[]
+                {
+                    @"Software\Tencent\MobileGamePC",
+                    @"Software\Tencent\TxGameAssistant"
+                };
+
+                foreach (var path in targetPaths)
+                {
+                    try
+                    {
+                        using var subKey = Registry.CurrentUser.CreateSubKey(path);
+                        if (subKey != null)
+                        {
+                            subKey.SetValue("VMResWidth", ResWidth, RegistryValueKind.DWord);
+                            subKey.SetValue("VMResHeight", ResHeight, RegistryValueKind.DWord);
+                            subKey.SetValue("VMDPI", StretchedDpi, RegistryValueKind.DWord);
+                        }
+                    }
+                    catch { }
+
+                    try
+                    {
+                        using var hklmKey = Registry.LocalMachine.CreateSubKey($@"SOFTWARE\WOW6432Node\{path}");
+                        if (hklmKey != null)
+                        {
+                            hklmKey.SetValue("VMResWidth", ResWidth, RegistryValueKind.DWord);
+                            hklmKey.SetValue("VMResHeight", ResHeight, RegistryValueKind.DWord);
+                            hklmKey.SetValue("VMDPI", StretchedDpi, RegistryValueKind.DWord);
+                        }
+                    }
+                    catch { }
+                }
+            });
+
+            // 2. Synchronize Android VM via ADB if available
+            var gl = _getGl();
+            if (AdbManager.IsAdbAvailable(gl))
+            {
+                await AdbManager.ExecuteShellCommandAsync($"wm size {ResWidth}x{ResHeight}", null, 4000, gl);
+                await AdbManager.ExecuteShellCommandAsync($"wm density {StretchedDpi}", null, 4000, gl);
+            }
+
+            // 3. Auto-calibrate and deploy GameLoop keymap if enabled
+            if (AutoInjectKeymapWithResolution)
+            {
+                var kmRes = await ResolutionKeymapService.DeployResolutionKeymapAsync(ResWidth, ResHeight, gl);
+                if (kmRes.Success)
+                {
+                    KeymapCalibrationStatus = $"Calibrated for {ResWidth}x{ResHeight} ({kmRes.KeysCalibrated} keys aligned across {kmRes.FilesUpdated} files)";
+                    RefreshKeymaps();
+                }
+            }
+
+            StatusMessage = $"Applied {ResWidth}x{ResHeight} ({AspectRatioDescription}) to Registry, VM & Keymap!";
+            Logger.Success("StretchedRes", $"Applied {ResWidth}x{ResHeight} (DPI: {StretchedDpi}) stretched resolution.");
+            SettingsSaved?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Failed to apply stretched resolution: {ex.Message}";
+            Logger.Error("StretchedRes", $"Error applying resolution: {ex.Message}");
+        }
+    }
+
+    public async Task CalibrateAndDeployKeymapAsync()
+    {
+        IsKeymapCalibrating = true;
+        StatusMessage = $"Calibrating and deploying GameLoop keymap for {ResWidth}x{ResHeight} ({AspectRatioDescription})...";
+        try
+        {
+            var gl = _getGl();
+            var res = await ResolutionKeymapService.DeployResolutionKeymapAsync(ResWidth, ResHeight, gl);
+            StatusMessage = res.Message;
+            if (res.Success)
+            {
+                KeymapCalibrationStatus = $"Calibrated for {ResWidth}x{ResHeight} ({res.KeysCalibrated} keys aligned across {res.FilesUpdated} files)";
+                RefreshKeymaps();
+            }
+        }
+        finally
+        {
+            IsKeymapCalibrating = false;
+        }
+    }
+
+    public async Task RestoreStockKeymapAsync()
+    {
+        IsKeymapCalibrating = true;
+        StatusMessage = "Restoring default 16:9 widescreen keymap...";
+        try
+        {
+            var gl = _getGl();
+            var res = await ResolutionKeymapService.RestoreStockKeymapAsync(gl);
+            StatusMessage = res.Success ? "Restored stock 16:9 1080P keymap layout!" : res.Message;
+            if (res.Success)
+            {
+                KeymapCalibrationStatus = "Keymaps aligned with native 16:9 standard.";
+                RefreshKeymaps();
+            }
+        }
+        finally
+        {
+            IsKeymapCalibrating = false;
+        }
+    }
+}
+
+public class StretchedResPreset
+{
+    public string Title { get; set; } = string.Empty;
+    public string Tag { get; set; } = string.Empty;
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public int Dpi { get; set; }
+    public string AspectRatioLabel { get; set; } = string.Empty;
+    public string AdvantageDescription { get; set; } = string.Empty;
 }

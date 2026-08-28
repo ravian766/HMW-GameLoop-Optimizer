@@ -17,15 +17,15 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="Hardware Performance Telemetry" FontSize="19" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,4" />
-                        <TextBlock Text="Real-time 1-second system resource monitoring and emulator frame-time pacing analytics." FontSize="13" Foreground="{StaticResource BrushTextSecondary}" />
+                        <TextBlock Text="Hardware Performance Telemetry" FontSize="19" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,4" />
+                        <TextBlock Text="Real-time 1-second system resource monitoring and emulator frame-time pacing analytics." FontSize="13" Foreground="{DynamicResource BrushTextSecondary}" />
                     </StackPanel>
 
                     <!-- Frame-Time Variance Status -->
-                    <Border Grid.Column="1" Background="#1A00F2FE" BorderBrush="#3300F2FE" BorderThickness="1" CornerRadius="8" Padding="14,8" VerticalAlignment="Center">
+                    <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="14,8" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="EST. JITTER: " FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding Metrics.EstimatedFrametimeVarianceMs, StringFormat='{}{0:F1} ms'}" FontSize="14" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" VerticalAlignment="Center" />
+                            <TextBlock Text="EST. JITTER: " FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Metrics.EstimatedFrametimeVarianceMs, StringFormat='{}{0:F1} ms'}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -46,8 +46,8 @@
                 <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource GlassCardHover}" Margin="0,0,8,16">
                     <StackPanel>
                         <Grid Margin="0,0,0,10">
-                            <TextBlock Text="CPU UTILIZATION (%)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
-                            <TextBlock Text="{Binding Metrics.CpuTotalPercent, StringFormat='{}{0:F1}%'}" FontSize="15" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" HorizontalAlignment="Right" />
+                            <TextBlock Text="CPU UTILIZATION (%)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                            <TextBlock Text="{Binding Metrics.CpuTotalPercent, StringFormat='{}{0:F1}%'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" HorizontalAlignment="Right" />
                         </Grid>
                         <controls:LiveChartControl PointsSource="{Binding CpuHistory}" MaxValue="100" Height="140" LineBrush="#00F2FE" />
                     </StackPanel>
@@ -57,8 +57,8 @@
                 <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource GlassCardHover}" Margin="8,0,0,16">
                     <StackPanel>
                         <Grid Margin="0,0,0,10">
-                            <TextBlock Text="GPU 3D RASTERIZER (%)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
-                            <TextBlock Text="{Binding Metrics.GpuPercent, StringFormat='{}{0:F1}%'}" FontSize="15" FontWeight="Bold" Foreground="{StaticResource BrushAccentViolet}" HorizontalAlignment="Right" />
+                            <TextBlock Text="GPU 3D RASTERIZER (%)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                            <TextBlock Text="{Binding Metrics.GpuPercent, StringFormat='{}{0:F1}%'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushAccentViolet}" HorizontalAlignment="Right" />
                         </Grid>
                         <controls:LiveChartControl PointsSource="{Binding GpuHistory}" MaxValue="100" Height="140" LineBrush="#8B5CF6" />
                     </StackPanel>
@@ -68,8 +68,8 @@
                 <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource GlassCardHover}" Margin="0,0,8,0">
                     <StackPanel>
                         <Grid Margin="0,0,0,10">
-                            <TextBlock Text="RAM USAGE (%)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
-                            <TextBlock Text="{Binding Metrics.RamPercent, StringFormat='{}{0:F0}%'}" FontSize="15" FontWeight="Bold" Foreground="{StaticResource BrushAccentGreen}" HorizontalAlignment="Right" />
+                            <TextBlock Text="RAM USAGE (%)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                            <TextBlock Text="{Binding Metrics.RamPercent, StringFormat='{}{0:F0}%'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" HorizontalAlignment="Right" />
                         </Grid>
                         <controls:LiveChartControl PointsSource="{Binding RamHistory}" MaxValue="100" Height="140" LineBrush="#10B981" />
                     </StackPanel>
@@ -79,8 +79,8 @@
                 <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource GlassCardHover}" Margin="8,0,0,0">
                     <StackPanel>
                         <Grid Margin="0,0,0,10">
-                            <TextBlock Text="DISK THROUGHPUT (MB/s)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
-                            <TextBlock Text="{Binding Metrics.DiskReadMbSec, StringFormat='{}{0:F1} MB/s'}" FontSize="15" FontWeight="Bold" Foreground="{StaticResource BrushAccentAmber}" HorizontalAlignment="Right" />
+                            <TextBlock Text="DISK THROUGHPUT (MB/s)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                            <TextBlock Text="{Binding Metrics.DiskReadMbSec, StringFormat='{}{0:F1} MB/s'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" HorizontalAlignment="Right" />
                         </Grid>
                         <controls:LiveChartControl PointsSource="{Binding DiskHistory}" MaxValue="60" Height="140" LineBrush="#F59E0B" />
                     </StackPanel>
@@ -97,21 +97,21 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="MEMORY HEADROOM" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
-                        <TextBlock Text="{Binding Metrics.RamUsedGb, StringFormat='Used: {0:F1} GB'}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,4,0,2" />
-                        <TextBlock Text="{Binding Metrics.RamAvailableGb, StringFormat='Available: {0:F1} GB'}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushAccentGreen}" />
+                        <TextBlock Text="MEMORY HEADROOM" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding Metrics.RamUsedGb, StringFormat='Used: {0:F1} GB'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,4,0,2" />
+                        <TextBlock Text="{Binding Metrics.RamAvailableGb, StringFormat='Available: {0:F1} GB'}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentGreen}" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="1">
-                        <TextBlock Text="GAMELOOP PROCESS FOOTPRINT" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
-                        <TextBlock Text="{Binding Metrics.GameLoopRamMb, StringFormat='Memory: {0:F0} MB'}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,4,0,2" />
-                        <TextBlock Text="{Binding Metrics.IsGameLoopActive, Converter={StaticResource BooleanToStatusTextConverter}, FallbackValue='Running'}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushAccentCyan}" />
+                        <TextBlock Text="GAMELOOP PROCESS FOOTPRINT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding Metrics.GameLoopRamMb, StringFormat='Memory: {0:F0} MB'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,4,0,2" />
+                        <TextBlock Text="{Binding Metrics.IsGameLoopActive, Converter={StaticResource BooleanToStatusTextConverter}, FallbackValue='Running'}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="STORAGE I/O ACTIVITY" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
-                        <TextBlock Text="{Binding Metrics.DiskReadMbSec, StringFormat='Read: {0:F1} MB/s'}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,4,0,2" />
-                        <TextBlock Text="{Binding Metrics.DiskWriteMbSec, StringFormat='Write: {0:F1} MB/s'}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" />
+                        <TextBlock Text="STORAGE I/O ACTIVITY" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding Metrics.DiskReadMbSec, StringFormat='Read: {0:F1} MB/s'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,4,0,2" />
+                        <TextBlock Text="{Binding Metrics.DiskWriteMbSec, StringFormat='Write: {0:F1} MB/s'}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextSecondary}" />
                     </StackPanel>
                 </Grid>
             </Border>

@@ -17,9 +17,15 @@ public class ModuleStructureTests
             new GameLoopResourceModule(),
             new GameLoopGraphicsModule(),
             new GameLoopPUBGConfigModule(),
+            new AdbGpuAccelerationModule(),
+            new AdbAnimationLatencyModule(),
+            new AdbVmHeapTuningModule(),
+            new AdbLogcatSuppressModule(),
+            new AdbBackgroundDozeModule(),
             new CpuAffinityModule(),
             new GpuPreferenceModule(),
             new AudioLatencyModule(),
+            new AudioFootstepClarifierModule(),
             new MemoryOptimizerModule(),
             new CleanupOptimizerModule(),
             new TimerResolutionModule(),
@@ -31,7 +37,7 @@ public class ModuleStructureTests
         };
 
         // Assert
-        Assert.Equal(16, modules.Count);
+        Assert.Equal(22, modules.Count);
 
         var ids = modules.Select(m => m.Id).ToList();
         Assert.Equal(ids.Count, ids.Distinct().Count()); // All IDs unique

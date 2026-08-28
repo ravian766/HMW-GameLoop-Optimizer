@@ -20,10 +20,10 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Backup &amp; Reversion Ledger" FontSize="19" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,4" />
+                    <TextBlock Text="Backup &amp; Reversion Ledger" FontSize="19" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,4" />
                     <TextBlock Text="Every registry, power, and GameLoop modification is snapshotted before application and can be reverted individually or completely."
-                               FontSize="12" Foreground="{StaticResource BrushTextSecondary}" />
-                    <TextBlock Text="{Binding StatusMessage}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushAccentCyan}" Margin="0,6,0,0" />
+                               FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" />
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,6,0,0" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
@@ -46,7 +46,7 @@
             <ItemsControl ItemsSource="{Binding Backups}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Background="{StaticResource BrushCardGradient}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,10">
+                        <Border Background="{DynamicResource BrushCardGradient}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,10">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -55,25 +55,25 @@
 
                                 <StackPanel>
                                     <WrapPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                        <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,10,0" />
-                                        <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                                        <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}" FontSize="11" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
                                     </WrapPanel>
 
-                                    <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,4" />
-                                    <TextBlock Text="{Binding TargetPath, StringFormat='Target: {0}'}" FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,0,4" />
+                                    <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,4" />
+                                    <TextBlock Text="{Binding TargetPath, StringFormat='Target: {0}'}" FontSize="11" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,4" />
 
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="ORIGINAL: " FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" />
-                                        <TextBlock Text="{Binding PreviousValue, FallbackValue='(None)'}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" Margin="0,0,16,0" />
+                                        <TextBlock Text="ORIGINAL: " FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding PreviousValue, FallbackValue='(None)'}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" Margin="0,0,16,0" />
                                         
-                                        <TextBlock Text="MODIFIED: " FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" />
-                                        <TextBlock Text="{Binding NewValue}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" VerticalAlignment="Center" />
+                                        <TextBlock Text="MODIFIED: " FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding NewValue}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal">
-                                    <Border Background="#1A10B981" BorderBrush="#3310B981" BorderThickness="1" CornerRadius="6" Padding="10,4" Margin="0,0,10,0" Visibility="{Binding IsReverted, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                        <TextBlock Text="REVERTED" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushAccentGreen}" />
+                                    <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="6" Padding="10,4" Margin="0,0,10,0" Visibility="{Binding IsReverted, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Text="REVERTED" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
                                     </Border>
 
                                     <Button Content="Rollback This"

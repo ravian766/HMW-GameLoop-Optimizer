@@ -20,8 +20,8 @@
         TextOptions.TextHintingMode="Fixed"
         RenderOptions.ClearTypeHint="Enabled">
 
-    <Border Background="#F2080B12"
-            BorderBrush="#4D00F2FE"
+    <Border Background="{DynamicResource BrushBgCard}"
+            BorderBrush="{DynamicResource BrushBorderLight}"
             BorderThickness="1"
             CornerRadius="10"
             SnapsToDevicePixels="True"
@@ -36,40 +36,40 @@
 
             <!-- Brand Badge -->
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
-                <Border Background="{StaticResource BrushCyanGradient}" CornerRadius="5" Padding="7,3">
-                    <TextBlock Text="HMW HUD" FontSize="10" FontWeight="Bold" Foreground="#04060A" />
+                <Border Background="{DynamicResource BrushCyanGradient}" CornerRadius="5" Padding="7,3">
+                    <TextBlock Text="HMW HUD" FontSize="10" FontWeight="Bold" Foreground="#FFFFFF" />
                 </Border>
             </StackPanel>
 
             <!-- Metrics Bar -->
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                 <!-- CPU -->
-                <TextBlock Text="CPU " FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextMuted}" />
-                <TextBlock x:Name="TxtCpu" Text="0%" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,12,0" />
+                <TextBlock Text="CPU " FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextMuted}" />
+                <TextBlock x:Name="TxtCpu" Text="0%" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,12,0" />
 
                 <!-- Host RAM -->
-                <TextBlock Text="RAM " FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextMuted}" />
-                <TextBlock x:Name="TxtRam" Text="0%" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,12,0" />
+                <TextBlock Text="RAM " FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextMuted}" />
+                <TextBlock x:Name="TxtRam" Text="0%" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,12,0" />
 
                 <!-- Emulator MB -->
-                <TextBlock Text="GameLoop " FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextMuted}" />
-                <TextBlock x:Name="TxtEmulator" Text="0 MB" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" Margin="0,0,12,0" />
+                <TextBlock Text="GameLoop " FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextMuted}" />
+                <TextBlock x:Name="TxtEmulator" Text="0 MB" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,12,0" />
 
                 <!-- Stutter Radar Badge -->
-                <Border x:Name="BadgeRadar" Background="#2610B981" BorderBrush="#4D10B981" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,10,0">
-                    <TextBlock x:Name="TxtRadar" Text="⚡ Stable" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushAccentGreen}" />
+                <Border x:Name="BadgeRadar" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,10,0">
+                    <TextBlock x:Name="TxtRadar" Text="⚡ Stable" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
                 </Border>
 
                 <!-- Timer -->
-                <Border Background="#1A00F2FE" BorderBrush="#3300F2FE" BorderThickness="1" CornerRadius="4" Padding="5,2">
-                    <TextBlock Text="0.50ms" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" />
+                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="4" Padding="5,2">
+                    <TextBlock Text="0.50ms" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
                 </Border>
             </StackPanel>
 
             <!-- Close overlay button -->
             <Button Grid.Column="2"
                     Content="✕"
-                    Foreground="{StaticResource BrushTextMuted}"
+                    Foreground="{DynamicResource BrushTextMuted}"
                     Background="Transparent"
                     BorderThickness="0"
                     FontSize="11"

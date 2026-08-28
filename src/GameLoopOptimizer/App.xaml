@@ -9,7 +9,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Styles/Colors.xaml" />
+                <ResourceDictionary Source="Styles/ColorsDark.xaml" />
                 <ResourceDictionary Source="Styles/ModernControls.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
@@ -49,6 +49,10 @@
 
             <DataTemplate DataType="{x:Type vm:GameLoopViewModel}">
                 <views:GameLoopView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:KeymapResolutionViewModel}">
+                <views:KeymapResolutionView />
             </DataTemplate>
 
             <DataTemplate DataType="{x:Type vm:MonitorViewModel}">

@@ -13,6 +13,7 @@ public class GamingSessionViewModel : ViewModelBase
     private readonly Func<SystemInfo> _getSys;
     private readonly Func<GameLoopConfig> _getGl;
     private readonly PerformanceMonitorService _monitor;
+    private readonly GameLoopWatchdogService _watchdog;
     private readonly List<IOptimizationModule> _sessionModules;
     private readonly DispatcherTimer _sessionTimer;
 
@@ -37,20 +38,43 @@ public class GamingSessionViewModel : ViewModelBase
         set => SetProperty(ref _summaryReport, value);
     }
 
+    public bool IsAutoPurgeEnabled
+    {
+        get => _watchdog.IsAutoPurgeEnabled;
+        set
+        {
+            if (_watchdog.IsAutoPurgeEnabled != value)
+            {
+                _watchdog.IsAutoPurgeEnabled = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private string _autoPurgeStatus = "Smart Auto-Purge Active (3m interval)";
+    public string AutoPurgeStatus
+    {
+        get => _autoPurgeStatus;
+        set => SetProperty(ref _autoPurgeStatus, value);
+    }
+
     public ICommand StartSessionCommand { get; }
     public ICommand EndSessionCommand { get; }
+    public ICommand ManualPurgeCommand { get; }
 
     public GamingSessionViewModel(
         Func<HardwareInfo> getHw, 
         Func<SystemInfo> getSys, 
         Func<GameLoopConfig> getGl, 
         PerformanceMonitorService monitor,
+        GameLoopWatchdogService watchdog,
         List<IOptimizationModule> sessionModules)
     {
         _getHw = getHw;
         _getSys = getSys;
         _getGl = getGl;
         _monitor = monitor;
+        _watchdog = watchdog;
         _sessionModules = sessionModules;
 
         _sessionTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -60,6 +84,11 @@ public class GamingSessionViewModel : ViewModelBase
             {
                 FormattedDuration = Session.Duration.ToString(@"hh\:mm\:ss");
             }
+        };
+
+        _watchdog.AutoPurgeExecuted += (msg) =>
+        {
+            AutoPurgeStatus = msg;
         };
 
         _monitor.MetricsUpdated += (s, m) =>
@@ -79,6 +108,12 @@ public class GamingSessionViewModel : ViewModelBase
 
         StartSessionCommand = new AsyncRelayCommand(StartSessionAsync, () => !Session.IsActive);
         EndSessionCommand = new AsyncRelayCommand(EndSessionAsync, () => Session.IsActive);
+
+        ManualPurgeCommand = new AsyncRelayCommand(async () =>
+        {
+            int freed = await _watchdog.ExecuteSmartPurgeAsync();
+            AutoPurgeStatus = $"Manual Purge: Cleaned {freed} processes at {DateTime.Now:HH:mm:ss}";
+        });
     }
 
     private async Task StartSessionAsync()
@@ -129,6 +164,7 @@ public class GamingSessionViewModel : ViewModelBase
                         $"Average CPU Usage: {Session.AvgCpuPercent}%\n" +
                         $"Peak CPU Spike: {Session.PeakCpuPercent}%\n" +
                         $"Peak GameLoop Memory: {Session.PeakRamMb:F0} MB\n" +
+                        $"Auto-Purge Cycles Executed: {_watchdog.AutoPurgeCount} times (~{_watchdog.TotalMegabytesFreed:F0} MB recycled)\n" +
                         $"Temporary Tweaks Reverted: {Session.AppliedTemporaryChanges.Count} modules safely restored.";
 
         Session.IsActive = false;

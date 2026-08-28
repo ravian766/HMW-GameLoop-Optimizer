@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="740" d:DesignWidth="940">
+             d:DesignHeight="780" d:DesignWidth="980">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="28,24,28,28">
 
@@ -17,33 +17,64 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="Gaming Session Controller" FontSize="20" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,6" />
+                        <TextBlock Text="Turbo Gaming Session Controller" FontSize="21" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
                         <TextBlock Text="Applies real-time thread priority boosts, 0.5ms timer resolution, and background CPU throttling, automatically reverting everything when your match finishes."
-                                   FontSize="13" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,14" />
+                                   FontSize="13" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,14" />
 
                         <!-- Active Duration Readout -->
-                        <Border Background="#1A00F2FE" BorderBrush="#3300F2FE" BorderThickness="1" CornerRadius="8" Padding="14,6" HorizontalAlignment="Left">
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="14,6" HorizontalAlignment="Left">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="SESSION TIME: " FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding FormattedDuration}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" VerticalAlignment="Center" Margin="6,0,0,0" />
+                                <TextBlock Text="SESSION DURATION: " FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding FormattedDuration}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" Margin="6,0,0,0" />
                             </StackPanel>
                         </Border>
                     </StackPanel>
 
                     <!-- Start / End Buttons -->
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="20,0,0,0">
-                        <Button Content="⚡ Start Gaming Session"
+                        <Button Content="⚡ Start Turbo Session"
                                 Command="{Binding StartSessionCommand}"
                                 Style="{StaticResource SuccessButton}"
                                 Padding="24,14"
                                 FontSize="13"
                                 Margin="0,0,0,10" />
 
-                        <Button Content="⏹ End Gaming Session"
+                        <Button Content="⏹ End Session"
                                 Command="{Binding EndSessionCommand}"
                                 Style="{StaticResource DangerButton}"
                                 Padding="20,10"
                                 FontSize="12" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Autonomous Smart Auto-Purge Daemon Card -->
+            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,22">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel VerticalAlignment="Center">
+                        <WrapPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="🧹 Autonomous Smart Post-Match RAM &amp; Cache Auto-Purge" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                                <TextBlock Text="ACTIVE DAEMON" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
+                            </Border>
+                        </WrapPanel>
+                        <TextBlock Text="Continuously monitors memory pressure and automatically recycles unused background working sets and in-VM Android caches every 3 minutes."
+                                   FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,8" />
+                        <TextBlock Text="{Binding AutoPurgeStatus}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <CheckBox Content="Auto-Purge Active" IsChecked="{Binding IsAutoPurgeEnabled}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" Margin="0,0,14,0" />
+                        <Button Content="⚡ Trigger Instant Purge"
+                                Command="{Binding ManualPurgeCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                Padding="14,8"
+                                FontSize="11" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -56,27 +87,27 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Style="{StaticResource GlassCardHover}" Margin="0,0,8,0">
+                <Border Grid.Column="0" Style="{StaticResource MetricTile}" Margin="0,0,8,0">
                     <StackPanel>
-                        <TextBlock Text="AVERAGE CPU LOAD" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
-                        <TextBlock Text="{Binding Session.AvgCpuPercent, StringFormat='{}{0:F1}%'}" FontSize="25" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" Margin="0,4,0,2" />
-                        <TextBlock Text="Host &amp; Emulator combined" FontSize="10" Foreground="{StaticResource BrushTextMuted}" />
+                        <TextBlock Text="AVERAGE CPU LOAD" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding Session.AvgCpuPercent, StringFormat='{}{0:F1}%'}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,4,0,2" />
+                        <TextBlock Text="Host &amp; Emulator combined" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
                     </StackPanel>
                 </Border>
 
-                <Border Grid.Column="1" Style="{StaticResource GlassCardHover}" Margin="4,0,4,0">
+                <Border Grid.Column="1" Style="{StaticResource MetricTile}" Margin="4,0,4,0">
                     <StackPanel>
-                        <TextBlock Text="PEAK CPU SPIKE" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
-                        <TextBlock Text="{Binding Session.PeakCpuPercent, StringFormat='{}{0:F1}%'}" FontSize="25" FontWeight="Bold" Foreground="{StaticResource BrushAccentAmber}" Margin="0,4,0,2" />
-                        <TextBlock Text="Highest load recorded" FontSize="10" Foreground="{StaticResource BrushTextMuted}" />
+                        <TextBlock Text="PEAK CPU SPIKE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding Session.PeakCpuPercent, StringFormat='{}{0:F1}%'}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" Margin="0,4,0,2" />
+                        <TextBlock Text="Highest load recorded" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
                     </StackPanel>
                 </Border>
 
-                <Border Grid.Column="2" Style="{StaticResource GlassCardHover}" Margin="8,0,0,0">
+                <Border Grid.Column="2" Style="{StaticResource MetricTile}" Margin="8,0,0,0">
                     <StackPanel>
-                        <TextBlock Text="PEAK EMULATOR MEMORY" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" />
-                        <TextBlock Text="{Binding Session.PeakRamMb, StringFormat='{}{0:F0} MB'}" FontSize="25" FontWeight="Bold" Foreground="{StaticResource BrushAccentGreen}" Margin="0,4,0,2" />
-                        <TextBlock Text="GameLoop RAM footprint" FontSize="10" Foreground="{StaticResource BrushTextMuted}" />
+                        <TextBlock Text="PEAK EMULATOR MEMORY" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding Session.PeakRamMb, StringFormat='{}{0:F0} MB'}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" Margin="0,4,0,2" />
+                        <TextBlock Text="GameLoop RAM footprint" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
                     </StackPanel>
                 </Border>
             </Grid>
@@ -91,23 +122,23 @@
                 <!-- Active Tweaks -->
                 <Border Grid.Column="0" Style="{StaticResource GlassCard}" Margin="0,0,8,0">
                     <StackPanel>
-                        <TextBlock Text="Temporary Session Tweaks" FontSize="15" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,6" />
-                        <TextBlock Text="These temporary system modifications are active solely during your gaming match:" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,12" />
+                        <TextBlock Text="Temporary Turbo Session Modifications" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
+                        <TextBlock Text="These temporary system modifications are active solely during your gaming match:" FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,12" />
 
-                        <Border Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6">
-                            <TextBlock Text="✓ 0.5ms High-Precision Multimedia Timer" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushAccentCyan}" />
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6">
+                            <TextBlock Text="✓ 0.5ms High-Precision Multimedia Timer" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" />
                         </Border>
-                        <Border Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6">
-                            <TextBlock Text="✓ GameLoop Process Priority: Above Normal" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushAccentCyan}" />
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6">
+                            <TextBlock Text="✓ GameLoop Process Priority: Above Normal" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" />
                         </Border>
-                        <Border Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6">
-                            <TextBlock Text="✓ P-Core Thread Affinity Locked to High-Performance Cores" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushAccentCyan}" />
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6">
+                            <TextBlock Text="✓ P-Core Thread Affinity Locked to High-Performance Cores" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" />
                         </Border>
-                        <Border Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6">
-                            <TextBlock Text="✓ Background Apps Throttled to Below Normal" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushAccentCyan}" />
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6">
+                            <TextBlock Text="✓ Background Apps Throttled to Below Normal" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" />
                         </Border>
-                        <Border Background="{StaticResource BrushBgInput}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10">
-                            <TextBlock Text="✓ Idle Process RAM Working Set Flushed" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushAccentCyan}" />
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10">
+                            <TextBlock Text="✓ Idle Process RAM Working Set Flushed" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" />
                         </Border>
                     </StackPanel>
                 </Border>
@@ -115,9 +146,9 @@
                 <!-- Session Report -->
                 <Border Grid.Column="1" Style="{StaticResource GlassCard}" Margin="8,0,0,0">
                     <StackPanel>
-                        <TextBlock Text="Post-Match Session Report" FontSize="15" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,10" />
+                        <TextBlock Text="Post-Match Session Report" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,10" />
                         <TextBlock Text="{Binding SummaryReport, FallbackValue='Start a session to record telemetry. When you click End Session, a full report will be generated and temporary changes will be reverted.'}"
-                                   FontSize="12" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" />
+                                   FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
             </Grid>

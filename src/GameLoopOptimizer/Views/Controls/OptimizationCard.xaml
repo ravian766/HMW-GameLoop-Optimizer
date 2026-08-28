@@ -5,12 +5,9 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
              d:DesignHeight="130" d:DesignWidth="620">
-    <Border Background="{StaticResource BrushCardGradient}"
-            BorderBrush="{StaticResource BrushBorderSubtle}"
-            BorderThickness="1"
-            CornerRadius="10"
-            Padding="16"
+    <Border Style="{StaticResource GlassCardHover}"
             Margin="0,0,0,10"
+            Padding="16"
             SnapsToDevicePixels="True"
             UseLayoutRounding="True">
         <Grid>
@@ -23,7 +20,7 @@
             <!-- Checkbox -->
             <CheckBox IsChecked="{Binding IsSelected}"
                       VerticalAlignment="Top"
-                      Margin="0,3,14,0" />
+                      Margin="0,4,14,0" />
 
             <!-- Content Details -->
             <StackPanel Grid.Column="1" Margin="0,0,14,0">
@@ -32,15 +29,15 @@
                     <TextBlock Text="{Binding Title}"
                                FontSize="14"
                                FontWeight="Bold"
-                               Foreground="{StaticResource BrushTextPrimary}"
+                               Foreground="{DynamicResource BrushTextPrimary}"
                                VerticalAlignment="Center"
                                Margin="0,0,10,0" />
 
                     <!-- Risk Pill -->
-                    <Border Background="#121826"
+                    <Border Background="{DynamicResource BrushBgInput}"
                             BorderBrush="{Binding RiskColor}"
                             BorderThickness="1"
-                            CornerRadius="10"
+                            CornerRadius="8"
                             Padding="8,2"
                             Margin="0,0,6,0">
                         <TextBlock Text="{Binding RiskLevel}"
@@ -50,49 +47,49 @@
                     </Border>
 
                     <!-- Admin Tag -->
-                    <Border Background="#26F59E0B"
-                            BorderBrush="#4DF59E0B"
+                    <Border Background="{DynamicResource BrushBgInput}"
+                            BorderBrush="{DynamicResource BrushAccentAmber}"
                             BorderThickness="1"
-                            CornerRadius="10"
+                            CornerRadius="8"
                             Padding="8,2"
                             Visibility="{Binding RequiresAdmin, Converter={StaticResource BooleanToVisibilityConverter}}"
                             Margin="0,0,6,0">
-                        <TextBlock Text="ADMIN" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushAccentAmber}" />
+                        <TextBlock Text="ADMIN" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" />
                     </Border>
                 </WrapPanel>
 
                 <!-- Description -->
                 <TextBlock Text="{Binding Description}"
                            FontSize="12"
-                           Foreground="{StaticResource BrushTextSecondary}"
+                           Foreground="{DynamicResource BrushTextSecondary}"
                            TextWrapping="Wrap"
-                           Margin="0,0,0,5" />
+                           Margin="0,0,0,4" />
 
                 <!-- Technical Rationale -->
                 <TextBlock Text="{Binding TechnicalRationale}"
                            FontSize="11"
-                           Foreground="{StaticResource BrushTextMuted}"
+                           Foreground="{DynamicResource BrushTextMuted}"
                            FontStyle="Italic"
                            TextWrapping="Wrap"
                            Margin="0,0,0,8" />
 
                 <!-- State comparison -->
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="CURRENT: " FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding CurrentStateDisplay}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" Margin="0,0,16,0" />
+                <WrapPanel Orientation="Horizontal">
+                    <TextBlock Text="CURRENT: " FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding CurrentStateDisplay}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" Margin="0,0,16,0" />
                     
-                    <TextBlock Text="RECOMMENDED: " FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding RecommendedStateDisplay}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushAccentCyan}" VerticalAlignment="Center" />
-                </StackPanel>
+                    <TextBlock Text="RECOMMENDED: " FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding RecommendedStateDisplay}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                </WrapPanel>
             </StackPanel>
 
             <!-- Actions & Status -->
             <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
                 <!-- Status Badge -->
-                <Border Background="#121B2B"
+                <Border Background="{DynamicResource BrushBgInput}"
                         BorderBrush="{Binding StatusBadgeColor}"
                         BorderThickness="1"
-                        CornerRadius="6"
+                        CornerRadius="8"
                         Padding="10,4"
                         HorizontalAlignment="Right"
                         Margin="0,0,0,10">
