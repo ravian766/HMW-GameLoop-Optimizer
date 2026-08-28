@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows.Input;
 using GameLoopOptimizer.Core;
 using GameLoopOptimizer.Models;
@@ -220,6 +221,70 @@ public class GameLoopViewModel : ViewModelBase
         set => SetProperty(ref _adbDisableDoze, value);
     }
 
+    private bool _adbInputPolling = true;
+    public bool AdbInputPolling
+    {
+        get => _adbInputPolling;
+        set => SetProperty(ref _adbInputPolling, value);
+    }
+
+    private bool _adb120FpsUnlock = true;
+    public bool Adb120FpsUnlock
+    {
+        get => _adb120FpsUnlock;
+        set => SetProperty(ref _adb120FpsUnlock, value);
+    }
+
+    public ObservableCollection<GamePackageInfo> InstalledGamePackages { get; } = new();
+
+    private GamePackageInfo? _selectedGamePackage;
+    public GamePackageInfo? SelectedGamePackage
+    {
+        get => _selectedGamePackage;
+        set
+        {
+            if (SetProperty(ref _selectedGamePackage, value))
+            {
+                _ = Task.Run(async () => await RefreshTelemetryAsync());
+            }
+        }
+    }
+
+    private AdbTelemetrySnapshot _adbTelemetry = new();
+    public AdbTelemetrySnapshot AdbTelemetry
+    {
+        get => _adbTelemetry;
+        set => SetProperty(ref _adbTelemetry, value);
+    }
+
+    private string _interactiveAdbCommand = string.Empty;
+    public string InteractiveAdbCommand
+    {
+        get => _interactiveAdbCommand;
+        set => SetProperty(ref _interactiveAdbCommand, value);
+    }
+
+    private string _interactiveAdbOutput = "ADB Shell Console Ready. Type a command (e.g., 'getprop ro.product.model' or 'pm list packages') and click Execute.\n";
+    public string InteractiveAdbOutput
+    {
+        get => _interactiveAdbOutput;
+        set => SetProperty(ref _interactiveAdbOutput, value);
+    }
+
+    private bool _isAdbCompiling;
+    public bool IsAdbCompiling
+    {
+        get => _isAdbCompiling;
+        set => SetProperty(ref _isAdbCompiling, value);
+    }
+
+    private string _adbCompilationStatus = "Ready to compile DEX bytecode to native AOT.";
+    public string AdbCompilationStatus
+    {
+        get => _adbCompilationStatus;
+        set => SetProperty(ref _adbCompilationStatus, value);
+    }
+
     private bool _autoInjectKeymapWithResolution = true;
     public bool AutoInjectKeymapWithResolution
     {
@@ -255,6 +320,13 @@ public class GameLoopViewModel : ViewModelBase
     public ICommand ApplyAllAdbOptimizationsCommand { get; }
     public ICommand TrimInVmCacheCommand { get; }
     public ICommand RestartAdbServerCommand { get; }
+    public ICommand CompileGameDexCommand { get; }
+    public ICommand CaptureInVmScreenshotCommand { get; }
+    public ICommand ExecuteCustomAdbShellCommand { get; }
+    public ICommand ClearConsoleOutputCommand { get; }
+    public ICommand RefreshTelemetryCommand { get; }
+    public ICommand SetInVmResolutionCommand { get; }
+    public ICommand ResetInVmResolutionCommand { get; }
     public ICommand SelectStretchedPresetCommand { get; }
     public ICommand ApplyStretchedResolutionCommand { get; }
     public ICommand CalibrateAndInjectKeymapCommand { get; }
@@ -415,6 +487,117 @@ public class GameLoopViewModel : ViewModelBase
                 bool ok = await AdbManager.RestartAdbServerAsync(Config);
                 await RefreshAdbStatusAsync();
                 StatusMessage = ok ? "ADB Server restarted and reconnected." : "ADB Server restarted (device not detected).";
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        CompileGameDexCommand = new AsyncRelayCommand(async () =>
+        {
+            string targetPkg = SelectedGamePackage?.PackageName ?? "com.tencent.ig";
+            IsAdbCompiling = true;
+            AdbCompilationStatus = $"Compiling DEX bytecode to native machine code for {targetPkg}...";
+            StatusMessage = $"Pre-compiling {targetPkg} into AOT native code...";
+            try
+            {
+                string result = await AdbManager.CompilePackageSpeedAsync(targetPkg, Config);
+                AdbCompilationStatus = result;
+                StatusMessage = $"AOT Compilation Complete for {targetPkg}!";
+                await RefreshTelemetryAsync();
+            }
+            catch (Exception ex)
+            {
+                AdbCompilationStatus = $"Error: {ex.Message}";
+                StatusMessage = $"AOT compilation failed: {ex.Message}";
+            }
+            finally
+            {
+                IsAdbCompiling = false;
+            }
+        });
+
+        CaptureInVmScreenshotCommand = new AsyncRelayCommand(async () =>
+        {
+            IsAdbBusy = true;
+            StatusMessage = "Capturing direct framebuffer screenshot from Android VM...";
+            try
+            {
+                string picFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+                string shotDir = Path.Combine(picFolder, "GameLoop_Screenshots");
+                if (!Directory.Exists(shotDir)) Directory.CreateDirectory(shotDir);
+                string shotPath = Path.Combine(shotDir, $"GameLoop_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+
+                bool ok = await AdbManager.CaptureScreenAsync(shotPath, Config);
+                if (ok)
+                {
+                    StatusMessage = $"Screenshot saved to: {shotPath}";
+                    Logger.Success("AdbStudio", $"Saved in-VM screenshot to {shotPath}");
+                }
+                else
+                {
+                    StatusMessage = "Failed to capture in-VM screenshot. Ensure ADB is connected.";
+                }
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        ExecuteCustomAdbShellCommand = new AsyncRelayCommand(async () =>
+        {
+            if (string.IsNullOrWhiteSpace(InteractiveAdbCommand)) return;
+            string cmd = InteractiveAdbCommand.Trim();
+            InteractiveAdbOutput += $"\n> {cmd}\n";
+            InteractiveAdbCommand = string.Empty;
+            try
+            {
+                string outText = await AdbManager.ExecuteShellCommandAsync(cmd, null, 8000, Config);
+                InteractiveAdbOutput += outText + "\n";
+            }
+            catch (Exception ex)
+            {
+                InteractiveAdbOutput += $"[Error] {ex.Message}\n";
+            }
+        });
+
+        ClearConsoleOutputCommand = new RelayCommand(() =>
+        {
+            InteractiveAdbOutput = "ADB Shell Console Cleared.\n";
+        });
+
+        RefreshTelemetryCommand = new AsyncRelayCommand(async () =>
+        {
+            await RefreshTelemetryAsync();
+        });
+
+        SetInVmResolutionCommand = new AsyncRelayCommand(async () =>
+        {
+            IsAdbBusy = true;
+            StatusMessage = $"Overriding in-VM resolution to {ResWidth}x{ResHeight} @ {StretchedDpi} DPI...";
+            try
+            {
+                bool ok = await AdbManager.SetInVmResolutionAsync(ResWidth, ResHeight, StretchedDpi, Config);
+                StatusMessage = ok ? $"In-VM resolution scaled to {ResWidth}x{ResHeight}!" : "Failed to override in-VM resolution.";
+                await RefreshTelemetryAsync();
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        ResetInVmResolutionCommand = new AsyncRelayCommand(async () =>
+        {
+            IsAdbBusy = true;
+            StatusMessage = "Resetting in-VM display viewport size...";
+            try
+            {
+                bool ok = await AdbManager.ResetInVmResolutionAsync(Config);
+                StatusMessage = ok ? "In-VM display viewport reset to default!" : "Failed to reset in-VM resolution.";
+                await RefreshTelemetryAsync();
             }
             finally
             {
@@ -740,6 +923,46 @@ public class GameLoopViewModel : ViewModelBase
                 AdbStatusText = "GameLoop Android VM Offline / Disconnected";
             }
         }
+
+        if (IsAdbConnected)
+        {
+            var pkgs = await AdbManager.GetInstalledGamePackagesAsync(gl);
+            void UpdatePkgsAction()
+            {
+                InstalledGamePackages.Clear();
+                foreach (var p in pkgs) InstalledGamePackages.Add(p);
+                if (SelectedGamePackage == null || !InstalledGamePackages.Contains(SelectedGamePackage))
+                {
+                    SelectedGamePackage = InstalledGamePackages.FirstOrDefault(p => p.IsInstalled) ?? InstalledGamePackages.FirstOrDefault();
+                }
+            }
+
+            if (System.Windows.Application.Current?.Dispatcher != null && !System.Windows.Application.Current.Dispatcher.CheckAccess())
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(UpdatePkgsAction);
+            }
+            else
+            {
+                UpdatePkgsAction();
+            }
+
+            await RefreshTelemetryAsync();
+        }
+    }
+
+    public async Task RefreshTelemetryAsync()
+    {
+        if (!IsAdbConnected) return;
+        try
+        {
+            var gl = _getGl();
+            var snap = await AdbTelemetryService.FetchTelemetryAsync(SelectedGamePackage?.PackageName, gl);
+            AdbTelemetry = snap;
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn("AdbTelemetry", $"Failed to fetch telemetry: {ex.Message}");
+        }
     }
 
     public async Task ApplyAllAdbOptimizationsAsync()
@@ -757,6 +980,7 @@ public class GameLoopViewModel : ViewModelBase
             }
 
             int count = 0;
+            string targetPkg = SelectedGamePackage?.PackageName ?? "com.tencent.ig";
 
             if (AdbGpuAcceleration)
             {
@@ -774,6 +998,22 @@ public class GameLoopViewModel : ViewModelBase
                 await AdbManager.PutGlobalSettingAsync("window_animation_scale", "0", gl);
                 await AdbManager.PutGlobalSettingAsync("transition_animation_scale", "0", gl);
                 await AdbManager.PutGlobalSettingAsync("animator_duration_scale", "0", gl);
+                count++;
+            }
+
+            if (AdbInputPolling)
+            {
+                await AdbManager.SetPropAsync("windowsmgr.max_events_per_sec", "240", gl);
+                await AdbManager.SetPropAsync("persist.sys.scrollingcache", "3", gl);
+                await AdbManager.SetPropAsync("persist.vendor.touch.sensitivity", "10", gl);
+                count++;
+            }
+
+            if (Adb120FpsUnlock)
+            {
+                await AdbManager.SetPropAsync("debug.sf.fps", "120", gl);
+                await AdbManager.SetPropAsync("ro.surface_flinger.max_frame_rate", "120", gl);
+                await AdbManager.SetPropAsync("persist.vendor.dfps.level", "120", gl);
                 count++;
             }
 
@@ -797,12 +1037,14 @@ public class GameLoopViewModel : ViewModelBase
             {
                 await AdbManager.PutGlobalSettingAsync("app_standby_enabled", "0", gl);
                 await AdbManager.PutGlobalSettingAsync("adaptive_battery_management_enabled", "0", gl);
-                await AdbManager.ExecuteShellCommandAsync("cmd appops set com.tencent.ig RUN_IN_BACKGROUND allow", null, 4000, gl);
+                await AdbManager.ExecuteShellCommandAsync($"cmd appops set {targetPkg} RUN_IN_BACKGROUND allow", null, 4000, gl);
                 count++;
             }
 
+            await RefreshTelemetryAsync();
+
             StatusMessage = $"Applied {count} Android VM optimizations via ADB successfully!";
-            Logger.Success("GameLoopViewModel", $"Applied {count} ADB in-VM optimization profiles.");
+            Logger.Success("GameLoopViewModel", $"Applied {count} ADB in-VM optimization profiles for {targetPkg}.");
         }
         catch (Exception ex)
         {

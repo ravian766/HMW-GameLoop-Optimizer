@@ -37,6 +37,7 @@
             <local:BooleanToStatusTextConverter x:Key="BooleanToStatusTextConverter" />
             <local:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
             <local:StringToBooleanConverter x:Key="StringToBooleanConverter" />
+            <local:InverseBooleanConverter x:Key="InverseBooleanConverter" />
 
             <!-- ViewModel DataTemplates -->
             <DataTemplate DataType="{x:Type vm:DashboardViewModel}">

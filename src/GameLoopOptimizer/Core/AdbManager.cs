@@ -10,12 +10,35 @@ public class AdbDeviceInfo
     public string Serial { get; set; } = string.Empty;
     public string State { get; set; } = string.Empty;
     public string Model { get; set; } = string.Empty;
-    public bool IsEmulator => Serial.Contains("5555") || Serial.Contains("6555") || Serial.Contains("5554") || Serial.StartsWith("emulator-");
+    public bool IsEmulator => Serial.Contains("5555") || Serial.Contains("6555") || Serial.Contains("5554") || Serial.StartsWith("emulator-") || Serial.Contains("11241");
+}
+
+public class GamePackageInfo
+{
+    public string PackageName { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string Region { get; set; } = string.Empty;
+    public bool IsInstalled { get; set; }
+
+    public override string ToString() => DisplayName;
 }
 
 public static class AdbManager
 {
-    private static readonly int[] KnownGameLoopPorts = new[] { 5555, 6555, 5554, 11241 };
+    public static readonly int[] KnownGameLoopPorts = new[] { 5555, 6555, 5554, 11241, 5557, 5559 };
+
+    public static readonly IReadOnlyList<GamePackageInfo> KnownGamePackages = new[]
+    {
+        new GamePackageInfo { PackageName = "com.tencent.ig", DisplayName = "PUBG Mobile (Global)", Region = "Global" },
+        new GamePackageInfo { PackageName = "com.pubg.imobile", DisplayName = "Battlegrounds Mobile India (BGMI)", Region = "India" },
+        new GamePackageInfo { PackageName = "com.pubg.krmobile", DisplayName = "PUBG Mobile (KR / JP)", Region = "Korea / Japan" },
+        new GamePackageInfo { PackageName = "com.vng.pubgmobile", DisplayName = "PUBG Mobile (VN)", Region = "Vietnam" },
+        new GamePackageInfo { PackageName = "com.rekoo.pubgm", DisplayName = "PUBG Mobile (TW)", Region = "Taiwan" },
+        new GamePackageInfo { PackageName = "com.dts.freefireth", DisplayName = "Garena Free Fire", Region = "Global" },
+        new GamePackageInfo { PackageName = "com.dts.freefiremax", DisplayName = "Free Fire MAX", Region = "Global" },
+        new GamePackageInfo { PackageName = "com.activision.callofduty.shooter", DisplayName = "Call of Duty: Mobile", Region = "Global" }
+    };
+
     private static string? _cachedAdbPath;
     private static string? _activeDeviceSerial;
 
@@ -191,6 +214,55 @@ public static class AdbManager
         return list;
     }
 
+    public static async Task<List<int>> DiscoverListeningEmulatorPortsAsync()
+    {
+        var ports = new HashSet<int>(KnownGameLoopPorts);
+        await Task.Run(() =>
+        {
+            try
+            {
+                var procNames = new[] { "AndroidEmulator", "AndroidEmulatorEn", "aow_exe", "AppMarket" };
+                var pids = Process.GetProcesses()
+                    .Where(p => procNames.Any(name => p.ProcessName.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    .Select(p => p.Id)
+                    .ToHashSet();
+
+                if (pids.Count == 0) return;
+
+                using var netstat = new Process();
+                netstat.StartInfo = new ProcessStartInfo
+                {
+                    FileName = "netstat.exe",
+                    Arguments = "-ano -p tcp",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                netstat.Start();
+                string output = netstat.StandardOutput.ReadToEnd();
+                netstat.WaitForExit(3000);
+
+                var regex = new Regex(@"TCP\s+(?:127\.0\.0\.1|0\.0\.0\.0):(\d+)\s+.*LISTENING\s+(\d+)", RegexOptions.IgnoreCase);
+                foreach (Match m in regex.Matches(output))
+                {
+                    if (int.TryParse(m.Groups[1].Value, out int port) && int.TryParse(m.Groups[2].Value, out int pid))
+                    {
+                        if (pids.Contains(pid) && port > 1024 && port < 65535)
+                        {
+                            ports.Add(port);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn("AdbManager", $"Dynamic port scan encountered error: {ex.Message}");
+            }
+        });
+
+        return ports.ToList();
+    }
+
     public static async Task<bool> AutoConnectGameLoopAsync(GameLoopConfig? config = null)
     {
         // 1. Check existing connected devices
@@ -203,8 +275,10 @@ public static class AdbManager
             return true;
         }
 
-        // 2. Try probing known GameLoop localhost ports
-        foreach (var port in KnownGameLoopPorts)
+        // 2. Discover active & known ports dynamically
+        var candidatePorts = await DiscoverListeningEmulatorPortsAsync();
+
+        foreach (var port in candidatePorts)
         {
             string hostPort = $"127.0.0.1:{port}";
             var res = await ExecuteAdbCommandAsync($"connect {hostPort}", 3000, config);
@@ -230,6 +304,75 @@ public static class AdbManager
         return false;
     }
 
+    public static async Task<List<GamePackageInfo>> GetInstalledGamePackagesAsync(GameLoopConfig? config = null)
+    {
+        var result = new List<GamePackageInfo>();
+        var pmOutput = await ExecuteShellCommandAsync("pm list packages", null, 5000, config);
+        
+        var installedSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var line in pmOutput.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var clean = line.Trim();
+            if (clean.StartsWith("package:"))
+            {
+                installedSet.Add(clean.Substring("package:".Length).Trim());
+            }
+        }
+
+        foreach (var pkg in KnownGamePackages)
+        {
+            bool isInst = installedSet.Contains(pkg.PackageName);
+            result.Add(new GamePackageInfo
+            {
+                PackageName = pkg.PackageName,
+                DisplayName = pkg.DisplayName,
+                Region = pkg.Region,
+                IsInstalled = isInst
+            });
+        }
+
+        return result;
+    }
+
+    public static async Task<string> CompilePackageSpeedAsync(string packageName, GameLoopConfig? config = null)
+    {
+        Logger.Info("AdbManager", $"Executing AOT Dex2Oat Native Compilation for {packageName}...");
+
+        // 1. Try 'cmd package compile' (Standard on Android 7.0+)
+        var res1 = await ExecuteShellCommandAsync($"cmd package compile -m speed -f {packageName}", null, 25000, config);
+        if (res1.Contains("Success", StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Success("AdbManager", $"AOT compilation succeeded via cmd package for {packageName}.");
+            return "AOT Compilation Succeeded (Speed Profile Active)";
+        }
+
+        // 2. Try 'pm compile' (Android 8.0+)
+        var res2 = await ExecuteShellCommandAsync($"pm compile -m speed -f {packageName}", null, 25000, config);
+        if (res2.Contains("Success", StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Success("AdbManager", $"AOT compilation succeeded via pm compile for {packageName}.");
+            return "AOT Compilation Succeeded (Speed Profile Active)";
+        }
+
+        // 3. Try 'pm force-dex-opt' (Android 5.0 - 7.0 legacy)
+        var res3 = await ExecuteShellCommandAsync($"pm force-dex-opt {packageName}", null, 25000, config);
+        if (res3.Contains("Success", StringComparison.OrdinalIgnoreCase) || 
+            (!res3.Contains("Error", StringComparison.OrdinalIgnoreCase) && !res3.Contains("unknown", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(res3)))
+        {
+            Logger.Success("AdbManager", $"AOT compilation succeeded via dexopt for {packageName}.");
+            return "AOT Optimization Succeeded (Native DexOpt Complete)";
+        }
+
+        // 4. Universal Fallback: Inject Dalvik AOT & Speed Execution Properties
+        await SetPropAsync("dalvik.vm.dex2oat-filter", "speed", config);
+        await SetPropAsync("dalvik.vm.dexopt-flags", "v=n,o=v", config);
+        await SetPropAsync("dalvik.vm.usejit", "true", config);
+        await SetPropAsync("dalvik.vm.usejitprofiles", "true", config);
+
+        Logger.Success("AdbManager", $"Configured Dalvik VM AOT Speed Filter properties for {packageName}.");
+        return "AOT Speed Profile Active (Dalvik VM Optimized)";
+    }
+
     public static async Task<string> GetPropAsync(string propKey, GameLoopConfig? config = null)
     {
         return await ExecuteShellCommandAsync($"getprop {propKey}", null, 4000, config);
@@ -252,14 +395,98 @@ public static class AdbManager
         return !res.StartsWith("Error", StringComparison.OrdinalIgnoreCase);
     }
 
-    public static async Task<bool> TrimAppCacheAsync(GameLoopConfig? config = null)
+    public static async Task<bool> SetInVmResolutionAsync(int width, int height, int dpi, GameLoopConfig? config = null)
+    {
+        try
+        {
+            await ExecuteShellCommandAsync($"wm size {width}x{height}", null, 4000, config);
+            await ExecuteShellCommandAsync($"wm density {dpi}", null, 4000, config);
+            Logger.Success("AdbManager", $"In-VM resolution configured to {width}x{height} @ {dpi} DPI.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("AdbManager", $"Failed to set In-VM resolution: {ex.Message}");
+            return false;
+        }
+    }
+
+    public static async Task<bool> ResetInVmResolutionAsync(GameLoopConfig? config = null)
+    {
+        try
+        {
+            await ExecuteShellCommandAsync("wm size reset", null, 4000, config);
+            await ExecuteShellCommandAsync("wm density reset", null, 4000, config);
+            Logger.Success("AdbManager", "Reset In-VM display size and density to default.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("AdbManager", $"Failed to reset In-VM resolution: {ex.Message}");
+            return false;
+        }
+    }
+
+    public static async Task<bool> CaptureScreenAsync(string destinationPngPath, GameLoopConfig? config = null)
+    {
+        string adbPath = FindAdbExePath(config);
+        if (string.IsNullOrEmpty(adbPath)) return false;
+
+        return await Task.Run(() =>
+        {
+            try
+            {
+                string serial = _activeDeviceSerial ?? string.Empty;
+                string args = string.IsNullOrEmpty(serial) ? "exec-out screencap -p" : $"-s {serial} exec-out screencap -p";
+
+                using var proc = new Process();
+                proc.StartInfo = new ProcessStartInfo
+                {
+                    FileName = adbPath,
+                    Arguments = args,
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                proc.Start();
+                using (var fileStream = File.Create(destinationPngPath))
+                {
+                    proc.StandardOutput.BaseStream.CopyTo(fileStream);
+                }
+                proc.WaitForExit(8000);
+                return File.Exists(destinationPngPath) && new FileInfo(destinationPngPath).Length > 1024;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("AdbManager", $"Screenshot capture failed: {ex.Message}");
+                return false;
+            }
+        });
+    }
+
+    public static async Task<bool> TrimAppCacheAsync(GameLoopConfig? config = null, string? targetPackage = null)
     {
         try
         {
             await ExecuteShellCommandAsync("pm trim-caches 999G", null, 6000, config);
-            await ExecuteShellCommandAsync("rm -rf /data/data/com.tencent.ig/cache/*", null, 4000, config);
-            await ExecuteShellCommandAsync("rm -rf /sdcard/Android/data/com.tencent.ig/cache/*", null, 4000, config);
-            Logger.Success("AdbManager", "Purged GameLoop Android VM application and shader caches.");
+            
+            var targetPackages = new List<string> { "com.tencent.ig", "com.pubg.imobile", "com.pubg.krmobile" };
+            if (!string.IsNullOrEmpty(targetPackage) && !targetPackages.Contains(targetPackage))
+            {
+                targetPackages.Add(targetPackage);
+            }
+
+            foreach (var pkg in targetPackages)
+            {
+                await ExecuteShellCommandAsync($"rm -rf /data/data/{pkg}/cache/*", null, 3000, config);
+                await ExecuteShellCommandAsync($"rm -rf /sdcard/Android/data/{pkg}/cache/*", null, 3000, config);
+            }
+
+            await ExecuteShellCommandAsync("rm -rf /data/anr/*", null, 3000, config);
+            await ExecuteShellCommandAsync("rm -rf /data/tombstones/*", null, 3000, config);
+
+            Logger.Success("AdbManager", "Purged GameLoop Android VM application caches, crash tombstones, and shader caches.");
             return true;
         }
         catch (Exception ex)

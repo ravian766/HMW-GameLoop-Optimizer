@@ -163,31 +163,37 @@
 
                         <StackPanel Grid.Column="0">
                             <WrapPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                <TextBlock Text="🤖 Android VM Subsystem &amp; ADB In-Emulator Tuning" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
-                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                                <TextBlock Text="🤖 Android VM Subsystem &amp; ADB In-Emulator Studio" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center" Margin="0,0,10,0">
                                     <TextBlock Text="{Binding AdbStatusText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
                                 </Border>
                             </WrapPanel>
-                            <TextBlock Text="Direct low-latency bridge to GameLoop's Android container. Eliminates internal animation delays, expands Dalvik memory heap, and forces pure GPU composition." FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" />
+                            <TextBlock Text="Direct low-latency bridge to GameLoop's Android container. Pre-compiles bytecode, optimizes input polling to 240Hz, unlocks 120Hz compositor, and monitors in-VM memory." FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" />
                         </StackPanel>
 
                         <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                             <Button Content="🔌 Connect ADB"
                                     Command="{Binding ConnectAdbCommand}"
                                     Style="{StaticResource SecondaryButton}"
-                                    Padding="12,7"
+                                    Padding="10,7"
                                     FontSize="11"
                                     Margin="0,0,6,0" />
                             <Button Content="⚡ 1-Click ADB Boost"
                                     Command="{Binding ApplyAllAdbOptimizationsCommand}"
                                     Style="{StaticResource SuccessButton}"
-                                    Padding="14,7"
+                                    Padding="12,7"
                                     FontSize="11"
                                     Margin="0,0,6,0" />
-                            <Button Content="🧹 Trim VM Cache"
+                            <Button Content="📸 Capture Screen"
+                                    Command="{Binding CaptureInVmScreenshotCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="10,7"
+                                    FontSize="11"
+                                    Margin="0,0,6,0" />
+                            <Button Content="🧹 Deep Trim Cache"
                                     Command="{Binding TrimInVmCacheCommand}"
                                     Style="{StaticResource SecondaryButton}"
-                                    Padding="12,7"
+                                    Padding="10,7"
                                     FontSize="11"
                                     Margin="0,0,6,0" />
                             <Button Content="🔄 Restart ADB"
@@ -198,8 +204,103 @@
                         </WrapPanel>
                     </Grid>
 
-                    <!-- In-VM ADB Feature Toggles -->
-                    <Grid>
+                    <!-- Top Row: Game Package Selector & AOT Dex2Oat Compiler + Live Telemetry -->
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- AOT Dex2Oat Native Compiler Card -->
+                        <Border Grid.Column="0" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,6,0">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="🚀 AOT DEX2OAT NATIVE COMPILER" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                                    <ComboBox Grid.Column="1"
+                                              ItemsSource="{Binding InstalledGamePackages}"
+                                              SelectedItem="{Binding SelectedGamePackage}"
+                                              DisplayMemberPath="DisplayName"
+                                              Width="200"
+                                              FontSize="11"
+                                              Padding="6,3" />
+                                </Grid>
+
+                                <TextBlock Text="Translates game bytecode into native machine code ahead-of-time. Permanently eliminates hot-drop, vehicle driving, and grenade explosion frame-drops." FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,10" TextWrapping="Wrap" />
+
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Background="{DynamicResource BrushCardBackground}" CornerRadius="6" Padding="8,6" Margin="0,0,8,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding AdbCompilationStatus}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" TextWrapping="Wrap" />
+                                    </Border>
+                                    <Button Grid.Column="1"
+                                            Content="⚡ Pre-Compile Game (AOT)"
+                                            Command="{Binding CompileGameDexCommand}"
+                                            Style="{StaticResource PrimaryButton}"
+                                            Padding="12,6"
+                                            FontSize="11"
+                                            VerticalAlignment="Center"
+                                            IsEnabled="{Binding IsAdbCompiling, Converter={StaticResource InverseBooleanConverter}}" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Live In-VM Diagnostics & Telemetry Card -->
+                        <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="6,0,0,0">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="📊 LIVE IN-VM TELEMETRY &amp; MEMORY" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                                    <Button Grid.Column="1"
+                                            Content="🔄 Refresh Stats"
+                                            Command="{Binding RefreshTelemetryCommand}"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Padding="8,3"
+                                            FontSize="10" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Background="{DynamicResource BrushCardBackground}" CornerRadius="6" Padding="8,6" Margin="0,0,4,0">
+                                        <StackPanel>
+                                            <TextBlock Text="TOTAL PSS RAM" FontSize="10" Foreground="{DynamicResource BrushTextSecondary}" />
+                                            <TextBlock Text="{Binding AdbTelemetry.Memory.TotalPssMb, StringFormat='{}{0:F1} MB'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="1" Background="{DynamicResource BrushCardBackground}" CornerRadius="6" Padding="8,6" Margin="2,0,2,0">
+                                        <StackPanel>
+                                            <TextBlock Text="GFX / VRAM" FontSize="10" Foreground="{DynamicResource BrushTextSecondary}" />
+                                            <TextBlock Text="{Binding AdbTelemetry.Memory.GraphicsMb, StringFormat='{}{0:F1} MB'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="2" Background="{DynamicResource BrushCardBackground}" CornerRadius="6" Padding="8,6" Margin="4,0,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="VM VIEWPORT" FontSize="10" Foreground="{DynamicResource BrushTextSecondary}" />
+                                            <TextBlock Text="{Binding AdbTelemetry.Display.EffectiveResolution}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <TextBlock Text="{Binding AdbTelemetry.Memory.SummaryDisplay}" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Middle Row: In-VM ADB Feature Toggles -->
+                    <Grid Margin="0,0,0,12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
@@ -207,10 +308,12 @@
 
                         <Border Grid.Column="0" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,6,0">
                             <StackPanel>
-                                <TextBlock Text="COMPOSITION &amp; RESPONSIVENESS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,0,8" />
+                                <TextBlock Text="COMPOSITION, REFRESH &amp; INPUT POLLING" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,0,8" />
                                 <CheckBox Content="Zero UI Animation Latency (0.0x Scale)" IsChecked="{Binding AdbZeroAnimations}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
                                 <CheckBox Content="SurfaceFlinger Pure GPU Hardware Rasterizer" IsChecked="{Binding AdbGpuAcceleration}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
-                                <CheckBox Content="Low-Latency VSync Latch (500µs Offset)" IsChecked="{Binding AdbGpuAcceleration}" Foreground="{DynamicResource BrushTextPrimary}" />
+                                <CheckBox Content="Low-Latency VSync Latch (500µs Offset)" IsChecked="{Binding AdbGpuAcceleration}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
+                                <CheckBox Content="240Hz High-Speed Input Dispatch &amp; Aim Polling" IsChecked="{Binding AdbInputPolling}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
+                                <CheckBox Content="True 120Hz Android SurfaceFlinger Refresh Unlock" IsChecked="{Binding Adb120FpsUnlock}" Foreground="{DynamicResource BrushTextPrimary}" />
                             </StackPanel>
                         </Border>
 
@@ -219,10 +322,76 @@
                                 <TextBlock Text="MEMORY HEAP &amp; BACKGROUND POLICIES" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,0,8" />
                                 <CheckBox Content="1024MB Dalvik Heap Ceiling (Eliminate GC Stutter)" IsChecked="{Binding AdbDalvikHeapBoost}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
                                 <CheckBox Content="Suppress Verbose Logcat &amp; Debug Telemetry" IsChecked="{Binding AdbSuppressLogging}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
-                                <CheckBox Content="Disable Android Adaptive Battery &amp; App Standby" IsChecked="{Binding AdbDisableDoze}" Foreground="{DynamicResource BrushTextPrimary}" />
+                                <CheckBox Content="Disable Android Adaptive Battery &amp; App Standby" IsChecked="{Binding AdbDisableDoze}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
+                                <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <Button Content="📐 Apply In-VM Resolution"
+                                            Command="{Binding SetInVmResolutionCommand}"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Padding="10,4"
+                                            FontSize="10"
+                                            Margin="0,0,6,0" />
+                                    <Button Content="↩ Reset In-VM Res"
+                                            Command="{Binding ResetInVmResolutionCommand}"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Padding="8,4"
+                                            FontSize="10" />
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
                     </Grid>
+
+                    <!-- Bottom Row: Interactive ADB Shell Mini Console -->
+                    <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="💻 INTERACTIVE ADB SHELL CONSOLE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                                <Button Grid.Column="1"
+                                        Content="Clear Console"
+                                        Command="{Binding ClearConsoleOutputCommand}"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Padding="8,3"
+                                        FontSize="10" />
+                            </Grid>
+
+                            <TextBox Text="{Binding InteractiveAdbOutput, Mode=OneWay}"
+                                     IsReadOnly="True"
+                                     FontFamily="Consolas"
+                                     FontSize="11"
+                                     Height="90"
+                                     VerticalScrollBarVisibility="Auto"
+                                     Background="{DynamicResource BrushCardBackground}"
+                                     Foreground="{DynamicResource BrushTextPrimary}"
+                                     BorderThickness="1"
+                                     BorderBrush="{DynamicResource BrushBorderSubtle}"
+                                     Padding="8"
+                                     Margin="0,0,0,8" />
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding InteractiveAdbCommand, UpdateSourceTrigger=PropertyChanged}"
+                                         FontFamily="Consolas"
+                                         FontSize="12"
+                                         Padding="8,6"
+                                         Margin="0,0,8,0"
+                                         VerticalAlignment="Center" />
+                                <Button Grid.Column="1"
+                                        Content="▶ Execute Shell"
+                                        Command="{Binding ExecuteCustomAdbShellCommand}"
+                                        Style="{StaticResource PrimaryButton}"
+                                        Padding="14,6"
+                                        FontSize="11"
+                                        VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </Border>
 
