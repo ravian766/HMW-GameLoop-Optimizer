@@ -64,6 +64,12 @@ Every module implements `IOptimizationModule` with independent analysis, applica
 
 ---
 
+## 📖 Stretched Resolution Clarity & Keymapping Guide
+For in-depth competitive setup on 4:3 stretched aspect ratios (`1440x1080`, `1728x1080`, `1080x1080`), GPU image sharpening, and DPI scaling, read the complete guide:
+- [🎯 Stretched Resolution Visual Clarity & Image Enhancement Guide](docs/STRETCHED_RESOLUTION_CLARITY_GUIDE.md)
+
+---
+
 ## 🚀 Building & Running
 
 ### Requirements
