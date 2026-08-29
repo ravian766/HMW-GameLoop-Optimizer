@@ -82,6 +82,8 @@ public class MainViewModel : ViewModelBase
             new AdbVmHeapTuningModule(),
             new AdbLogcatSuppressModule(),
             new AdbBackgroundDozeModule(),
+            new AdbNetworkDnsModule(),
+            new AdbAudioLatencyModule(),
             new CpuAffinityModule(),
             new GpuPreferenceModule(),
             new AudioLatencyModule(),

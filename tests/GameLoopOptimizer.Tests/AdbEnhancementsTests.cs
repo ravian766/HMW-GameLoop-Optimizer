@@ -120,4 +120,101 @@ Number Slow issue draw commands: 0
         Assert.Contains(pkgs, p => p.PackageName == "com.dts.freefireth");
         Assert.Contains(pkgs, p => p.PackageName == "com.activision.callofduty.shooter");
     }
+
+    [Fact]
+    public void AdbNetworkDnsAndAudioModules_HaveCorrectMetadata()
+    {
+        var dnsMod = new AdbNetworkDnsModule();
+        var audioMod = new AdbAudioLatencyModule();
+
+        Assert.Equal(OptimizationCategory.GameLoopEngine, dnsMod.Category);
+        Assert.Equal(OptimizationCategory.GameLoopEngine, audioMod.Category);
+
+        Assert.Equal(RiskLevel.Safe, dnsMod.RiskLevel);
+        Assert.Equal(RiskLevel.Safe, audioMod.RiskLevel);
+
+        Assert.False(dnsMod.RequiresAdmin);
+        Assert.False(audioMod.RequiresAdmin);
+
+        Assert.Contains("DNS", dnsMod.Title);
+        Assert.Contains("Audio", audioMod.Title);
+    }
+
+    [Fact]
+    public async Task AdbNetworkDnsAndAudioModules_AnalyzeGracefully_WhenGameLoopNotInstalled()
+    {
+        var config = new GameLoopConfig { IsInstalled = false };
+        var hw = new HardwareInfo();
+        var sys = new SystemInfo();
+
+        var dnsMod = new AdbNetworkDnsModule();
+        var audioMod = new AdbAudioLatencyModule();
+
+        var stateDns = await dnsMod.AnalyzeAsync(hw, sys, config);
+        var stateAudio = await audioMod.AnalyzeAsync(hw, sys, config);
+
+        Assert.Equal(OptimizationState.NotDetected, stateDns);
+        Assert.Equal(OptimizationState.NotDetected, stateAudio);
+    }
+
+    [Fact]
+    public async Task AdbManager_SafelyHandlesInvalidApkPathAndEmptyPackages()
+    {
+        var config = new GameLoopConfig { IsInstalled = true, InstallPath = @"C:\FakeGameLoop" };
+
+        var apkRes = await AdbManager.InstallApkAsync(@"C:\NonExistent\Game.apk", config);
+        Assert.Contains("not found", apkRes, StringComparison.OrdinalIgnoreCase);
+
+        var launchRes = await AdbManager.LaunchGamePackageAsync(string.Empty, config);
+        Assert.False(launchRes);
+
+        var stopRes = await AdbManager.ForceStopGamePackageAsync(string.Empty, config);
+        Assert.False(stopRes);
+
+        var clearRes = await AdbManager.ClearGameDataAsync(string.Empty, config);
+        Assert.False(clearRes);
+
+        var connectRes = await AdbManager.ConnectCustomDeviceAsync(string.Empty, config);
+        Assert.False(connectRes);
+    }
+
+    [Fact]
+    public void AdbTelemetryService_ParseDisplayMetrics_HandlesSpacedAndCustomFormats()
+    {
+        string spacedWmSize = "Physical size: 2560 x 1440\nOverride size: 1920 x 1080";
+        string wmDensity = "density: 480";
+
+        var display = AdbTelemetryService.ParseDisplayMetrics(spacedWmSize, wmDensity);
+
+        Assert.Equal("2560x1440", display.PhysicalResolution);
+        Assert.Equal("1920x1080", display.OverrideResolution);
+        Assert.Equal("1920x1080", display.EffectiveResolution);
+        Assert.Equal(480, display.DensityDpi);
+    }
+
+    [Fact]
+    public void AdbTelemetryService_ParseDisplayMetrics_FallsBackToGameLoopConfig()
+    {
+        string emptyWmSize = "";
+        string emptyDensity = "";
+        var config = new GameLoopConfig { VmResWidth = 1440, VmResHeight = 1080 };
+
+        var display = AdbTelemetryService.ParseDisplayMetrics(emptyWmSize, emptyDensity, config);
+
+        Assert.Equal("1440x1080", display.PhysicalResolution);
+        Assert.Equal("1440x1080", display.EffectiveResolution);
+    }
+
+    [Fact]
+    public void HardwareDetector_DetectHardware_DetectsCpuAndGpuSuccessfully()
+    {
+        var hw = HardwareDetector.DetectHardware();
+
+        Assert.NotNull(hw);
+        Assert.False(string.IsNullOrWhiteSpace(hw.CpuName));
+        Assert.NotEqual("Unknown GPU", hw.GpuName);
+        Assert.True(hw.PhysicalCores >= 1);
+        Assert.True(hw.TotalRamGb > 0);
+    }
 }
+

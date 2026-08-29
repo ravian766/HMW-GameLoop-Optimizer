@@ -55,7 +55,26 @@ public static class AdbTelemetryService
         // 1. Fetch Display Metrics
         var wmSizeOut = await AdbManager.ExecuteShellCommandAsync("wm size", null, 3000, config);
         var wmDensityOut = await AdbManager.ExecuteShellCommandAsync("wm density", null, 3000, config);
-        snapshot.Display = ParseDisplayMetrics(wmSizeOut, wmDensityOut);
+        snapshot.Display = ParseDisplayMetrics(wmSizeOut, wmDensityOut, config);
+
+        // Fallback for display if wm size failed or returned unknown
+        if (snapshot.Display.PhysicalResolution == "Unknown")
+        {
+            var displayDump = await AdbManager.ExecuteShellCommandAsync("dumpsys window displays", null, 3000, config);
+            if (!string.IsNullOrWhiteSpace(displayDump))
+            {
+                var dumpMatch = Regex.Match(displayDump, @"(?:init|cur|real)=(\d{3,4})x(\d{3,4})", RegexOptions.IgnoreCase);
+                if (dumpMatch.Success)
+                {
+                    snapshot.Display.PhysicalResolution = $"{dumpMatch.Groups[1].Value}x{dumpMatch.Groups[2].Value}";
+                }
+            }
+
+            if (snapshot.Display.PhysicalResolution == "Unknown" && config != null && config.VmResWidth > 0 && config.VmResHeight > 0)
+            {
+                snapshot.Display.PhysicalResolution = $"{config.VmResWidth}x{config.VmResHeight}";
+            }
+        }
 
         // 2. Fetch Memory Metrics
         var meminfoOut = await AdbManager.ExecuteShellCommandAsync($"dumpsys meminfo {snapshot.TargetPackage}", null, 4000, config);
@@ -69,40 +88,58 @@ public static class AdbTelemetryService
         return snapshot;
     }
 
-    public static AdbDisplayMetrics ParseDisplayMetrics(string wmSizeOutput, string wmDensityOutput)
+    public static AdbDisplayMetrics ParseDisplayMetrics(string wmSizeOutput, string wmDensityOutput, GameLoopConfig? config = null)
     {
         var metrics = new AdbDisplayMetrics();
 
-        // Size output format:
-        // Physical size: 1920x1080
-        // Override size: 1440x1080
-        var physMatch = Regex.Match(wmSizeOutput, @"Physical size:\s*(\d+x\d+)", RegexOptions.IgnoreCase);
-        if (physMatch.Success)
+        if (!string.IsNullOrWhiteSpace(wmSizeOutput))
         {
-            metrics.PhysicalResolution = physMatch.Groups[1].Value;
-        }
-
-        var overMatch = Regex.Match(wmSizeOutput, @"Override size:\s*(\d+x\d+)", RegexOptions.IgnoreCase);
-        if (overMatch.Success)
-        {
-            metrics.OverrideResolution = overMatch.Groups[1].Value;
-        }
-
-        // Density output format:
-        // Physical density: 320
-        // Override density: 240
-        var overDensityMatch = Regex.Match(wmDensityOutput, @"Override density:\s*(\d+)", RegexOptions.IgnoreCase);
-        if (overDensityMatch.Success && int.TryParse(overDensityMatch.Groups[1].Value, out int overDpi))
-        {
-            metrics.DensityDpi = overDpi;
-        }
-        else
-        {
-            var physDensityMatch = Regex.Match(wmDensityOutput, @"Physical density:\s*(\d+)", RegexOptions.IgnoreCase);
-            if (physDensityMatch.Success && int.TryParse(physDensityMatch.Groups[1].Value, out int physDpi))
+            // Size output format (flexible spaces and prefixes):
+            // Physical size: 1920x1080 or Physical size: 1920 x 1080
+            var physMatch = Regex.Match(wmSizeOutput, @"Physical size:\s*(\d+)\s*[xX]\s*(\d+)", RegexOptions.IgnoreCase);
+            if (physMatch.Success)
             {
-                metrics.DensityDpi = physDpi;
+                metrics.PhysicalResolution = $"{physMatch.Groups[1].Value}x{physMatch.Groups[2].Value}";
             }
+            else
+            {
+                var generalSizeMatch = Regex.Match(wmSizeOutput, @"(?:size|display|viewport)?\s*[:=]?\s*(\d{3,4})\s*[xX]\s*(\d{3,4})", RegexOptions.IgnoreCase);
+                if (generalSizeMatch.Success)
+                {
+                    metrics.PhysicalResolution = $"{generalSizeMatch.Groups[1].Value}x{generalSizeMatch.Groups[2].Value}";
+                }
+            }
+
+            var overMatch = Regex.Match(wmSizeOutput, @"Override size:\s*(\d+)\s*[xX]\s*(\d+)", RegexOptions.IgnoreCase);
+            if (overMatch.Success)
+            {
+                metrics.OverrideResolution = $"{overMatch.Groups[1].Value}x{overMatch.Groups[2].Value}";
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(wmDensityOutput))
+        {
+            // Density output format:
+            // Physical density: 320
+            // Override density: 240
+            var overDensityMatch = Regex.Match(wmDensityOutput, @"Override density:\s*(\d+)", RegexOptions.IgnoreCase);
+            if (overDensityMatch.Success && int.TryParse(overDensityMatch.Groups[1].Value, out int overDpi))
+            {
+                metrics.DensityDpi = overDpi;
+            }
+            else
+            {
+                var physDensityMatch = Regex.Match(wmDensityOutput, @"(?:Physical\s+)?density:\s*(\d+)", RegexOptions.IgnoreCase);
+                if (physDensityMatch.Success && int.TryParse(physDensityMatch.Groups[1].Value, out int physDpi))
+                {
+                    metrics.DensityDpi = physDpi;
+                }
+            }
+        }
+
+        if (metrics.PhysicalResolution == "Unknown" && config != null && config.VmResWidth > 0 && config.VmResHeight > 0)
+        {
+            metrics.PhysicalResolution = $"{config.VmResWidth}x{config.VmResHeight}";
         }
 
         return metrics;

@@ -235,6 +235,41 @@ public class GameLoopViewModel : ViewModelBase
         set => SetProperty(ref _adb120FpsUnlock, value);
     }
 
+    private bool _adbInVmDnsSync = true;
+    public bool AdbInVmDnsSync
+    {
+        get => _adbInVmDnsSync;
+        set => SetProperty(ref _adbInVmDnsSync, value);
+    }
+
+    private bool _adbAudioLatencyReduction = true;
+    public bool AdbAudioLatencyReduction
+    {
+        get => _adbAudioLatencyReduction;
+        set => SetProperty(ref _adbAudioLatencyReduction, value);
+    }
+
+    private bool _isPointerLocationEnabled;
+    public bool IsPointerLocationEnabled
+    {
+        get => _isPointerLocationEnabled;
+        set => SetProperty(ref _isPointerLocationEnabled, value);
+    }
+
+    private string _customAdbPortText = "127.0.0.1:5555";
+    public string CustomAdbPortText
+    {
+        get => _customAdbPortText;
+        set => SetProperty(ref _customAdbPortText, value);
+    }
+
+    private bool _isInstallingApk;
+    public bool IsInstallingApk
+    {
+        get => _isInstallingApk;
+        set => SetProperty(ref _isInstallingApk, value);
+    }
+
     public ObservableCollection<GamePackageInfo> InstalledGamePackages { get; } = new();
 
     private GamePackageInfo? _selectedGamePackage;
@@ -317,10 +352,16 @@ public class GameLoopViewModel : ViewModelBase
     public ICommand BenchmarkPingCommand { get; }
     public ICommand FlushDnsCommand { get; }
     public ICommand ConnectAdbCommand { get; }
+    public ICommand ConnectCustomPortCommand { get; }
     public ICommand ApplyAllAdbOptimizationsCommand { get; }
     public ICommand TrimInVmCacheCommand { get; }
     public ICommand RestartAdbServerCommand { get; }
     public ICommand CompileGameDexCommand { get; }
+    public ICommand LaunchGameCommand { get; }
+    public ICommand ForceStopGameCommand { get; }
+    public ICommand ClearGameDataCommand { get; }
+    public ICommand InstallApkCommand { get; }
+    public ICommand TogglePointerLocationCommand { get; }
     public ICommand CaptureInVmScreenshotCommand { get; }
     public ICommand ExecuteCustomAdbShellCommand { get; }
     public ICommand ClearConsoleOutputCommand { get; }
@@ -452,6 +493,128 @@ public class GameLoopViewModel : ViewModelBase
                 StatusMessage = connected 
                     ? $"ADB Connected successfully to {AdbDeviceName}!" 
                     : "Failed to connect to GameLoop ADB. Ensure GameLoop is running.";
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        ConnectCustomPortCommand = new AsyncRelayCommand(async () =>
+        {
+            if (string.IsNullOrWhiteSpace(CustomAdbPortText)) return;
+            IsAdbBusy = true;
+            StatusMessage = $"Connecting to ADB target {CustomAdbPortText}...";
+            try
+            {
+                bool connected = await AdbManager.ConnectCustomDeviceAsync(CustomAdbPortText, Config);
+                await RefreshAdbStatusAsync();
+                StatusMessage = connected 
+                    ? $"Connected to ADB target {CustomAdbPortText}!" 
+                    : $"Failed to connect to {CustomAdbPortText}.";
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        LaunchGameCommand = new AsyncRelayCommand(async () =>
+        {
+            string targetPkg = SelectedGamePackage?.PackageName ?? "com.tencent.ig";
+            IsAdbBusy = true;
+            StatusMessage = $"Launching {SelectedGamePackage?.DisplayName ?? targetPkg} in Android VM...";
+            try
+            {
+                bool ok = await AdbManager.LaunchGamePackageAsync(targetPkg, Config);
+                StatusMessage = ok 
+                    ? $"Launched {SelectedGamePackage?.DisplayName ?? targetPkg} successfully!" 
+                    : $"Failed to launch {targetPkg}. Ensure GameLoop is running.";
+                await RefreshTelemetryAsync();
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        ForceStopGameCommand = new AsyncRelayCommand(async () =>
+        {
+            string targetPkg = SelectedGamePackage?.PackageName ?? "com.tencent.ig";
+            IsAdbBusy = true;
+            StatusMessage = $"Force-stopping {SelectedGamePackage?.DisplayName ?? targetPkg}...";
+            try
+            {
+                bool ok = await AdbManager.ForceStopGamePackageAsync(targetPkg, Config);
+                StatusMessage = ok 
+                    ? $"Terminated {SelectedGamePackage?.DisplayName ?? targetPkg} process in VM." 
+                    : $"Failed to stop {targetPkg}.";
+                await RefreshTelemetryAsync();
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        ClearGameDataCommand = new AsyncRelayCommand(async () =>
+        {
+            string targetPkg = SelectedGamePackage?.PackageName ?? "com.tencent.ig";
+            IsAdbBusy = true;
+            StatusMessage = $"Clearing app data for {SelectedGamePackage?.DisplayName ?? targetPkg}...";
+            try
+            {
+                bool ok = await AdbManager.ClearGameDataAsync(targetPkg, Config);
+                StatusMessage = ok 
+                    ? $"Cleared app data for {SelectedGamePackage?.DisplayName ?? targetPkg}!" 
+                    : $"Failed to clear app data for {targetPkg}.";
+                await RefreshTelemetryAsync();
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        InstallApkCommand = new AsyncRelayCommand(async () =>
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = "Select Android Application Package (APK)",
+                Filter = "Android Package (*.apk)|*.apk|All Files (*.*)|*.*",
+                Multiselect = false
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                string apkPath = dialog.FileName;
+                IsInstallingApk = true;
+                IsAdbBusy = true;
+                StatusMessage = $"Sideloading {Path.GetFileName(apkPath)} into GameLoop VM...";
+                try
+                {
+                    string res = await AdbManager.InstallApkAsync(apkPath, Config);
+                    StatusMessage = res;
+                    await RefreshAdbStatusAsync();
+                }
+                finally
+                {
+                    IsInstallingApk = false;
+                    IsAdbBusy = false;
+                }
+            }
+        });
+
+        TogglePointerLocationCommand = new AsyncRelayCommand(async () =>
+        {
+            IsPointerLocationEnabled = !IsPointerLocationEnabled;
+            IsAdbBusy = true;
+            StatusMessage = IsPointerLocationEnabled 
+                ? "Enabled on-screen touch coordinate crosshairs & pointer overlay." 
+                : "Disabled touch coordinate crosshairs overlay.";
+            try
+            {
+                await AdbManager.SetPointerLocationOverlayAsync(IsPointerLocationEnabled, Config);
             }
             finally
             {
@@ -903,6 +1066,7 @@ public class GameLoopViewModel : ViewModelBase
         if (active != null)
         {
             IsAdbConnected = true;
+            AdbManager.ActiveDeviceSerial = active.Serial;
             AdbDeviceName = active.Serial;
             AdbStatusText = $"Connected ({active.Serial} - {active.Model})";
         }
@@ -1038,6 +1202,19 @@ public class GameLoopViewModel : ViewModelBase
                 await AdbManager.PutGlobalSettingAsync("app_standby_enabled", "0", gl);
                 await AdbManager.PutGlobalSettingAsync("adaptive_battery_management_enabled", "0", gl);
                 await AdbManager.ExecuteShellCommandAsync($"cmd appops set {targetPkg} RUN_IN_BACKGROUND allow", null, 4000, gl);
+                count++;
+            }
+
+            if (AdbInVmDnsSync)
+            {
+                await AdbManager.SetInVmDnsAsync("1.1.1.1", "1.0.0.1", gl);
+                await AdbManager.OptimizeInVmTcpStackAsync(gl);
+                count++;
+            }
+
+            if (AdbAudioLatencyReduction)
+            {
+                await AdbManager.OptimizeInVmAudioLatencyAsync(gl);
                 count++;
             }
 

@@ -182,8 +182,8 @@ public static class AdbManager
     {
         string serial = targetDevice ?? _activeDeviceSerial ?? string.Empty;
         string args = string.IsNullOrEmpty(serial) 
-            ? $"shell \"{shellCommand}\"" 
-            : $"-s {serial} shell \"{shellCommand}\"";
+            ? $"shell {shellCommand}" 
+            : $"-s {serial} shell {shellCommand}";
 
         return await ExecuteAdbCommandAsync(args, timeoutMs, config);
     }
@@ -503,4 +503,183 @@ public static class AdbManager
         await ExecuteAdbCommandAsync("start-server", 4000, config);
         return await AutoConnectGameLoopAsync(config);
     }
+
+    public static async Task<bool> ConnectCustomDeviceAsync(string ipPort, GameLoopConfig? config = null)
+    {
+        if (string.IsNullOrWhiteSpace(ipPort)) return false;
+        string target = ipPort.Trim();
+        if (!target.Contains(':') && int.TryParse(target, out _))
+        {
+            target = $"127.0.0.1:{target}";
+        }
+
+        var res = await ExecuteAdbCommandAsync($"connect {target}", 4000, config);
+        if (res.Contains("connected to", StringComparison.OrdinalIgnoreCase) || res.Contains("already connected", StringComparison.OrdinalIgnoreCase))
+        {
+            _activeDeviceSerial = target;
+            Logger.Success("AdbManager", $"Connected to custom ADB target: {target}");
+            return true;
+        }
+
+        Logger.Warn("AdbManager", $"Failed to connect to {target}: {res}");
+        return false;
+    }
+
+    public static async Task<bool> LaunchGamePackageAsync(string packageName, GameLoopConfig? config = null)
+    {
+        if (string.IsNullOrWhiteSpace(packageName)) return false;
+        Logger.Info("AdbManager", $"Launching game package: {packageName}");
+
+        // Use Android monkey runner to launch default category launcher activity
+        var res = await ExecuteShellCommandAsync($"monkey -p {packageName} -c android.intent.category.LAUNCHER 1", null, 6000, config);
+        if (res.Contains("Events injected: 1", StringComparison.OrdinalIgnoreCase) || !res.Contains("No activities found", StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Success("AdbManager", $"Launched {packageName} via Android Activity Manager.");
+            return true;
+        }
+
+        // Fallback to am start
+        var resAm = await ExecuteShellCommandAsync($"am start -n {packageName}/com.epicgames.ue4.SplashActivity", null, 5000, config);
+        return !resAm.StartsWith("Error", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static async Task<bool> ForceStopGamePackageAsync(string packageName, GameLoopConfig? config = null)
+    {
+        if (string.IsNullOrWhiteSpace(packageName)) return false;
+        Logger.Info("AdbManager", $"Force-stopping game package: {packageName}");
+        var res = await ExecuteShellCommandAsync($"am force-stop {packageName}", null, 5000, config);
+        Logger.Success("AdbManager", $"Terminated {packageName} process in Android VM.");
+        return !res.StartsWith("Error", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static async Task<bool> ClearGameDataAsync(string packageName, GameLoopConfig? config = null)
+    {
+        if (string.IsNullOrWhiteSpace(packageName)) return false;
+        Logger.Info("AdbManager", $"Clearing package data: {packageName}");
+        var res = await ExecuteShellCommandAsync($"pm clear {packageName}", null, 8000, config);
+        return res.Contains("Success", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static async Task<bool> SetInVmDnsAsync(string primaryDns = "1.1.1.1", string secondaryDns = "1.0.0.1", GameLoopConfig? config = null)
+    {
+        try
+        {
+            await SetPropAsync("net.dns1", primaryDns, config);
+            await SetPropAsync("net.dns2", secondaryDns, config);
+            await SetPropAsync("net.dnssearch", "local", config);
+            await PutGlobalSettingAsync("private_dns_mode", "off", config);
+            Logger.Success("AdbManager", $"In-VM DNS configured: Primary={primaryDns}, Secondary={secondaryDns}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("AdbManager", $"Failed to set in-VM DNS: {ex.Message}");
+            return false;
+        }
+    }
+
+    public static async Task<bool> OptimizeInVmTcpStackAsync(GameLoopConfig? config = null)
+    {
+        try
+        {
+            // High-throughput, low-bufferbloat WiFi TCP window sizes
+            await SetPropAsync("net.tcp.buffersize.wifi", "524288,1048576,2097152,262144,524288,1048576", config);
+            await SetPropAsync("net.tcp.buffersize.ethernet", "524288,1048576,2097152,262144,524288,1048576", config);
+            await SetPropAsync("net.tcp.buffersize.default", "524288,1048576,2097152,262144,524288,1048576", config);
+            await SetPropAsync("net.tcp.delack.default", "1", config);
+            await SetPropAsync("persist.net.ipv6.disable", "1", config);
+            Logger.Success("AdbManager", "Configured In-VM TCP buffer sizes & disabled VM IPv6 latency spikes.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("AdbManager", $"Failed to tune In-VM TCP stack: {ex.Message}");
+            return false;
+        }
+    }
+
+    public static async Task<bool> OptimizeInVmAudioLatencyAsync(GameLoopConfig? config = null)
+    {
+        try
+        {
+            // Disable deep buffer audio path to force low latency fast-track
+            await SetPropAsync("audio.deep_buffer.media", "false", config);
+            await SetPropAsync("af.resampler.quality", "2", config);
+            await SetPropAsync("media.stagefright.audio.sink", "256", config);
+            await SetPropAsync("ro.audio.flinger_standbytime_ms", "1000", config);
+            Logger.Success("AdbManager", "Configured In-VM Low-Latency Fast Track Audio (Deep Buffer Disabled).");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("AdbManager", $"Failed to configure In-VM Audio Latency: {ex.Message}");
+            return false;
+        }
+    }
+
+    public static async Task<bool> SetPointerLocationOverlayAsync(bool enabled, GameLoopConfig? config = null)
+    {
+        try
+        {
+            string val = enabled ? "1" : "0";
+            await ExecuteShellCommandAsync($"settings put system pointer_location {val}", null, 3000, config);
+            await ExecuteShellCommandAsync($"settings put system show_touches {val}", null, 3000, config);
+            Logger.Success("AdbManager", $"Pointer location & touch overlay set to: {enabled}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("AdbManager", $"Failed to toggle pointer overlay: {ex.Message}");
+            return false;
+        }
+    }
+
+    public static async Task<string> InstallApkAsync(string apkPath, GameLoopConfig? config = null)
+    {
+        if (string.IsNullOrWhiteSpace(apkPath) || !File.Exists(apkPath))
+        {
+            return "APK file not found on disk.";
+        }
+
+        string serial = _activeDeviceSerial ?? string.Empty;
+        string args = string.IsNullOrEmpty(serial) 
+            ? $"install -r -d \"{apkPath}\"" 
+            : $"-s {serial} install -r -d \"{apkPath}\"";
+
+        Logger.Info("AdbManager", $"Sideloading APK {Path.GetFileName(apkPath)} into GameLoop VM...");
+        var res = await ExecuteAdbCommandAsync(args, 60000, config);
+        
+        if (res.Contains("Success", StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Success("AdbManager", $"Successfully installed {Path.GetFileName(apkPath)}.");
+            return "Success: APK installed successfully!";
+        }
+
+        Logger.Warn("AdbManager", $"APK installation returned: {res}");
+        return res;
+    }
+
+    public static async Task<bool> PullFileFromVmAsync(string remotePath, string localPath, GameLoopConfig? config = null)
+    {
+        string serial = _activeDeviceSerial ?? string.Empty;
+        string args = string.IsNullOrEmpty(serial)
+            ? $"pull \"{remotePath}\" \"{localPath}\""
+            : $"-s {serial} pull \"{remotePath}\" \"{localPath}\"";
+
+        var res = await ExecuteAdbCommandAsync(args, 15000, config);
+        return !res.Contains("error:", StringComparison.OrdinalIgnoreCase) && !res.Contains("failed", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static async Task<bool> PushFileToVmAsync(string localPath, string remotePath, GameLoopConfig? config = null)
+    {
+        if (!File.Exists(localPath)) return false;
+        string serial = _activeDeviceSerial ?? string.Empty;
+        string args = string.IsNullOrEmpty(serial)
+            ? $"push \"{localPath}\" \"{remotePath}\""
+            : $"-s {serial} push \"{localPath}\" \"{remotePath}\"";
+
+        var res = await ExecuteAdbCommandAsync(args, 15000, config);
+        return !res.Contains("error:", StringComparison.OrdinalIgnoreCase) && !res.Contains("failed", StringComparison.OrdinalIgnoreCase);
+    }
 }
+
