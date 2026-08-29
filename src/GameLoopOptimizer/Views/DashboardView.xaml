@@ -43,6 +43,13 @@
                                     <TextBlock Text="{Binding GameLoop.IsRunning, Converter={StaticResource BooleanToRunningStatusConverter}}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Border>
+
+                            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,5" Margin="0,0,8,4">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="BUILD: " FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding DataContext.CurrentVersionDisplay, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyanBright}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
                         </WrapPanel>
                     </StackPanel>
 

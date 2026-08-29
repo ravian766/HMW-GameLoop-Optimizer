@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:GameLoopOptimizer"
         xmlns:vm="clr-namespace:GameLoopOptimizer.ViewModels"
+        xmlns:controls="clr-namespace:GameLoopOptimizer.Views.Controls"
         mc:Ignorable="d"
         Title="HMW • GameLoop Precision Engine Optimizer"
         Icon="Assets/app_icon.png"
@@ -71,6 +72,21 @@
 
                     <!-- Right Window Chrome Control Buttons -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Update Notification Chip Button -->
+                        <Button Style="{StaticResource SecondaryButton}"
+                                Command="{Binding OpenUpdateModalCommand}"
+                                Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                ToolTip="New version ready. Click to view release highlights and update."
+                                Padding="8,3"
+                                Margin="0,0,8,0"
+                                BorderBrush="{DynamicResource BrushAccentCyan}"
+                                Background="{DynamicResource BrushAccentCyanGlow}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="⚡" FontSize="11" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding AvailableUpdate.TagName, StringFormat='{}Update {0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+
                         <!-- Theme Switcher Toggle Button -->
                         <Button Content="{Binding ThemeIcon}"
                                 Command="{Binding ToggleThemeCommand}"
@@ -197,6 +213,10 @@
                 <!-- Right Workspace Content Area -->
                 <ContentControl Grid.Column="1" Content="{Binding CurrentView}" />
             </Grid>
+
+            <!-- ==================== AUTO-UPDATE MODAL OVERLAY ==================== -->
+            <controls:UpdateNotificationModal Grid.Row="0" Grid.RowSpan="2"
+                                              Visibility="{Binding ShowUpdateModal, Converter={StaticResource BooleanToVisibilityConverter}}" />
         </Grid>
     </Border>
 </Window>

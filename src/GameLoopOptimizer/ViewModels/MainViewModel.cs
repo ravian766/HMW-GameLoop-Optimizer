@@ -54,9 +54,65 @@ public class MainViewModel : ViewModelBase
     public string ThemeIcon => ThemeManager.Instance.IsDarkTheme ? "🌙" : "☀️";
     public string ThemeTooltip => ThemeManager.Instance.IsDarkTheme ? "Switch to Light Theme" : "Switch to Dark Theme";
 
+    // Auto-Update Properties
+    private UpdateInfo? _availableUpdate;
+    public UpdateInfo? AvailableUpdate
+    {
+        get => _availableUpdate;
+        set => SetProperty(ref _availableUpdate, value);
+    }
+
+    private bool _isUpdateAvailable;
+    public bool IsUpdateAvailable
+    {
+        get => _isUpdateAvailable;
+        set => SetProperty(ref _isUpdateAvailable, value);
+    }
+
+    private bool _isCheckingForUpdate;
+    public bool IsCheckingForUpdate
+    {
+        get => _isCheckingForUpdate;
+        set => SetProperty(ref _isCheckingForUpdate, value);
+    }
+
+    private bool _isDownloadingUpdate;
+    public bool IsDownloadingUpdate
+    {
+        get => _isDownloadingUpdate;
+        set => SetProperty(ref _isDownloadingUpdate, value);
+    }
+
+    private double _updateProgress;
+    public double UpdateProgress
+    {
+        get => _updateProgress;
+        set => SetProperty(ref _updateProgress, value);
+    }
+
+    private string _updateStatusMessage = string.Empty;
+    public string UpdateStatusMessage
+    {
+        get => _updateStatusMessage;
+        set => SetProperty(ref _updateStatusMessage, value);
+    }
+
+    private bool _showUpdateModal;
+    public bool ShowUpdateModal
+    {
+        get => _showUpdateModal;
+        set => SetProperty(ref _showUpdateModal, value);
+    }
+
+    public string CurrentVersionDisplay => $"v{UpdateManager.Instance.GetCurrentVersion().ToString(3)}";
+
     public ICommand NavigateCommand { get; }
     public ICommand ElevateCommand { get; }
     public ICommand ToggleThemeCommand { get; }
+    public ICommand CheckForUpdatesCommand { get; }
+    public ICommand OpenUpdateModalCommand { get; }
+    public ICommand DismissUpdateCommand { get; }
+    public ICommand DownloadAndApplyUpdateCommand { get; }
 
     public MainViewModel()
     {
@@ -187,6 +243,26 @@ public class MainViewModel : ViewModelBase
             ThemeManager.Instance.ToggleTheme();
         });
 
+        CheckForUpdatesCommand = new RelayCommand(async () =>
+        {
+            await CheckForUpdatesManuallyAsync();
+        });
+
+        OpenUpdateModalCommand = new RelayCommand(() =>
+        {
+            ShowUpdateModal = true;
+        });
+
+        DismissUpdateCommand = new RelayCommand(() =>
+        {
+            ShowUpdateModal = false;
+        });
+
+        DownloadAndApplyUpdateCommand = new RelayCommand(async () =>
+        {
+            await DownloadAndApplyUpdateAsync();
+        });
+
         ThemeManager.Instance.ThemeChanged += (s, e) =>
         {
             OnPropertyChanged(nameof(IsDarkTheme));
@@ -205,6 +281,98 @@ public class MainViewModel : ViewModelBase
         GameLoopVM.RefreshData();
         await OptimizerVM.AnalyzeAllAsync();
         DashboardVM.RefreshDashboard();
+
+        // Silent background update check
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(2500); // Give UI time to render smoothly first
+            await CheckForUpdatesSilentlyAsync();
+        });
+    }
+
+    public async Task CheckForUpdatesSilentlyAsync()
+    {
+        try
+        {
+            var update = await UpdateManager.Instance.CheckForUpdatesAsync();
+            if (update != null)
+            {
+                AvailableUpdate = update;
+                IsUpdateAvailable = true;
+                Logger.Info("MainViewModel", $"New update discovered: {update.TagName} ({update.ReleaseTitle})");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("MainViewModel", $"Silent update check error: {ex.Message}");
+        }
+    }
+
+    public async Task CheckForUpdatesManuallyAsync()
+    {
+        if (IsCheckingForUpdate) return;
+
+        IsCheckingForUpdate = true;
+        UpdateStatusMessage = "Checking for latest release on GitHub...";
+
+        try
+        {
+            var update = await UpdateManager.Instance.CheckForUpdatesAsync();
+            if (update != null)
+            {
+                AvailableUpdate = update;
+                IsUpdateAvailable = true;
+                ShowUpdateModal = true;
+            }
+            else
+            {
+                IsUpdateAvailable = false;
+                Logger.Info("MainViewModel", "Application is up to date.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("MainViewModel", $"Manual update check error: {ex.Message}");
+        }
+        finally
+        {
+            IsCheckingForUpdate = false;
+        }
+    }
+
+    public async Task DownloadAndApplyUpdateAsync()
+    {
+        if (AvailableUpdate == null || IsDownloadingUpdate) return;
+
+        IsDownloadingUpdate = true;
+        UpdateProgress = 0;
+        UpdateStatusMessage = "Starting download from GitHub Releases...";
+
+        var progress = new Progress<double>(p =>
+        {
+            UpdateProgress = p;
+            UpdateStatusMessage = $"Downloading update: {p:F0}%";
+        });
+
+        try
+        {
+            string zipPath = await UpdateManager.Instance.DownloadUpdateAsync(AvailableUpdate, progress);
+            UpdateStatusMessage = "Applying update and restarting application...";
+            await Task.Delay(600);
+
+            bool success = UpdateManager.Instance.ApplyUpdateAndRestart(zipPath);
+            if (!success)
+            {
+                UpdateStatusMessage = "Failed to launch updater. Please try updating manually.";
+                IsDownloadingUpdate = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("MainViewModel", $"Failed to download or apply update: {ex.Message}");
+            UpdateStatusMessage = $"Update failed: {ex.Message}";
+            IsDownloadingUpdate = false;
+        }
     }
 
     private void RefreshSystemData()
