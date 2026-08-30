@@ -52,7 +52,7 @@ public class UpdateManager
             return parsed;
         }
 
-        return new Version(2, 0, 0);
+        return new Version(2, 1, 0);
     }
 
     /// <summary>
