@@ -365,6 +365,111 @@ public static class KeymapBackupManager
         catch { }
     }
 
+    public static async Task<bool> ExportProfileToGlopFileAsync(string profileId, string targetFilePath)
+    {
+        return await Task.Run(() =>
+        {
+            try
+            {
+                KeymapBackupProfile? profile;
+                lock (_lock)
+                {
+                    profile = _profiles.FirstOrDefault(p => p.Id == profileId);
+                }
+
+                if (profile == null || !File.Exists(profile.ZipFilePath))
+                {
+                    Logger.Error("KeymapVault", $"Cannot export profile {profileId}: Archive not found.");
+                    return false;
+                }
+
+                var dir = Path.GetDirectoryName(targetFilePath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                File.Copy(profile.ZipFilePath, targetFilePath, overwrite: true);
+                Logger.Success("KeymapVault", $"Exported Keymap Vault package '{profile.Name}' to '{targetFilePath}'.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("KeymapVault", $"Export failed: {ex.Message}");
+                return false;
+            }
+        });
+    }
+
+    public static async Task<KeymapBackupProfile?> ImportProfileFromGlopFileAsync(string sourceGlopPath)
+    {
+        return await Task.Run(() =>
+        {
+            try
+            {
+                if (!File.Exists(sourceGlopPath))
+                {
+                    Logger.Error("KeymapVault", "GLOP source file does not exist.");
+                    return null;
+                }
+
+                if (!Directory.Exists(VaultDirectory))
+                {
+                    Directory.CreateDirectory(VaultDirectory);
+                }
+
+                string zipName = $"Imported_{DateTime.Now:yyyyMMdd_HHmmss}_{Path.GetFileNameWithoutExtension(sourceGlopPath)}.zip";
+                string destZipPath = Path.Combine(VaultDirectory, zipName);
+                File.Copy(sourceGlopPath, destZipPath, overwrite: true);
+
+                string profileName = Path.GetFileNameWithoutExtension(sourceGlopPath);
+                int fileCount = 0;
+
+                // Inspect manifest inside imported zip
+                try
+                {
+                    using var archive = ZipFile.OpenRead(destZipPath);
+                    fileCount = archive.Entries.Count;
+                    var manifestEntry = archive.GetEntry("manifest.json");
+                    if (manifestEntry != null)
+                    {
+                        using var reader = new StreamReader(manifestEntry.Open());
+                        var json = reader.ReadToEnd();
+                        using var doc = JsonDocument.Parse(json);
+                        if (doc.RootElement.TryGetProperty("ProfileName", out var nameProp))
+                        {
+                            profileName = nameProp.GetString() ?? profileName;
+                        }
+                    }
+                }
+                catch { }
+
+                var profile = new KeymapBackupProfile
+                {
+                    Name = $"Imported: {profileName}",
+                    CreatedAt = DateTime.Now,
+                    ZipFilePath = destZipPath,
+                    FilesArchived = fileCount
+                };
+
+                lock (_lock)
+                {
+                    _profiles.Add(profile);
+                    SaveProfiles();
+                }
+
+                ProfilesChanged?.Invoke(null, EventArgs.Empty);
+                Logger.Success("KeymapVault", $"Imported Keymap profile '{profile.Name}' successfully from GLOP package.");
+                return profile;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("KeymapVault", $"Import failed: {ex.Message}");
+                return null;
+            }
+        });
+    }
+
     private static void SaveProfiles()
     {
         try

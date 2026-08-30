@@ -1,9 +1,9 @@
 <Window x:Class="GameLoopOptimizer.Views.MiniOverlayWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="HMW Mini Overlay"
+        Title="HMW In-Game Performance HUD"
         Height="48"
-        Width="480"
+        Width="540"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -27,17 +27,17 @@
             SnapsToDevicePixels="True"
             UseLayoutRounding="True">
 
-        <Grid Margin="14,0">
+        <Grid Margin="12,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- Brand Badge -->
-            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
-                <Border Background="{DynamicResource BrushCyanGradient}" CornerRadius="5" Padding="7,3">
-                    <TextBlock Text="HMW HUD" FontSize="10" FontWeight="Bold" Foreground="#FFFFFF" />
+            <!-- Brand / Game Badge -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                <Border x:Name="BadgeGame" Background="{DynamicResource BrushCyanGradient}" CornerRadius="5" Padding="7,3">
+                    <TextBlock x:Name="TxtGameBadge" Text="HMW HUD" FontSize="10" FontWeight="Bold" Foreground="#FFFFFF" />
                 </Border>
             </StackPanel>
 
@@ -45,19 +45,19 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                 <!-- CPU -->
                 <TextBlock Text="CPU " FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextMuted}" />
-                <TextBlock x:Name="TxtCpu" Text="0%" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,12,0" />
+                <TextBlock x:Name="TxtCpu" Text="0%" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
 
                 <!-- Host RAM -->
                 <TextBlock Text="RAM " FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextMuted}" />
-                <TextBlock x:Name="TxtRam" Text="0%" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,12,0" />
+                <TextBlock x:Name="TxtRam" Text="0%" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
 
                 <!-- Emulator MB -->
-                <TextBlock Text="GameLoop " FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextMuted}" />
-                <TextBlock x:Name="TxtEmulator" Text="0 MB" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,12,0" />
+                <TextBlock Text="GL " FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextMuted}" />
+                <TextBlock x:Name="TxtEmulator" Text="0 MB" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,10,0" />
 
                 <!-- Stutter Radar Badge -->
-                <Border x:Name="BadgeRadar" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,10,0">
-                    <TextBlock x:Name="TxtRadar" Text="⚡ Stable" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
+                <Border x:Name="BadgeRadar" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="4" Padding="5,2" Margin="0,0,8,0">
+                    <TextBlock x:Name="TxtRadar" Text="⚡ Smooth" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
                 </Border>
 
                 <!-- Timer -->

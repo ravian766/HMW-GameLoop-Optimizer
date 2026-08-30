@@ -681,5 +681,31 @@ public static class AdbManager
         var res = await ExecuteAdbCommandAsync(args, 15000, config);
         return !res.Contains("error:", StringComparison.OrdinalIgnoreCase) && !res.Contains("failed", StringComparison.OrdinalIgnoreCase);
     }
+
+    public static async Task<bool> ElevateGameProcessPriorityAsync(string packageName = "com.tencent.ig", GameLoopConfig? config = null)
+    {
+        try
+        {
+            // Find PID of game package in Android VM
+            var pidOutput = await ExecuteShellCommandAsync($"pidof {packageName}", null, 3000, config);
+            var pid = pidOutput.Trim();
+
+            if (!string.IsNullOrEmpty(pid) && int.TryParse(pid.Split(' ')[0], out int gamePid))
+            {
+                // Elevate niceness to -20 (maximum real-time priority in Linux kernel)
+                await ExecuteShellCommandAsync($"renice -20 -p {gamePid}", null, 3000, config);
+                // Attempt real-time FIFO scheduler if root permissions allow
+                await ExecuteShellCommandAsync($"chrt -f -p 99 {gamePid}", null, 3000, config);
+                Logger.Success("AdbManager", $"Elevated In-VM priority for {packageName} (PID {gamePid}) to Real-Time (nice -20).");
+                return true;
+            }
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn("AdbManager", $"Could not elevate In-VM process priority: {ex.Message}");
+            return false;
+        }
+    }
 }
 

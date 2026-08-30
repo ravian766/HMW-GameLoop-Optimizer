@@ -149,6 +149,7 @@ public class MainViewModel : ViewModelBase
             new TimerResolutionModule(),
             new ProcessPriorityModule(),
             new NetworkLatencyModule(),
+            new NetworkQoSModule(),
             new NetworkDnsModule(),
             new VisualEffectsModule(),
             new BackgroundThrottleModule()

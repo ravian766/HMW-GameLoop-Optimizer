@@ -77,6 +77,8 @@ public class AdbGpuAccelerationModule : IOptimizationModule
             await AdbManager.SetPropAsync("debug.egl.hw", "1", gl);
             await AdbManager.SetPropAsync("debug.composition.type", "gpu", gl);
             await AdbManager.SetPropAsync("debug.sf.latch_unsignaled", "1", gl);
+            await AdbManager.SetPropAsync("debug.sf.enable_gl_backpressure", "0", gl);
+            await AdbManager.SetPropAsync("debug.hwui.renderer", "skiagl", gl);
             await AdbManager.SetPropAsync("debug.sf.early_phase_offset_ns", "500000", gl);
             await AdbManager.SetPropAsync("debug.sf.early_app_phase_offset_ns", "500000", gl);
             await AdbManager.SetPropAsync("video.accelerate.hw", "1", gl);

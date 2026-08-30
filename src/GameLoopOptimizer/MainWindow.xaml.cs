@@ -89,6 +89,14 @@ public partial class MainWindow : Window
                 }
             });
         };
+
+        _viewModel.WatchdogService.GameTitleChanged += (title, pkg) =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _overlayWindow?.SetGameTitle(title);
+            });
+        };
     }
 
     private void ToggleOverlay()
