@@ -23,6 +23,150 @@ public static class ProcessManager
     [DllImport("user32.dll")]
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    private struct MEMORYSTATUSEX
+    {
+        public uint dwLength;
+        public uint dwMemoryLoad;
+        public ulong ullTotalPhys;
+        public ulong ullAvailPhys;
+        public ulong ullTotalPageFile;
+        public ulong ullAvailPageFile;
+        public ulong ullTotalVirtual;
+        public ulong ullAvailVirtual;
+        public ulong ullAvailExtendedVirtual;
+    }
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
+
+    public static double GetSystemMemoryLoadPercent()
+    {
+        try
+        {
+            var memStatus = new MEMORYSTATUSEX();
+            memStatus.dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX));
+            if (GlobalMemoryStatusEx(ref memStatus))
+            {
+                return memStatus.dwMemoryLoad;
+            }
+        }
+        catch { }
+        return 0;
+    }
+
+    [DllImport("ntdll.dll", SetLastError = true)]
+    private static extern int NtSetInformationProcess(
+        IntPtr processHandle,
+        int processInformationClass,
+        ref int processInformation,
+        int processInformationLength);
+
+    [DllImport("ntdll.dll", SetLastError = true)]
+    private static extern int NtSetInformationProcess(
+        IntPtr processHandle,
+        int processInformationClass,
+        ref MEMORY_PRIORITY_INFORMATION processInformation,
+        int processInformationLength);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MEMORY_PRIORITY_INFORMATION
+    {
+        public uint MemoryPriority;
+    }
+
+    private const int ProcessIoPriority = 21;
+    private const int ProcessMemoryPriority = 39;
+
+    /// <summary>
+    /// Active 3D graphics and VM kernel render processes that directly run the game.
+    /// These receive high CPU priority, maximum I/O priority, memory priority, and P-Core affinity.
+    /// AppMarket.exe (the desktop launcher store) is intentionally excluded so it does not compete for resources.
+    /// </summary>
+    public static readonly string[] EmulatorEngineProcessNames = new[]
+    {
+        "AndroidEmulator",
+        "AndroidEmulatorEn",
+        "AndroidEmulatorEx",
+        "aow_exe",
+        "TxEx"
+    };
+
+    /// <summary>
+    /// All processes belonging to GameLoop installation including the desktop store launcher.
+    /// Used for launch detection, process focusing, and full shutdown/restart.
+    /// </summary>
+    public static readonly string[] AllGameLoopProcessNames = new[]
+    {
+        "AppMarket",
+        "AndroidEmulator",
+        "AndroidEmulatorEn",
+        "AndroidEmulatorEx",
+        "aow_exe",
+        "TxEx",
+        "TSettingCenter"
+    };
+
+    public static readonly string[] GameLoopProcessNames = AllGameLoopProcessNames;
+
+    public static int SetGameLoopIoAndMemoryPriority(int ioPriority = 3, uint memoryPriority = 5)
+    {
+        int configuredCount = 0;
+        foreach (var name in EmulatorEngineProcessNames)
+        {
+            try
+            {
+                var procs = Process.GetProcessesByName(name);
+                foreach (var proc in procs)
+                {
+                    try
+                    {
+                        // 1. Set I/O Priority (3 = High)
+                        int ioVal = ioPriority;
+                        NtSetInformationProcess(proc.Handle, ProcessIoPriority, ref ioVal, sizeof(int));
+
+                        // 2. Set Memory Priority (5 = Very High)
+                        var memInfo = new MEMORY_PRIORITY_INFORMATION { MemoryPriority = memoryPriority };
+                        NtSetInformationProcess(proc.Handle, ProcessMemoryPriority, ref memInfo, Marshal.SizeOf(typeof(MEMORY_PRIORITY_INFORMATION)));
+
+                        configuredCount++;
+                    }
+                    catch { }
+                    finally
+                    {
+                        proc.Dispose();
+                    }
+                }
+            }
+            catch { }
+        }
+
+        if (configuredCount > 0)
+        {
+            Logger.Success("ProcessManager", $"Elevated Disk I/O & Memory streaming priority to High for {configuredCount} active emulator engines (AppMarket launcher excluded).");
+        }
+        return configuredCount;
+    }
+
+    public static bool IsGameLoopRunning()
+    {
+        foreach (var name in AllGameLoopProcessNames)
+        {
+            try
+            {
+                var procs = Process.GetProcessesByName(name);
+                if (procs.Length > 0)
+                {
+                    foreach (var p in procs) p.Dispose();
+                    return true;
+                }
+            }
+            catch { }
+        }
+        return false;
+    }
+
     [DllImport("psapi.dll")]
     private static extern int EmptyWorkingSet(IntPtr hwProc);
 
@@ -111,11 +255,10 @@ public static class ProcessManager
 
     public static bool SetGameLoopPriority(ProcessPriorityClass priority = ProcessPriorityClass.AboveNormal)
     {
-        var emulatorProcessNames = new[] { "AppMarket", "AndroidEmulator", "AndroidEmulatorEn", "AndroidEmulatorEx", "aow_exe" };
         int boostedCount = 0;
         int protectedCount = 0;
 
-        foreach (var name in emulatorProcessNames)
+        foreach (var name in EmulatorEngineProcessNames)
         {
             try
             {
@@ -147,9 +290,12 @@ public static class ProcessManager
             }
         }
 
+        // Also elevate Disk I/O & Memory streaming priority
+        SetGameLoopIoAndMemoryPriority(ioPriority: 3, memoryPriority: 5);
+
         if (boostedCount > 0)
         {
-            Logger.Success("ProcessManager", $"Set priority to {priority} for {boostedCount} GameLoop processes.");
+            Logger.Success("ProcessManager", $"Set priority to {priority} for {boostedCount} active emulator engines (AppMarket excluded).");
         }
         else if (protectedCount > 0)
         {
@@ -225,8 +371,7 @@ public static class ProcessManager
         {
             try
             {
-                var names = new[] { "AppMarket", "AndroidEmulator", "AndroidEmulatorEn", "AndroidEmulatorEx", "aow_exe" };
-                foreach (var name in names)
+                foreach (var name in AllGameLoopProcessNames)
                 {
                     try
                     {
@@ -269,10 +414,9 @@ public static class ProcessManager
 
     public static bool SetGameLoopAffinity(long affinityMask)
     {
-        var emulatorNames = new[] { "AppMarket", "AndroidEmulator", "AndroidEmulatorEn", "AndroidEmulatorEx", "aow_exe" };
         int configuredCount = 0;
 
-        foreach (var name in emulatorNames)
+        foreach (var name in EmulatorEngineProcessNames)
         {
             try
             {

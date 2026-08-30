@@ -168,7 +168,7 @@
 
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="🎯 Precision ADS &amp; Scope Sensitivity Calibration" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,4" />
-                            <TextBlock Text="Calculates exact mathematical GameLoop keymap X/Y sensitivity and in-game ADS curves tailored to your mouse hardware DPI and stretched aspect ratio." FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" />
+                            <TextBlock Text="Calculates exact mathematical GameLoop keymap X/Y sensitivity and in-game ADS curves tailored to your mouse hardware DPI, stretched aspect ratio, and custom vertical recoil multiplier." FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" />
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -176,9 +176,93 @@
                             <ComboBox ItemsSource="{Binding DpiOptions}" SelectedItem="{Binding SelectedMouseDpi}" Width="80" Margin="0,0,10,0" />
 
                             <TextBlock Text="Style: " FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" Margin="0,0,4,0" />
-                            <ComboBox ItemsSource="{Binding PlaystyleOptions}" SelectedItem="{Binding SelectedPlaystyle}" Width="160" />
+                            <ComboBox ItemsSource="{Binding PlaystyleOptions}" SelectedItem="{Binding SelectedPlaystyle}" Width="150" Margin="0,0,10,0" />
+
+                            <Button Content="📋 Copy Values"
+                                    Command="{Binding CopySensitivityToClipboardCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="10,6"
+                                    FontSize="11"
+                                    ToolTip="Copy calculated GameLoop and in-game ADS values to clipboard" />
                         </StackPanel>
                     </Grid>
+
+                    <!-- Vertical (Y/X) Recoil Multiplier & Pull-Down Control Card -->
+                    <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="10" Padding="14,12" Margin="0,0,0,14">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                    <TextBlock Text="🕹️ Vertical Recoil Multiplier (Y/X Ratio): " FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding VerticalMultiplier, StringFormat='{}{0:F2}x'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" Margin="4,0,10,0" />
+                                    <Border Background="{DynamicResource BrushBgDarkest}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding SensitivityResult.RecoilReliefLabel}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
+                                    </Border>
+                                </StackPanel>
+
+                                <TextBlock Grid.Column="1" Text="{Binding SensitivityResult.RecoilReliefDescription}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <!-- Slider & Preset Buttons Row -->
+                            <Grid Margin="0,4,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Continuous Slider -->
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0" VerticalAlignment="Center">
+                                    <Slider Minimum="1.0"
+                                            Maximum="2.5"
+                                            SmallChange="0.05"
+                                            LargeChange="0.10"
+                                            TickFrequency="0.05"
+                                            IsSnapToTickEnabled="False"
+                                            Value="{Binding VerticalMultiplier, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Grid Margin="2,2,2,0">
+                                        <TextBlock Text="1.0x (Symmetric)" FontSize="9" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Left" />
+                                        <TextBlock Text="1.65x (Laser Spray Sweet Spot)" FontSize="9" Foreground="{DynamicResource BrushAccentCyan}" HorizontalAlignment="Center" />
+                                        <TextBlock Text="2.5x (Max Assist)" FontSize="9" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Right" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- 4 Quick Presets -->
+                                <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Content="1.0x Normal"
+                                            Command="{Binding SetVerticalMultiplierPresetCommand}"
+                                            CommandParameter="1.0"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Padding="8,5"
+                                            FontSize="10"
+                                            Margin="0,0,4,0" />
+                                    <Button Content="1.35x Balanced"
+                                            Command="{Binding SetVerticalMultiplierPresetCommand}"
+                                            CommandParameter="1.35"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Padding="8,5"
+                                            FontSize="10"
+                                            Margin="0,0,4,0" />
+                                    <Button Content="⚡ 1.65x Laser"
+                                            Command="{Binding SetVerticalMultiplierPresetCommand}"
+                                            CommandParameter="1.65"
+                                            Style="{StaticResource PrimaryButton}"
+                                            Padding="10,5"
+                                            FontSize="10"
+                                            Margin="0,0,4,0" />
+                                    <Button Content="2.0x Heavy"
+                                            Command="{Binding SetVerticalMultiplierPresetCommand}"
+                                            CommandParameter="2.0"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Padding="8,5"
+                                            FontSize="10" />
+                                </WrapPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
                     <!-- Keymap Sensitivity Summary -->
                     <Grid Margin="0,0,0,14">
@@ -200,7 +284,7 @@
                             <StackPanel>
                                 <TextBlock Text="RECOMMENDED KEYMAP Y (VERTICAL RECOIL)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
                                 <TextBlock Text="{Binding SensitivityResult.GameLoopKeymapY, StringFormat='{}{0}%'}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource BrushAccentViolet}" Margin="0,2,0,0" />
-                                <TextBlock Text="Vertical compensation ratio applied" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                                <TextBlock Text="Scaled for effortless spray pull-down" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
                             </StackPanel>
                         </Border>
 
@@ -208,26 +292,40 @@
                             <StackPanel>
                                 <TextBlock Text="VERTICAL RATIO MULTIPLIER" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
                                 <TextBlock Text="{Binding SensitivityResult.VerticalMultiplier, StringFormat='{}{0:F2}x'}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" Margin="0,2,0,0" />
-                                <TextBlock Text="Optimal pull-down headroom" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                                <TextBlock Text="{Binding SensitivityResult.RecoilReliefLabel}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
                             </StackPanel>
                         </Border>
                     </Grid>
 
-                    <!-- Scope Sensitivity Breakdown Table -->
+                    <!-- Scope Sensitivity Breakdown Table (10 PUBG Mobile In-Game Options) -->
                     <ItemsControl ItemsSource="{Binding SensitivityResult.ScopeSettings}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <UniformGrid Columns="7" />
+                                <UniformGrid Columns="5" />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="8" Margin="0,0,4,0">
+                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,6,6"
+                                        ToolTip="{Binding RecoilTip}">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding ScopeName}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" HorizontalAlignment="Center" />
-                                        <Separator Background="{DynamicResource BrushBorderSubtle}" Margin="0,4,0,4" />
-                                        <TextBlock Text="{Binding AdsSensitivity, StringFormat='ADS: {0}%'}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" HorizontalAlignment="Center" />
-                                        <TextBlock Text="{Binding CameraSensitivity, StringFormat='Cam: {0}%'}" FontSize="10" Foreground="{DynamicResource BrushTextSecondary}" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                        <TextBlock Text="{Binding ScopeName}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding IdealFor}" FontSize="9" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,2,0,4" />
+                                        <Separator Background="{DynamicResource BrushBorderSubtle}" Margin="0,2,0,6" />
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                                <TextBlock Text="ADS" FontSize="8" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{Binding AdsSensitivity, StringFormat='{}{0}%'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" HorizontalAlignment="Center" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                                <TextBlock Text="CAM" FontSize="8" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{Binding CameraSensitivity, StringFormat='{}{0}%'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" HorizontalAlignment="Center" />
+                                            </StackPanel>
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>

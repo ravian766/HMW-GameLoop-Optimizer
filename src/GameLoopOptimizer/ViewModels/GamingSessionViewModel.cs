@@ -51,7 +51,7 @@ public class GamingSessionViewModel : ViewModelBase
         }
     }
 
-    private string _autoPurgeStatus = "Smart Auto-Purge Active (3m interval)";
+    private string _autoPurgeStatus = "Auto-Purge Disabled (Manual Purge Ready)";
     public string AutoPurgeStatus
     {
         get => _autoPurgeStatus;

@@ -13,12 +13,16 @@ public class HotkeyManager : IDisposable
 
     public const int HOTKEY_OVERLAY_ID = 9001; // Ctrl + Shift + O
     public const int HOTKEY_TRIM_ID = 9002;    // Ctrl + Shift + M
+    public const int HOTKEY_TIMER_ID = 9003;   // Ctrl + Shift + T (0.5ms Timer)
+    public const int HOTKEY_FPS_ID = 9004;     // Ctrl + Shift + F (120 FPS Unlock)
 
     private IntPtr _hwnd;
     private HwndSource? _source;
 
     public event Action? OverlayHotkeyPressed;
     public event Action? TrimHotkeyPressed;
+    public event Action? TimerHotkeyPressed;
+    public event Action? FpsHotkeyPressed;
 
     public void Register(Window window)
     {
@@ -41,11 +45,13 @@ public class HotkeyManager : IDisposable
         _source = HwndSource.FromHwnd(_hwnd);
         _source?.AddHook(HwndHook);
 
-        // VK_O = 0x4F, VK_M = 0x4D
+        // VK_O = 0x4F, VK_M = 0x4D, VK_T = 0x54, VK_F = 0x46
         RegisterHotKey(_hwnd, HOTKEY_OVERLAY_ID, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x4F);
         RegisterHotKey(_hwnd, HOTKEY_TRIM_ID, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x4D);
+        RegisterHotKey(_hwnd, HOTKEY_TIMER_ID, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x54);
+        RegisterHotKey(_hwnd, HOTKEY_FPS_ID, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x46);
 
-        Logger.Info("HotkeyManager", "Global hotkeys active: Ctrl+Shift+O (HUD Overlay), Ctrl+Shift+M (Trim RAM).");
+        Logger.Info("HotkeyManager", "Global hotkeys active: Ctrl+Shift+O (HUD Overlay), Ctrl+Shift+M (Trim RAM), Ctrl+Shift+T (0.5ms Timer), Ctrl+Shift+F (120 FPS Re-Inject).");
     }
 
     private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -63,6 +69,16 @@ public class HotkeyManager : IDisposable
                 TrimHotkeyPressed?.Invoke();
                 handled = true;
             }
+            else if (id == HOTKEY_TIMER_ID)
+            {
+                TimerHotkeyPressed?.Invoke();
+                handled = true;
+            }
+            else if (id == HOTKEY_FPS_ID)
+            {
+                FpsHotkeyPressed?.Invoke();
+                handled = true;
+            }
         }
 
         return IntPtr.Zero;
@@ -74,6 +90,8 @@ public class HotkeyManager : IDisposable
         {
             UnregisterHotKey(_hwnd, HOTKEY_OVERLAY_ID);
             UnregisterHotKey(_hwnd, HOTKEY_TRIM_ID);
+            UnregisterHotKey(_hwnd, HOTKEY_TIMER_ID);
+            UnregisterHotKey(_hwnd, HOTKEY_FPS_ID);
         }
         _source?.RemoveHook(HwndHook);
     }

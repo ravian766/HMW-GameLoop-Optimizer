@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using GameLoopOptimizer.Models;
 using GameLoopOptimizer.Optimizations;
 
@@ -6,14 +7,52 @@ namespace GameLoopOptimizer.Core;
 
 public class GameLoopWatchdogService : IDisposable
 {
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GetSystemTimes(out long idleTime, out long kernelTime, out long userTime);
+
     private readonly System.Timers.Timer _timer;
     private readonly Func<GameLoopConfig> _getGl;
     private bool _isGameLoopRunning;
     private bool _isEnabled = true;
-    private bool _isAutoPurgeEnabled = true;
+    private bool _isAutoPurgeEnabled = false;
     private bool _isAutoGameBoostEnabled = true;
     private int _tickCount = 0;
     private string _lastBoostedPackage = string.Empty;
+
+    private long _lastIdleTime = 0;
+    private long _lastKernelTime = 0;
+    private long _lastUserTime = 0;
+
+    private double GetCurrentSystemCpuUsage()
+    {
+        try
+        {
+            if (GetSystemTimes(out long idleTime, out long kernelTime, out long userTime))
+            {
+                if (_lastIdleTime != 0)
+                {
+                    long usr = userTime - _lastUserTime;
+                    long ker = kernelTime - _lastKernelTime;
+                    long idl = idleTime - _lastIdleTime;
+
+                    long sys = usr + ker;
+                    if (sys > 0)
+                    {
+                        double cpu = ((double)(sys - idl) / sys) * 100.0;
+                        _lastIdleTime = idleTime;
+                        _lastKernelTime = kernelTime;
+                        _lastUserTime = userTime;
+                        return Math.Clamp(cpu, 0.0, 100.0);
+                    }
+                }
+                _lastIdleTime = idleTime;
+                _lastKernelTime = kernelTime;
+                _lastUserTime = userTime;
+            }
+        }
+        catch { }
+        return 0.0;
+    }
 
     public bool IsEnabled
     {
@@ -121,8 +160,22 @@ public class GameLoopWatchdogService : IDisposable
                     // Every ~3 minutes (90 ticks * 2s = 180s) trigger background smart purge
                     if (_tickCount >= 90)
                     {
-                        _tickCount = 0;
-                        Task.Run(async () => await ExecuteSmartPurgeAsync());
+                        double currentCpu = GetCurrentSystemCpuUsage();
+                        double currentMem = ProcessManager.GetSystemMemoryLoadPercent();
+
+                        // Gunfight / Active Combat Guard:
+                        // If CPU usage is elevated (> 35%) and memory load is NOT critically high (< 88%),
+                        // postpone purge by 15 ticks (30s) to guarantee zero frame drops during active combat.
+                        if (currentCpu > 35.0 && currentMem < 88.0)
+                        {
+                            _tickCount = 75; // Try again in 30 seconds
+                            Logger.Info("Watchdog", $"Gunfight Guard: Auto-purge deferred (CPU {currentCpu:F0}%, RAM {currentMem:F0}%). Preserving smooth frame delivery.");
+                        }
+                        else
+                        {
+                            _tickCount = 0;
+                            Task.Run(async () => await ExecuteSmartPurgeAsync(false));
+                        }
                     }
                 }
             }
@@ -246,24 +299,39 @@ public class GameLoopWatchdogService : IDisposable
         }
     }
 
-    public async Task<int> ExecuteSmartPurgeAsync()
+    public async Task<int> ExecuteSmartPurgeAsync(bool bypassLoadCheck = false)
     {
         try
         {
+            double currentCpu = GetCurrentSystemCpuUsage();
+            double currentMemLoad = ProcessManager.GetSystemMemoryLoadPercent();
+
+            // Gunfight / Heavy Load Guard:
+            // If CPU usage is above 35% and memory load is NOT critically high (< 88%), 
+            // skip/defer this purge cycle completely so it never causes micro-stutters during combat.
+            if (!bypassLoadCheck && _isGameLoopRunning && currentCpu > 35.0 && currentMemLoad < 88.0)
+            {
+                Logger.Info("AutoPurge", $"Gunfight Guard: Deferred auto-purge (CPU {currentCpu:F0}%, RAM {currentMemLoad:F0}%) to prevent micro-stutters.");
+                return 0;
+            }
+
             int freed = ProcessManager.TrimWorkingSets();
             var gl = _getGl();
 
-            // Also trim In-VM cache via ADB if active
-            if (AdbManager.IsAdbAvailable(gl))
+            // Only trim In-VM ADB cache when game is in standby/lobby or bypassLoadCheck is true (never mid-combat)
+            if (bypassLoadCheck || !_isGameLoopRunning || currentCpu < 25.0)
             {
-                await AdbManager.TrimAppCacheAsync(gl);
+                if (AdbManager.IsAdbAvailable(gl))
+                {
+                    await AdbManager.TrimAppCacheAsync(gl);
+                }
             }
 
             double estimatedMb = freed * 14.5; // ~14.5MB average working set recovery per idle process
             TotalMegabytesFreed += estimatedMb;
             AutoPurgeCount++;
             LastPurgeTime = DateTime.Now;
-            LastPurgeMessage = $"Purge #{AutoPurgeCount}: Cleaned {freed} processes (~{estimatedMb:F0} MB freed) at {LastPurgeTime:HH:mm:ss}";
+            LastPurgeMessage = $"Purge #{AutoPurgeCount}: Cleaned {freed} idle processes (~{estimatedMb:F0} MB freed) at {LastPurgeTime:HH:mm:ss}";
 
             Logger.Success("AutoPurge", LastPurgeMessage);
             AutoPurgeExecuted?.Invoke(LastPurgeMessage);

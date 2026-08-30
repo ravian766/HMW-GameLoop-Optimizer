@@ -26,6 +26,7 @@ public class PerformanceMetrics
     public double GameLoopRamMb { get; set; }
     public bool IsGameLoopActive { get; set; }
 
+    public double Fps { get; set; }
     public double EstimatedFrametimeVarianceMs { get; set; }
 }
 

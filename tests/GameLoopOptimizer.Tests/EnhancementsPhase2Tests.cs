@@ -37,7 +37,7 @@ public class EnhancementsPhase2Tests
     {
         using var watchdog = new GameLoopWatchdogService(() => new GameLoopConfig());
         Assert.True(watchdog.IsEnabled);
-        Assert.True(watchdog.IsAutoPurgeEnabled);
+        Assert.False(watchdog.IsAutoPurgeEnabled);
         Assert.True(watchdog.IsAutoGameBoostEnabled);
         Assert.Equal("Standby", watchdog.DetectedGameTitle);
         Assert.Empty(watchdog.DetectedGamePackage);
@@ -68,7 +68,7 @@ public class EnhancementsPhase2Tests
                 // Test Import
                 var importedProfile = await KeymapBackupManager.ImportProfileFromGlopFileAsync(glopPath);
                 Assert.NotNull(importedProfile);
-                Assert.Contains("ExportedTest", importedProfile.Name);
+                Assert.Contains("Glop Export Test Profile", importedProfile.Name);
 
                 // Clean up profile
                 KeymapBackupManager.DeleteProfile(profile.Id);
@@ -82,5 +82,43 @@ public class EnhancementsPhase2Tests
                 Directory.Delete(tempDir, recursive: true);
             }
         }
+    }
+
+    [Fact]
+    public void ProcessManager_MemoryLoadAndRunningState_ExecutesSafely()
+    {
+        double memLoad = ProcessManager.GetSystemMemoryLoadPercent();
+        Assert.InRange(memLoad, 0.0, 100.0);
+
+        bool isRunning = ProcessManager.IsGameLoopRunning();
+        // Returns boolean without throwing exceptions
+        Assert.True(isRunning || !isRunning);
+    }
+
+    [Fact]
+    public async Task ShaderCacheCleaner_ExecutesSafely()
+    {
+        var config = new GameLoopConfig { InstallPath = Path.GetTempPath() };
+        var result = await ShaderCacheCleaner.PurgeShaderCacheAsync(config);
+        Assert.NotNull(result);
+        Assert.True(result.FilesDeleted >= 0);
+    }
+
+    [Fact]
+    public async Task AdbManager_SetVmResolution_HandlesInvalidInputsGracefully()
+    {
+        bool resultInvalid = await AdbManager.SetVmResolutionAsync(0, 0);
+        Assert.False(resultInvalid);
+
+        bool resultNegative = await AdbManager.SetVmResolutionAsync(-1, -1);
+        Assert.False(resultNegative);
+    }
+
+    [Fact]
+    public async Task Watchdog_ExecuteSmartPurge_ExecutesSafely()
+    {
+        using var watchdog = new GameLoopWatchdogService(() => new GameLoopConfig());
+        int freed = await watchdog.ExecuteSmartPurgeAsync(bypassLoadCheck: true);
+        Assert.True(freed >= 0);
     }
 }

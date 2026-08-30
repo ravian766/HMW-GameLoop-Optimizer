@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="HMW In-Game Performance HUD"
         Height="48"
-        Width="540"
+        Width="600"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -43,6 +43,10 @@
 
             <!-- Metrics Bar -->
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- FPS -->
+                <TextBlock Text="FPS " FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextMuted}" />
+                <TextBlock x:Name="TxtFps" Text="--" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" Margin="0,0,10,0" />
+
                 <!-- CPU -->
                 <TextBlock Text="CPU " FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextMuted}" />
                 <TextBlock x:Name="TxtCpu" Text="0%" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />

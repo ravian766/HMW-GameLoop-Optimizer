@@ -142,6 +142,7 @@ public class MainViewModel : ViewModelBase
             new AdbAudioLatencyModule(),
             new CpuAffinityModule(),
             new GpuPreferenceModule(),
+            new DirectXShaderCacheModule(),
             new AudioLatencyModule(),
             new AudioFootstepClarifierModule(),
             new MemoryOptimizerModule(),

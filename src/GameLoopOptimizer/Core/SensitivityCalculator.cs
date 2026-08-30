@@ -23,6 +23,8 @@ public class SensitivityProfileResult
     public int GameLoopKeymapX { get; set; }
     public int GameLoopKeymapY { get; set; }
     public double VerticalMultiplier { get; set; }
+    public string RecoilReliefLabel { get; set; } = string.Empty;
+    public string RecoilReliefDescription { get; set; } = string.Empty;
     public List<ScopeSensitivityItem> ScopeSettings { get; set; } = new();
     public string GeneralRecoilRecommendation { get; set; } = string.Empty;
 }
@@ -31,7 +33,13 @@ public static class SensitivityCalculator
 {
     public static SensitivityProfileResult Calculate(int mouseDpi, AimPlaystyle playstyle, int screenHeight = 1080)
     {
+        return Calculate(mouseDpi, playstyle, 1.65, screenHeight);
+    }
+
+    public static SensitivityProfileResult Calculate(int mouseDpi, AimPlaystyle playstyle, double verticalMultiplier, int screenHeight = 1080)
+    {
         int dpi = Math.Clamp(mouseDpi, 400, 3200);
+        double vMult = Math.Clamp(verticalMultiplier, 1.0, 2.5);
 
         // Base DPI factor normalized around 800 DPI
         double dpiFactor = 800.0 / dpi;
@@ -44,12 +52,19 @@ public static class SensitivityCalculator
             _ => 1.0
         };
 
-        // Vertical bias ratio for GameLoop (Y is scaled higher than X so pulling down requires less physical mouse travel)
-        double verticalRatio = 1.35;
-
         // Base keymap sensitivity (percentage 10-100)
-        int keymapX = (int)Math.Round(Math.Clamp(50 * dpiFactor * playstyleBaseMultiplier, 20, 80));
-        int keymapY = (int)Math.Round(Math.Clamp(keymapX * verticalRatio, 30, 95));
+        int keymapX = (int)Math.Round(Math.Clamp(50 * dpiFactor * playstyleBaseMultiplier, 15, 85));
+        int keymapY = (int)Math.Round(Math.Clamp(keymapX * vMult, 20, 100));
+
+        // Recoil relief calculation (e.g. 1.65x multiplier reduces physical downward hand travel by ~39%)
+        double physicalTravelReduction = (1.0 - (1.0 / vMult)) * 100.0;
+        string reliefLabel = vMult switch
+        {
+            <= 1.05 => "Standard 1:1 (Neutral)",
+            <= 1.40 => "Balanced (Mild Relief)",
+            <= 1.75 => "Laser Spray (Recommended)",
+            _ => "Heavy Recoil Control (Max Relief)"
+        };
 
         var result = new SensitivityProfileResult
         {
@@ -57,26 +72,57 @@ public static class SensitivityCalculator
             Playstyle = playstyle,
             GameLoopKeymapX = keymapX,
             GameLoopKeymapY = keymapY,
-            VerticalMultiplier = Math.Round((double)keymapY / keymapX, 2),
+            VerticalMultiplier = Math.Round(vMult, 2),
+            RecoilReliefLabel = reliefLabel,
+            RecoilReliefDescription = vMult > 1.01 
+                ? $"-{physicalTravelReduction:F0}% Downward Mouse Travel Required" 
+                : "1:1 Symmetric Horizontal & Vertical Sensitivity",
             ScopeSettings = new List<ScopeSensitivityItem>()
         };
 
-        // In-game sensitivity calculations based on standard UE4 FOV scaling & optimal recoil control
+        // In-game sensitivity calculations matching exact PUBG Mobile settings menu (10 tiers)
         result.ScopeSettings.Add(new ScopeSensitivityItem
         {
-            ScopeName = "3rd Person (No Scope)",
-            IdealFor = "Hip-fire, CQB Brawls & Movement",
-            CameraSensitivity = CalculateSens(55, dpiFactor, playstyleBaseMultiplier),
-            AdsSensitivity = CalculateSens(50, dpiFactor, playstyleBaseMultiplier),
+            ScopeName = "TPP No Scope",
+            IdealFor = "Hip-fire, CQB Brawls & Free Movement",
+            CameraSensitivity = CalculateSens(65, dpiFactor, playstyleBaseMultiplier),
+            AdsSensitivity = CalculateSens(60, dpiFactor, playstyleBaseMultiplier),
             RecoilTip = "Hip-fire sprays tighten significantly when crouched; keep crosshair at chest/head level."
         });
 
         result.ScopeSettings.Add(new ScopeSensitivityItem
         {
-            ScopeName = "Red Dot / Holographic / Canted",
+            ScopeName = "FPP No Scope",
+            IdealFor = "First-Person CQB & Fast Room Clearing",
+            CameraSensitivity = CalculateSens(60, dpiFactor, playstyleBaseMultiplier),
+            AdsSensitivity = CalculateSens(55, dpiFactor, playstyleBaseMultiplier),
+            RecoilTip = "Slightly lower than TPP to prevent visual overshooting during tight indoor turns."
+        });
+
+        result.ScopeSettings.Add(new ScopeSensitivityItem
+        {
+            ScopeName = "TPP Aim",
+            IdealFor = "Over-the-Shoulder Tight Hip-Fire Aim",
+            CameraSensitivity = CalculateSens(55, dpiFactor, playstyleBaseMultiplier),
+            AdsSensitivity = CalculateSens(65, dpiFactor, playstyleBaseMultiplier),
+            RecoilTip = "Gives high accuracy during close-quarters combat without switching to full ADS."
+        });
+
+        result.ScopeSettings.Add(new ScopeSensitivityItem
+        {
+            ScopeName = "FPP Aim",
+            IdealFor = "First-Person Focused Hip-Fire Aim",
+            CameraSensitivity = CalculateSens(50, dpiFactor, playstyleBaseMultiplier),
+            AdsSensitivity = CalculateSens(60, dpiFactor, playstyleBaseMultiplier),
+            RecoilTip = "Optimal for steady tracking on fast strafing targets in first-person mode."
+        });
+
+        result.ScopeSettings.Add(new ScopeSensitivityItem
+        {
+            ScopeName = "Red Dot, Holographic, Canted",
             IdealFor = "Close-to-Mid Range Engagements (0–50m)",
-            CameraSensitivity = CalculateSens(32, dpiFactor, playstyleBaseMultiplier),
-            AdsSensitivity = CalculateSens(44, dpiFactor, playstyleBaseMultiplier),
+            CameraSensitivity = CalculateSens(35, dpiFactor, playstyleBaseMultiplier),
+            AdsSensitivity = CalculateSens(42, dpiFactor, playstyleBaseMultiplier),
             RecoilTip = "Higher ADS allows steady micro-corrections during rapid 30-round automatic sprays."
         });
 
@@ -85,13 +131,13 @@ public static class SensitivityCalculator
             ScopeName = "2x Scope",
             IdealFor = "Mid-Range Combat (30–70m)",
             CameraSensitivity = CalculateSens(28, dpiFactor, playstyleBaseMultiplier),
-            AdsSensitivity = CalculateSens(38, dpiFactor, playstyleBaseMultiplier),
+            AdsSensitivity = CalculateSens(36, dpiFactor, playstyleBaseMultiplier),
             RecoilTip = "Great balance of zoom and peripheral vision; pull down steadily after bullet #6."
         });
 
         result.ScopeSettings.Add(new ScopeSensitivityItem
         {
-            ScopeName = "3x Scope (Pro Meta)",
+            ScopeName = "3x Scope, Win94",
             IdealFor = "M416 / SCAR-L Laser Sprays (50–120m)",
             CameraSensitivity = CalculateSens(22, dpiFactor, playstyleBaseMultiplier),
             AdsSensitivity = CalculateSens(32, dpiFactor, playstyleBaseMultiplier),
@@ -100,7 +146,7 @@ public static class SensitivityCalculator
 
         result.ScopeSettings.Add(new ScopeSensitivityItem
         {
-            ScopeName = "4x Scope",
+            ScopeName = "4x Scope, VSS",
             IdealFor = "DMR Taps (Mini14/SKS) & DP-28 Sprays",
             CameraSensitivity = CalculateSens(15, dpiFactor, playstyleBaseMultiplier),
             AdsSensitivity = CalculateSens(24, dpiFactor, playstyleBaseMultiplier),
@@ -109,11 +155,11 @@ public static class SensitivityCalculator
 
         result.ScopeSettings.Add(new ScopeSensitivityItem
         {
-            ScopeName = "6x Scope (Adjusted to 3x)",
-            IdealFor = "Full-Auto AR Sprays & Long DMR Tagging",
-            CameraSensitivity = CalculateSens(18, dpiFactor, playstyleBaseMultiplier),
-            AdsSensitivity = CalculateSens(28, dpiFactor, playstyleBaseMultiplier),
-            RecoilTip = "Dial zoom wheel down to 3x. Provides superior reticle clarity with 3x spray physics."
+            ScopeName = "6x Scope",
+            IdealFor = "Full-Auto AR Sprays (Adjusted to 3x) & DMRs",
+            CameraSensitivity = CalculateSens(14, dpiFactor, playstyleBaseMultiplier),
+            AdsSensitivity = CalculateSens(22, dpiFactor, playstyleBaseMultiplier),
+            RecoilTip = "Dial zoom down to 3x in-game. Provides superior reticle clarity with 3x spray physics."
         });
 
         result.ScopeSettings.Add(new ScopeSensitivityItem
@@ -125,7 +171,7 @@ public static class SensitivityCalculator
             RecoilTip = "Low sensitivity ensures pixel-perfect headshot tracking on moving targets."
         });
 
-        result.GeneralRecoilRecommendation = $"At {dpi} DPI, set GameLoop Keymap Sensitivity to X={keymapX}%, Y={keymapY}%. In PUBG Settings > Sensitivity, apply the ADS values above for optimal recoil pull-down.";
+        result.GeneralRecoilRecommendation = $"At {dpi} DPI and {vMult:F2}x Vertical Bias, set GameLoop Keymap Sensitivity to X={keymapX}%, Y={keymapY}%. In PUBG Settings > Sensitivity, apply the ADS values above for optimal recoil pull-down.";
 
         return result;
     }

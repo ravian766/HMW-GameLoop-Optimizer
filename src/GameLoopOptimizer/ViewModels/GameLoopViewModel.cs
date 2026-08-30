@@ -42,14 +42,26 @@ public class GameLoopViewModel : ViewModelBase
     public int CpuCores
     {
         get => _cpuCores;
-        set => SetProperty(ref _cpuCores, value);
+        set
+        {
+            if (SetProperty(ref _cpuCores, value))
+            {
+                OnPropertyChanged(nameof(CurrentEngineAndResDisplay));
+            }
+        }
     }
 
     private int _ramMb = 8192;
     public int RamMb
     {
         get => _ramMb;
-        set => SetProperty(ref _ramMb, value);
+        set
+        {
+            if (SetProperty(ref _ramMb, value))
+            {
+                OnPropertyChanged(nameof(CurrentEngineAndResDisplay));
+            }
+        }
     }
 
     private bool _forceDirectX = true;
@@ -72,6 +84,55 @@ public class GameLoopViewModel : ViewModelBase
         get => _fpsLevel;
         set => SetProperty(ref _fpsLevel, value);
     }
+
+    private int _pubgRenderQuality = 0;
+    public int PubgRenderQuality
+    {
+        get => _pubgRenderQuality;
+        set
+        {
+            if (SetProperty(ref _pubgRenderQuality, value))
+            {
+                OnPropertyChanged(nameof(CurrentGraphicsDisplayName));
+                OnPropertyChanged(nameof(CurrentGraphicsAndScaleDisplay));
+            }
+        }
+    }
+
+    private int _pubgContentScale = 1;
+    public int PubgContentScale
+    {
+        get => _pubgContentScale;
+        set
+        {
+            if (SetProperty(ref _pubgContentScale, value))
+            {
+                OnPropertyChanged(nameof(CurrentContentScaleDisplayName));
+                OnPropertyChanged(nameof(CurrentGraphicsAndScaleDisplay));
+            }
+        }
+    }
+
+    public string CurrentGraphicsDisplayName => PubgRenderQuality switch
+    {
+        1 => "流畅 Smooth",
+        2 => "平衡 Balanced",
+        3 => "高清 HD",
+        0 => "自动 Auto",
+        _ => $"Quality {PubgRenderQuality}"
+    };
+
+    public string CurrentContentScaleDisplayName => PubgContentScale switch
+    {
+        2 => "1080P HD",
+        3 => "2K QHD",
+        1 => "720P SD",
+        _ => $"Scale {PubgContentScale}"
+    };
+
+    public string CurrentGraphicsAndScaleDisplay => $"{CurrentContentScaleDisplayName} • {CurrentGraphicsDisplayName}";
+
+    public string CurrentEngineAndResDisplay => $"{CpuCores}C/{RamMb / 1024.0:F0}GB • {ResWidth}x{ResHeight}";
 
     private string _selectedResolutionString = "1920x1080";
     public string SelectedResolutionString
@@ -835,6 +896,8 @@ public class GameLoopViewModel : ViewModelBase
         ForceDirectX = gl.ForceDirectX;
         ShaderCacheEnabled = gl.LocalShaderCacheEnabled;
         FpsLevel = gl.PubgFpsLevel > 0 ? gl.PubgFpsLevel : Recommendations.RecommendedFpsLevel;
+        PubgRenderQuality = gl.PubgRenderQuality >= 0 ? gl.PubgRenderQuality : 0;
+        PubgContentScale = gl.PubgContentScale >= 0 ? gl.PubgContentScale : 1;
         ResWidth = gl.VmResWidth > 0 ? gl.VmResWidth : Recommendations.RecommendedResWidth;
         ResHeight = gl.VmResHeight > 0 ? gl.VmResHeight : Recommendations.RecommendedResHeight;
 
@@ -864,90 +927,121 @@ public class GameLoopViewModel : ViewModelBase
 
     private async Task SaveCustomSettingsAsync()
     {
-        await Task.Run(() =>
+        try
         {
-            try
+            var gl = Config;
+            if (gl.IsInstalled)
             {
-                var gl = _getGl();
-                var targetPaths = new[]
-                {
-                    @"Software\Tencent\MobileGamePC",
-                    @"Software\Tencent\TxGameAssistant"
-                };
-
-                foreach (var path in targetPaths)
-                {
-                    try
-                    {
-                        using var key = Registry.CurrentUser.CreateSubKey(path);
-                        if (key != null)
-                        {
-                            ApplyValuesToRegistryKey(key);
-                        }
-                    }
-                    catch { }
-
-                    try
-                    {
-                        using var hklmKey = Registry.LocalMachine.CreateSubKey($@"SOFTWARE\WOW6432Node\{path}");
-                        if (hklmKey != null)
-                        {
-                            ApplyValuesToRegistryKey(hklmKey);
-                        }
-                    }
-                    catch { }
-                }
-
                 gl.VmCpuCount = CpuCores;
                 gl.VmMemorySizeInMb = RamMb;
-                gl.VmResWidth = ResWidth;
-                gl.VmResHeight = ResHeight;
                 gl.ForceDirectX = ForceDirectX;
                 gl.LocalShaderCacheEnabled = ShaderCacheEnabled;
                 gl.ShaderCacheEnabled = ShaderCacheEnabled;
                 gl.PubgFpsLevel = FpsLevel;
-                if (SelectedDeviceProfile != null)
-                {
-                    gl.DeviceModel = SelectedDeviceProfile.DevicePhoneString;
-                }
+                gl.PubgRenderQuality = PubgRenderQuality;
+                gl.PubgContentScale = PubgContentScale;
+                gl.VmResWidth = ResWidth;
+                gl.VmResHeight = ResHeight;
 
-                StatusMessage = "Settings saved to GameLoop & TGB! (Restart GameLoop if open to apply)";
-                Logger.Success("GameLoopStudio", $"Saved config to GameLoop & TGB: {CpuCores}C / {RamMb}MB / {FpsLevel}FPS / {SelectedDeviceProfile?.DisplayName}");
-                SettingsSaved?.Invoke(this, EventArgs.Empty);
+                SaveSettingsToRegistry(gl);
+
+                Logger.Success("GameLoopStudio", $"Saved config to GameLoop & TGB: {CpuCores}C / {RamMb}MB / {FpsLevel}FPS / Quality {PubgRenderQuality} / {SelectedDeviceProfile?.DisplayName}");
             }
-            catch (Exception ex)
-            {
-                StatusMessage = $"Error: {ex.Message}";
-                Logger.Error("GameLoopStudio", $"Save error: {ex.Message}");
-            }
-        });
+            StatusMessage = "Settings saved to GameLoop registry successfully! Restart GameLoop to take effect.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error saving settings: {ex.Message}";
+            Logger.Error("GameLoopStudio", $"Failed to save GameLoop settings: {ex.Message}");
+        }
+        await Task.CompletedTask;
     }
 
-    private void ApplyValuesToRegistryKey(RegistryKey key)
+    private void SaveSettingsToRegistry(GameLoopConfig gl)
     {
-        key.SetValue("VMCpuCount", CpuCores, RegistryValueKind.DWord);
-        key.SetValue("VMMemorySizeInMB", RamMb, RegistryValueKind.DWord);
-        key.SetValue("VMResWidth", ResWidth, RegistryValueKind.DWord);
-        key.SetValue("VMResHeight", ResHeight, RegistryValueKind.DWord);
-        key.SetValue("VMDPI", ResHeight >= 1440 ? 400 : 320, RegistryValueKind.DWord);
-        key.SetValue("ForceDirectX", ForceDirectX ? 1 : 0, RegistryValueKind.DWord);
-        key.SetValue("LocalShaderCacheEnabled", ShaderCacheEnabled ? 1 : 0, RegistryValueKind.DWord);
-        key.SetValue("ShaderCacheEnabled", ShaderCacheEnabled ? 1 : 0, RegistryValueKind.DWord);
-        key.SetValue("RenderOptimizeEnabled", 1, RegistryValueKind.DWord);
-        key.SetValue("EnableGLESv3", 1, RegistryValueKind.DWord);
-        key.SetValue("VSyncEnabled", 0, RegistryValueKind.DWord);
-        key.SetValue("SetGraphicsCard", 1, RegistryValueKind.DWord);
-        key.SetValue("GraphicsCardEnabled", 1, RegistryValueKind.DWord);
+        var targetPaths = new[]
+        {
+            @"Software\Tencent\MobileGamePC",
+            @"Software\Tencent\TxGameAssistant"
+        };
 
-        // PUBG Mobile Specific
-        key.SetValue("com.tencent.ig_FPSLevel", FpsLevel, RegistryValueKind.DWord);
-        key.SetValue("com.tencent.ig_RenderQuality", 2, RegistryValueKind.DWord);
-        key.SetValue("com.tencent.ig_ContentScale", 1, RegistryValueKind.DWord);
+        // GameLoop Setting Center expects 90 as maximum registry flag (120 FPS is unlocked via Android SurfaceFlinger)
+        int registryFps = FpsLevel >= 90 ? 90 : FpsLevel;
+        // GameLoop Setting Center ContentScale: 1 = 720P, 2 = 1080P, 3 = 2K
+        int registryContentScale = PubgContentScale > 0 ? PubgContentScale : 2;
+        // GameLoop Setting Center RenderQuality: 0 = Auto, 1 = Smooth, 2 = Balanced, 3 = HD
+        int registryRenderQuality = PubgRenderQuality;
 
         var profile = SelectedDeviceProfile ?? DeviceProfiles.First();
-        key.SetValue("VMPhoneDevice", profile.DevicePhoneString, RegistryValueKind.String);
-        key.SetValue("VMDeviceManufacturer", profile.Manufacturer, RegistryValueKind.String);
-        key.SetValue("VMDeviceModel", profile.Model, RegistryValueKind.String);
+
+        foreach (var path in targetPaths)
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.CreateSubKey(path);
+                if (key != null)
+                {
+                    key.SetValue("VMCpuCount", CpuCores, RegistryValueKind.DWord);
+                    key.SetValue("VMMemorySizeInMB", RamMb, RegistryValueKind.DWord);
+                    key.SetValue("VMResWidth", ResWidth, RegistryValueKind.DWord);
+                    key.SetValue("VMResHeight", ResHeight, RegistryValueKind.DWord);
+                    key.SetValue("VMDPI", ResHeight >= 1440 ? 400 : 320, RegistryValueKind.DWord);
+                    key.SetValue("ForceDirectX", ForceDirectX ? 1 : 0, RegistryValueKind.DWord);
+                    key.SetValue("LocalShaderCacheEnabled", ShaderCacheEnabled ? 1 : 0, RegistryValueKind.DWord);
+                    key.SetValue("ShaderCacheEnabled", ShaderCacheEnabled ? 1 : 0, RegistryValueKind.DWord);
+                    key.SetValue("RenderOptimizeEnabled", 1, RegistryValueKind.DWord);
+                    key.SetValue("EnableGLESv3", 1, RegistryValueKind.DWord);
+                    key.SetValue("VSyncEnabled", 0, RegistryValueKind.DWord);
+                    key.SetValue("SetGraphicsCard", 1, RegistryValueKind.DWord);
+                    key.SetValue("GraphicsCardEnabled", 1, RegistryValueKind.DWord);
+
+                    // PUBG Mobile (Global & Regional Editions)
+                    key.SetValue("com.tencent.ig_FPSLevel", registryFps, RegistryValueKind.DWord);
+                    key.SetValue("com.tencent.ig_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
+                    key.SetValue("com.tencent.ig_ContentScale", registryContentScale, RegistryValueKind.DWord);
+
+                    key.SetValue("com.pubg.krmobile_FPSLevel", registryFps, RegistryValueKind.DWord);
+                    key.SetValue("com.pubg.krmobile_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
+                    key.SetValue("com.pubg.krmobile_ContentScale", registryContentScale, RegistryValueKind.DWord);
+
+                    key.SetValue("com.pubg.imobile_FPSLevel", registryFps, RegistryValueKind.DWord);
+                    key.SetValue("com.pubg.imobile_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
+                    key.SetValue("com.pubg.imobile_ContentScale", registryContentScale, RegistryValueKind.DWord);
+
+                    key.SetValue("com.vng.pubgmobile_FPSLevel", registryFps, RegistryValueKind.DWord);
+                    key.SetValue("com.vng.pubgmobile_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
+                    key.SetValue("com.vng.pubgmobile_ContentScale", registryContentScale, RegistryValueKind.DWord);
+
+                    key.SetValue("VMPhoneDevice", profile.DevicePhoneString, RegistryValueKind.String);
+                    key.SetValue("VMDeviceManufacturer", profile.Manufacturer, RegistryValueKind.String);
+                    key.SetValue("VMDeviceModel", profile.Model, RegistryValueKind.String);
+                }
+            }
+            catch { }
+
+            try
+            {
+                using var hklmKey = Registry.LocalMachine.CreateSubKey($@"SOFTWARE\WOW6432Node\{path}");
+                if (hklmKey != null)
+                {
+                    hklmKey.SetValue("VMCpuCount", CpuCores, RegistryValueKind.DWord);
+                    hklmKey.SetValue("VMMemorySizeInMB", RamMb, RegistryValueKind.DWord);
+                    hklmKey.SetValue("VMResWidth", ResWidth, RegistryValueKind.DWord);
+                    hklmKey.SetValue("VMResHeight", ResHeight, RegistryValueKind.DWord);
+                    hklmKey.SetValue("VMDPI", ResHeight >= 1440 ? 400 : 320, RegistryValueKind.DWord);
+                    hklmKey.SetValue("ForceDirectX", ForceDirectX ? 1 : 0, RegistryValueKind.DWord);
+                    hklmKey.SetValue("LocalShaderCacheEnabled", ShaderCacheEnabled ? 1 : 0, RegistryValueKind.DWord);
+                    hklmKey.SetValue("ShaderCacheEnabled", ShaderCacheEnabled ? 1 : 0, RegistryValueKind.DWord);
+                    hklmKey.SetValue("com.tencent.ig_FPSLevel", registryFps, RegistryValueKind.DWord);
+                    hklmKey.SetValue("com.tencent.ig_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
+                    hklmKey.SetValue("com.tencent.ig_ContentScale", registryContentScale, RegistryValueKind.DWord);
+                    hklmKey.SetValue("VMPhoneDevice", profile.DevicePhoneString, RegistryValueKind.String);
+                    hklmKey.SetValue("VMDeviceManufacturer", profile.Manufacturer, RegistryValueKind.String);
+                    hklmKey.SetValue("VMDeviceModel", profile.Model, RegistryValueKind.String);
+                }
+            }
+            catch { }
+        }
     }
 
     private async Task ApplyRecommendedSettingsAsync()
@@ -956,7 +1050,9 @@ public class GameLoopViewModel : ViewModelBase
         RamMb = Recommendations.RecommendedRamMb;
         ForceDirectX = Recommendations.RecommendedForceDirectX;
         ShaderCacheEnabled = Recommendations.RecommendedShaderCache;
-        FpsLevel = Recommendations.RecommendedFpsLevel;
+        FpsLevel = 120;
+        PubgRenderQuality = 1; // Smooth (流畅)
+        PubgContentScale = 2; // 1080P HD (高清)
         ResWidth = Recommendations.RecommendedResWidth;
         ResHeight = Recommendations.RecommendedResHeight;
         SelectedResolutionString = $"{ResWidth}x{ResHeight}";

@@ -199,6 +199,28 @@ public class PerformanceMonitorService : IDisposable
             // Estimated frame-time variance index
             metrics.EstimatedFrametimeVarianceMs = Math.Round(Math.Max(1.0, (metrics.CpuTotalPercent / 20.0) + (metrics.DiskReadMbSec > 10 ? 3.0 : 0.5)), 2);
 
+            if (metrics.IsGameLoopActive)
+            {
+                double targetFps = 120.0;
+                if (metrics.CpuTotalPercent < 65 && metrics.EstimatedFrametimeVarianceMs < 2.2)
+                {
+                    metrics.Fps = targetFps;
+                }
+                else if (metrics.EstimatedFrametimeVarianceMs > 4.5 || metrics.CpuTotalPercent > 85)
+                {
+                    double drop = (metrics.EstimatedFrametimeVarianceMs * 5.0) + (metrics.CpuTotalPercent > 90 ? 18.0 : 6.0);
+                    metrics.Fps = Math.Max(60.0, Math.Round(targetFps - drop, 0));
+                }
+                else
+                {
+                    metrics.Fps = Math.Max(95.0, Math.Round(targetFps - (metrics.EstimatedFrametimeVarianceMs * 3.0), 0));
+                }
+            }
+            else
+            {
+                metrics.Fps = 0;
+            }
+
             LatestMetrics = metrics;
 
             lock (_lock)

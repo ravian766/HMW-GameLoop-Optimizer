@@ -78,6 +78,23 @@ public partial class MainWindow : Window
             int freed = ProcessManager.TrimWorkingSets();
             Logger.Success("MemoryTrim", $"HotKey Ctrl+Shift+M: Trimmed RAM across {freed} processes.");
         };
+        _hotkeyManager.TimerHotkeyPressed += () =>
+        {
+            Optimizations.TimerResolutionModule.SetHighPrecision(0.5);
+            Logger.Success("TimerResolution", "HotKey Ctrl+Shift+T: Re-asserted 0.5ms High-Precision Timer.");
+        };
+        _hotkeyManager.FpsHotkeyPressed += () =>
+        {
+            Task.Run(async () =>
+            {
+                var gl = _viewModel.GameLoop;
+                if (AdbManager.IsAdbAvailable(gl))
+                {
+                    await AdbManager.Unlock120FpsAsync(gl);
+                    Logger.Success("AdbManager", "HotKey Ctrl+Shift+F: Re-injected 120 FPS unlock to Android VM.");
+                }
+            });
+        };
 
         _viewModel.MonitorService.MetricsUpdated += (s, metrics) =>
         {

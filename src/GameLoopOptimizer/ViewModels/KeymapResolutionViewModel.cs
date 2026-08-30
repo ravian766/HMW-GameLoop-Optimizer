@@ -108,6 +108,19 @@ public class KeymapResolutionViewModel : ViewModelBase
 
     public ObservableCollection<int> DpiOptions { get; } = new() { 400, 800, 1000, 1200, 1600, 2400, 3200 };
 
+    private double _verticalMultiplier = 1.65;
+    public double VerticalMultiplier
+    {
+        get => _verticalMultiplier;
+        set
+        {
+            if (SetProperty(ref _verticalMultiplier, Math.Round(value, 2)))
+            {
+                RecalculateSensitivity();
+            }
+        }
+    }
+
     private AimPlaystyle _selectedPlaystyle = AimPlaystyle.BalancedCompetitive;
     public AimPlaystyle SelectedPlaystyle
     {
@@ -128,7 +141,7 @@ public class KeymapResolutionViewModel : ViewModelBase
         AimPlaystyle.HighSensFastFlick
     };
 
-    private SensitivityProfileResult _sensitivityResult = SensitivityCalculator.Calculate(800, AimPlaystyle.BalancedCompetitive);
+    private SensitivityProfileResult _sensitivityResult = SensitivityCalculator.Calculate(800, AimPlaystyle.BalancedCompetitive, 1.65);
     public SensitivityProfileResult SensitivityResult
     {
         get => _sensitivityResult;
@@ -158,6 +171,8 @@ public class KeymapResolutionViewModel : ViewModelBase
     public ICommand BackupKeymapCommand { get; }
     public ICommand RestoreKeymapCommand { get; }
     public ICommand RecalculateSensitivityCommand { get; }
+    public ICommand SetVerticalMultiplierPresetCommand { get; }
+    public ICommand CopySensitivityToClipboardCommand { get; }
     public ICommand StartMouseBenchmarkCommand { get; }
     public ICommand StopMouseBenchmarkCommand { get; }
 
@@ -195,6 +210,36 @@ public class KeymapResolutionViewModel : ViewModelBase
         ApplyStretchedResolutionCommand = new AsyncRelayCommand(ApplyStretchedResolutionAsync);
         CalibrateAndInjectKeymapCommand = new AsyncRelayCommand(CalibrateAndDeployKeymapAsync);
         RestoreStockKeymapCommand = new AsyncRelayCommand(RestoreStockKeymapAsync);
+
+        SetVerticalMultiplierPresetCommand = new RelayCommand(param =>
+        {
+            if (param is double d)
+            {
+                VerticalMultiplier = d;
+            }
+            else if (param is string s && double.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double parsed))
+            {
+                VerticalMultiplier = parsed;
+            }
+        });
+
+        CopySensitivityToClipboardCommand = new RelayCommand(() =>
+        {
+            try
+            {
+                var text = $"=== PUBG Mobile Sensitivity ({SelectedMouseDpi} DPI, {VerticalMultiplier:F2}x Vertical Recoil Multiplier) ===\n" +
+                           $"GameLoop Keymap Sensitivity: X={SensitivityResult.GameLoopKeymapX}%, Y={SensitivityResult.GameLoopKeymapY}%\n\n" +
+                           "In-Game ADS & Camera Sensitivity:\n" +
+                           string.Join("\n", SensitivityResult.ScopeSettings.Select(s => $"• {s.ScopeName}: ADS {s.AdsSensitivity}% | Camera {s.CameraSensitivity}% ({s.RecoilTip})"));
+
+                System.Windows.Clipboard.SetText(text);
+                StatusMessage = "Sensitivity & Recoil configuration copied to clipboard!";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Failed to copy: {ex.Message}";
+            }
+        });
 
         BackupKeymapCommand = new AsyncRelayCommand(async () =>
         {
@@ -262,7 +307,7 @@ public class KeymapResolutionViewModel : ViewModelBase
 
     public void RecalculateSensitivity()
     {
-        SensitivityResult = SensitivityCalculator.Calculate(SelectedMouseDpi, SelectedPlaystyle, ResHeight);
+        SensitivityResult = SensitivityCalculator.Calculate(SelectedMouseDpi, SelectedPlaystyle, VerticalMultiplier, ResHeight);
     }
 
     public void RecordMouseSample()

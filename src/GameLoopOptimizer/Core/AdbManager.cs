@@ -707,5 +707,61 @@ public static class AdbManager
             return false;
         }
     }
+
+    public static async Task<bool> SetVmResolutionAsync(int width, int height, int dpi = 0, GameLoopConfig? config = null)
+    {
+        try
+        {
+            if (width <= 0 || height <= 0) return false;
+
+            var res = await ExecuteShellCommandAsync($"wm size {width}x{height}", null, 5000, config);
+            if (dpi > 0)
+            {
+                await ExecuteShellCommandAsync($"wm density {dpi}", null, 5000, config);
+            }
+            Logger.Success("AdbManager", $"Synchronized In-VM display resolution to {width}x{height}" + (dpi > 0 ? $" (DPI: {dpi})" : ""));
+            return !res.Contains("error:", StringComparison.OrdinalIgnoreCase) && !res.Contains("failed", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn("AdbManager", $"Failed to set In-VM resolution: {ex.Message}");
+            return false;
+        }
+    }
+
+    public static async Task<bool> ResetVmResolutionAsync(GameLoopConfig? config = null)
+    {
+        try
+        {
+            await ExecuteShellCommandAsync("wm size reset", null, 5000, config);
+            await ExecuteShellCommandAsync("wm density reset", null, 5000, config);
+            Logger.Info("AdbManager", "Reset In-VM display resolution and DPI to default.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn("AdbManager", $"Failed to reset In-VM resolution: {ex.Message}");
+            return false;
+        }
+    }
+
+    public static async Task<bool> Unlock120FpsAsync(GameLoopConfig? config = null)
+    {
+        try
+        {
+            await AutoConnectGameLoopAsync(config);
+            await SetPropAsync("debug.sf.fps", "120", config);
+            await SetPropAsync("ro.surface_flinger.max_frame_rate", "120", config);
+            await SetPropAsync("persist.vendor.dfps.level", "120", config);
+            await SetPropAsync("ro.vendor.display.default_fps", "120", config);
+            Logger.Success("AdbManager", "Injected 120 FPS high-refresh unlock parameters into Android VM.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn("AdbManager", $"Failed to inject 120 FPS: {ex.Message}");
+            return false;
+        }
+    }
 }
 
