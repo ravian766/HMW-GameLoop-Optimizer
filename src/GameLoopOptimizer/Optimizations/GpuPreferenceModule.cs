@@ -11,7 +11,7 @@ public class GpuPreferenceModule : IOptimizationModule
     public string Title => "Windows Discrete GPU Preference Enforcer";
     public OptimizationCategory Category => OptimizationCategory.GraphicsQuality;
     public RiskLevel RiskLevel => RiskLevel.Safe;
-    public string Description => "Forces Windows DirectX and DWM to bind all GameLoop emulator executables strictly to your dedicated High-Performance NVIDIA/AMD GPU.";
+    public string Description => "Forces Windows graphics scheduling and DWM to bind all GameLoop emulator executables strictly to your dedicated High-Performance NVIDIA/AMD GPU for DirectX and OpenGL rendering pipelines.";
     public string TechnicalRationale => "On laptops and dual-GPU desktops, Windows graphics scheduling may launch emulator sub-processes (like AndroidEmulatorEn.exe or aow_exe) on the integrated GPU, causing severe rendering slowdowns.";
     public bool RequiresAdmin => false;
 

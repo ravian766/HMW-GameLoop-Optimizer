@@ -72,3 +72,42 @@ public class InverseBooleanConverter : IValueConverter
         return value is bool b ? !b : true;
     }
 }
+
+public class BooleanToStatusBrushConverter : IValueConverter
+{
+    private static readonly System.Windows.Media.SolidColorBrush GreenBrush = new(System.Windows.Media.Color.FromRgb(0x10, 0xB9, 0x81));
+    private static readonly System.Windows.Media.SolidColorBrush SlateBrush = new(System.Windows.Media.Color.FromRgb(0x64, 0x74, 0x8B));
+    private static readonly System.Windows.Media.SolidColorBrush RedBrush = new(System.Windows.Media.Color.FromRgb(0xEF, 0x44, 0x44));
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        bool isTrue = value is bool b && b;
+        if (isTrue)
+        {
+            return GreenBrush;
+        }
+
+        if (parameter is string p && p.Equals("danger", StringComparison.OrdinalIgnoreCase))
+        {
+            return RedBrush;
+        }
+
+        return SlateBrush;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
+}
+
+public class BooleanToAdminBrushConverter : IValueConverter
+{
+    private static readonly System.Windows.Media.SolidColorBrush EmeraldBrush = new(System.Windows.Media.Color.FromRgb(0x10, 0xB9, 0x81));
+    private static readonly System.Windows.Media.SolidColorBrush MutedBrush = new(System.Windows.Media.Color.FromRgb(0x94, 0xA3, 0xB8));
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return (value is bool b && b) ? EmeraldBrush : MutedBrush;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
+}
+

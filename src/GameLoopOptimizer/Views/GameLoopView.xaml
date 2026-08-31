@@ -4,11 +4,11 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="780" d:DesignWidth="940">
+             d:DesignHeight="1400" d:DesignWidth="1020">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="28,24,28,28">
 
-            <!-- Top Emulator Status Header -->
+            <!-- ==================== TOP EMULATOR STATUS HEADER ==================== -->
             <Border Style="{StaticResource GlowingHeroCard}" Margin="0,0,0,18">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -17,13 +17,13 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel VerticalAlignment="Center">
-                        <WrapPanel Orientation="Horizontal" Margin="0,0,0,4">
-                            <TextBlock Text="GameLoop Virtualization &amp; ADB Studio" FontSize="19" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="🎮 GameLoop Virtualization &amp; ADB Studio" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
                             <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Config.Brand, FallbackValue='GameLoop'}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                                <TextBlock Text="{Binding Config.Brand, FallbackValue='GameLoop'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
                             </Border>
-                        </WrapPanel>
-                        <TextBlock Text="Direct hardware-aware emulator engine allocation, Direct3D rasterization, and in-VM ADB Android tuning." FontSize="13" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,6" />
+                        </StackPanel>
+                        <TextBlock Text="Direct hardware-aware emulator engine allocation, Direct3D rasterization, and in-VM ADB Android tuning." FontSize="12.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,4" />
                         <TextBlock Text="{Binding Config.InstallPath, StringFormat='Root: {0}', FallbackValue='Root: Auto-Detected'}" FontSize="11" Foreground="{DynamicResource BrushTextMuted}" />
                     </StackPanel>
 
@@ -32,77 +32,74 @@
                             Command="{Binding LaunchGameLoopCommand}"
                             Style="{StaticResource PrimaryButton}"
                             VerticalAlignment="Center"
-                            Padding="20,12" />
+                            Padding="20,12"
+                            Margin="16,0,0,0" />
                 </Grid>
             </Border>
 
-            <!-- Recommendation Summary Banner -->
-            <Border Background="{DynamicResource BrushCardGradient}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,18">
-                <StackPanel>
-                    <TextBlock Text="⚡ Dynamic Hardware Recommendation" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,0,4" />
-                    <TextBlock Text="{Binding Recommendations.RecommendationSummary}" FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" />
-                </StackPanel>
-            </Border>
+            <!-- ==================== RECOMMENDATIONS & ACTIVE CONFIGURATION ==================== -->
+            <Grid Margin="0,0,0,18">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-            <!-- Current Active In-Game Configuration Card -->
-            <Border Background="{DynamicResource BrushCardGradient}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="12" Padding="16,14" Margin="0,0,0,18">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+                <!-- Recommendation Summary Banner -->
+                <Border Grid.Row="0" Background="{DynamicResource BrushCardGradient}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="10" Padding="14,12" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentCyan}" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,12,0" VerticalAlignment="Center">
+                            <TextBlock Text="⚡ SMART ENGINE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="{Binding Recommendations.RecommendationSummary}" FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    </Grid>
+                </Border>
 
-                    <DockPanel Grid.Row="0" Margin="0,0,0,12">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🎯 Current Active In-Game &amp; Engine Configuration" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
-                            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="10,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="Registry Synced" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentGreen}" />
-                            </Border>
+                <!-- 4-Column Metric Badge Grid -->
+                <UniformGrid Grid.Row="1" Columns="4">
+                    <!-- Profile & Device -->
+                    <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,6,0">
+                        <StackPanel>
+                            <TextBlock Text="DEVICE FINGERPRINT" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
+                            <TextBlock Text="{Binding SelectedDeviceProfile.DisplayName, FallbackValue='ASUS ROG Phone 2'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis" />
                         </StackPanel>
-                    </DockPanel>
+                    </Border>
 
-                    <!-- 4-Column Metric Badge Grid -->
-                    <UniformGrid Grid.Row="1" Columns="4">
-                        <!-- Profile & Device -->
-                        <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,6,0">
-                            <StackPanel>
-                                <TextBlock Text="DEVICE FINGERPRINT" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
-                                <TextBlock Text="{Binding SelectedDeviceProfile.DisplayName, FallbackValue='ASUS ROG Phone 2'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
-                        </Border>
+                    <!-- Refresh & FPS Target -->
+                    <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="3,0,3,0">
+                        <StackPanel>
+                            <TextBlock Text="TARGET REFRESH RATE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
+                            <TextBlock Text="{Binding FpsLevel, StringFormat='{}{0} FPS (High-Refresh)'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
+                        </StackPanel>
+                    </Border>
 
-                        <!-- Refresh & FPS Target -->
-                        <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="3,0,3,0">
-                            <StackPanel>
-                                <TextBlock Text="TARGET REFRESH RATE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
-                                <TextBlock Text="{Binding FpsLevel, StringFormat='{}{0} FPS (High-Refresh)'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
-                            </StackPanel>
-                        </Border>
+                    <!-- Graphics Preset & Scaling -->
+                    <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="3,0,3,0">
+                        <StackPanel>
+                            <TextBlock Text="GRAPHICS &amp; CLARITY" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
+                            <TextBlock Text="{Binding CurrentGraphicsAndScaleDisplay}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Border>
 
-                        <!-- Graphics Preset & Scaling -->
-                        <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="3,0,3,0">
-                            <StackPanel>
-                                <TextBlock Text="GRAPHICS &amp; CLARITY" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
-                                <TextBlock Text="{Binding CurrentGraphicsAndScaleDisplay}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
-                        </Border>
+                    <!-- Engine Allocation & Res -->
+                    <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="6,0,0,0">
+                        <StackPanel>
+                            <TextBlock Text="VM ENGINE &amp; RESOLUTION" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
+                            <TextBlock Text="{Binding CurrentEngineAndResDisplay}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Border>
+                </UniformGrid>
+            </Grid>
 
-                        <!-- Engine Allocation & Res -->
-                        <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="6,0,0,0">
-                            <StackPanel>
-                                <TextBlock Text="VM ENGINE &amp; RESOLUTION" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
-                                <TextBlock Text="{Binding CurrentEngineAndResDisplay}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
-                        </Border>
-                    </UniformGrid>
-                </Grid>
-            </Border>
-
-            <!-- Virtual Engine & Allocation -->
+            <!-- ==================== VIRTUAL ENGINE & ALLOCATION ==================== -->
             <Border Style="{StaticResource GlassCard}" Margin="0,0,0,18">
                 <StackPanel>
-                    <TextBlock Text="Virtual Engine &amp; Allocation" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,14" />
+                    <TextBlock Text="Virtual Engine &amp; Hardware Allocation" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,14" />
 
+                    <!-- CPU & RAM Allocation Inputs -->
                     <Grid Margin="0,0,0,12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -131,122 +128,130 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- Checkboxes -->
-                    <WrapPanel Orientation="Horizontal" Margin="0,0,0,12">
-                        <CheckBox Content="Force DirectX+ Hardware Rasterizer (Recommended)" IsChecked="{Binding ForceDirectX}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,24,6" />
+                    <!-- Rendering Mode Checkboxes -->
+                    <WrapPanel Orientation="Horizontal" Margin="0,0,0,14">
+                        <CheckBox Content="DirectX+ Mode (Uncheck for OpenGL+)" IsChecked="{Binding ForceDirectX}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,24,6" />
                         <CheckBox Content="Enable Local Shader Caching (Eliminates Stutters)" IsChecked="{Binding ShaderCacheEnabled}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
                     </WrapPanel>
 
-                    <!-- Actions Grid -->
-                    <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
-                        <Button Content="Save Custom Settings"
-                                Command="{Binding ApplySettingsCommand}"
-                                Style="{StaticResource PrimaryButton}"
-                                Padding="14,7"
-                                FontSize="11"
-                                Margin="0,0,8,6" />
+                    <!-- Actions Row -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                        <Button Content="Apply Recommended"
-                                Command="{Binding ApplyRecommendedCommand}"
-                                Style="{StaticResource SecondaryButton}"
-                                Padding="14,7"
-                                FontSize="11"
-                                Margin="0,0,8,6" />
+                        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="Save Custom Settings"
+                                    Command="{Binding ApplySettingsCommand}"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Padding="14,7"
+                                    FontSize="11"
+                                    Margin="0,0,8,4" />
 
-                        <Button Content="🔄 Restart GameLoop"
-                                Command="{Binding RestartGameLoopCommand}"
-                                Style="{StaticResource SuccessButton}"
-                                Padding="14,7"
-                                FontSize="11"
-                                Margin="0,0,8,6" />
+                            <Button Content="Apply Recommended"
+                                    Command="{Binding ApplyRecommendedCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="14,7"
+                                    FontSize="11"
+                                    Margin="0,0,8,4" />
 
-                        <Button Content="🧹 Purge Shader Cache"
-                                Command="{Binding PurgeShaderCacheCommand}"
-                                Style="{StaticResource SecondaryButton}"
-                                Padding="14,7"
-                                FontSize="11"
-                                Margin="0,0,8,6" />
+                            <Button Content="🔄 Restart GameLoop"
+                                    Command="{Binding RestartGameLoopCommand}"
+                                    Style="{StaticResource SuccessButton}"
+                                    Padding="14,7"
+                                    FontSize="11"
+                                    Margin="0,0,8,4" />
 
-                        <Button Content="⚡ Desktop Shortcut"
-                                Command="{Binding CreateShortcutCommand}"
-                                Style="{StaticResource SecondaryButton}"
-                                Padding="14,7"
-                                FontSize="11"
-                                Margin="0,0,0,6" />
-                    </WrapPanel>
+                            <Button Content="🧹 Purge Shader Cache"
+                                    Command="{Binding PurgeShaderCacheCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="14,7"
+                                    FontSize="11"
+                                    Margin="0,0,8,4" />
 
-                    <TextBlock Text="{Binding StatusMessage}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                            <Button Content="⚡ Desktop Shortcut"
+                                    Command="{Binding CreateShortcutCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="14,7"
+                                    FontSize="11"
+                                    Margin="0,0,0,4" />
+                        </WrapPanel>
+
+                        <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="10,0,0,0" />
+                    </Grid>
                 </StackPanel>
             </Border>
 
-            <!-- ADB Android VM Subsystem & In-Emulator Tuning -->
+            <!-- ==================== ADB ANDROID VM SUBSYSTEM STUDIO ==================== -->
             <Border Style="{StaticResource GlassCard}" Margin="0,0,0,18">
                 <StackPanel>
+                    <!-- Header with Connection & Quick Tools -->
                     <Grid Margin="0,0,0,14">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Column="0">
-                            <WrapPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                <TextBlock Text="🤖 Android VM Subsystem &amp; ADB In-Emulator Studio" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
-                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center" Margin="0,0,10,0">
-                                    <TextBlock Text="{Binding AdbStatusText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="🤖 Android VM Subsystem &amp; ADB Studio" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding AdbStatusText}" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
                                 </Border>
-                            </WrapPanel>
-                            <TextBlock Text="Direct low-latency bridge to GameLoop's Android container. Pre-compiles bytecode, optimizes input polling to 240Hz, unlocks 120Hz compositor, and monitors in-VM memory." FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" />
+                            </StackPanel>
+                            <TextBlock Text="Direct low-latency bridge to GameLoop's Android container. Pre-compiles bytecode, optimizes input polling to 240Hz, and unlocks 120Hz compositor." FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" />
                         </StackPanel>
 
-                        <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
                             <TextBox Text="{Binding CustomAdbPortText, UpdateSourceTrigger=PropertyChanged}"
-                                     Width="110"
+                                     Width="105"
                                      FontSize="11"
                                      FontFamily="Consolas"
-                                     Padding="6,4"
-                                     Margin="0,0,4,0"
+                                     Padding="6,5"
+                                     Margin="0,0,6,0"
                                      VerticalAlignment="Center"
-                                     ToolTip="Custom Emulator IP:Port (e.g., 127.0.0.1:5555 or 127.0.0.1:6555)" />
+                                     ToolTip="Custom IP:Port (e.g., 127.0.0.1:5555)" />
                             <Button Content="🔌 Connect"
                                     Command="{Binding ConnectCustomPortCommand}"
                                     Style="{StaticResource SecondaryButton}"
-                                    Padding="8,7"
+                                    Padding="9,6"
                                     FontSize="11"
                                     Margin="0,0,6,0" />
-                            <Button Content="⚡ 1-Click ADB Boost"
+                            <Button Content="⚡ ADB Boost"
                                     Command="{Binding ApplyAllAdbOptimizationsCommand}"
                                     Style="{StaticResource SuccessButton}"
-                                    Padding="12,7"
+                                    Padding="12,6"
                                     FontSize="11"
                                     Margin="0,0,6,0" />
                             <Button Content="📸 Screen"
                                     Command="{Binding CaptureInVmScreenshotCommand}"
                                     Style="{StaticResource SecondaryButton}"
-                                    Padding="9,7"
+                                    Padding="8,6"
                                     FontSize="11"
                                     Margin="0,0,6,0" />
                             <Button Content="🧹 Trim Cache"
                                     Command="{Binding TrimInVmCacheCommand}"
                                     Style="{StaticResource SecondaryButton}"
-                                    Padding="9,7"
+                                    Padding="8,6"
                                     FontSize="11"
                                     Margin="0,0,6,0" />
                             <Button Content="🔄 Restart"
                                     Command="{Binding RestartAdbServerCommand}"
                                     Style="{StaticResource SecondaryButton}"
-                                    Padding="9,7"
+                                    Padding="8,6"
                                     FontSize="11" />
-                        </WrapPanel>
+                        </StackPanel>
                     </Grid>
 
-                    <!-- Top Row: Game Package Selector & AOT Dex2Oat Compiler + Live Telemetry -->
+                    <!-- Row 1: Game Lifecycle & AOT Dex Compiler + Live In-VM Diagnostics -->
                     <Grid Margin="0,0,0,12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <!-- AOT Dex2Oat Native Compiler Card & Game Lifecycle -->
+                        <!-- AOT Dex2Oat Native Compiler Card -->
                         <Border Grid.Column="0" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,6,0">
                             <StackPanel>
                                 <Grid Margin="0,0,0,8">
@@ -259,63 +264,63 @@
                                               ItemsSource="{Binding InstalledGamePackages}"
                                               SelectedItem="{Binding SelectedGamePackage}"
                                               DisplayMemberPath="DisplayName"
-                                              Width="200"
+                                              Width="180"
                                               FontSize="11"
                                               Padding="6,3" />
                                 </Grid>
 
                                 <!-- Game Quick Actions Bar -->
-                                <WrapPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <WrapPanel Orientation="Horizontal" Margin="0,0,0,8">
                                     <Button Content="▶ Launch Game"
                                             Command="{Binding LaunchGameCommand}"
                                             Style="{StaticResource PrimaryButton}"
-                                            Padding="10,5"
-                                            FontSize="11"
-                                            Margin="0,0,6,4" />
+                                            Padding="9,4"
+                                            FontSize="10.5"
+                                            Margin="0,0,4,4" />
                                     <Button Content="🛑 Force Stop"
                                             Command="{Binding ForceStopGameCommand}"
                                             Style="{StaticResource DangerButton}"
-                                            Padding="10,5"
-                                            FontSize="11"
-                                            Margin="0,0,6,4" />
+                                            Padding="9,4"
+                                            FontSize="10.5"
+                                            Margin="0,0,4,4" />
                                     <Button Content="📦 Sideload APK"
                                             Command="{Binding InstallApkCommand}"
                                             Style="{StaticResource SecondaryButton}"
-                                            Padding="10,5"
-                                            FontSize="11"
-                                            Margin="0,0,6,4" />
+                                            Padding="9,4"
+                                            FontSize="10.5"
+                                            Margin="0,0,4,4" />
                                     <Button Content="📍 Touch Overlay"
                                             Command="{Binding TogglePointerLocationCommand}"
                                             Style="{StaticResource SecondaryButton}"
-                                            Padding="10,5"
-                                            FontSize="11"
-                                            Margin="0,0,6,4"
-                                            ToolTip="Toggle on-screen touch coordinate and tap pointer crosshairs for keymap calibration" />
+                                            Padding="9,4"
+                                            FontSize="10.5"
+                                            Margin="0,0,4,4"
+                                            ToolTip="Toggle on-screen touch crosshairs for keymap calibration" />
                                     <Button Content="🧹 Clear Data"
                                             Command="{Binding ClearGameDataCommand}"
                                             Style="{StaticResource SecondaryButton}"
-                                            Padding="8,5"
-                                            FontSize="11"
+                                            Padding="8,4"
+                                            FontSize="10.5"
                                             Margin="0,0,0,4"
-                                            ToolTip="Clear game application state data via ADB pm clear" />
+                                            ToolTip="Clear game state via ADB pm clear" />
                                 </WrapPanel>
 
-                                <TextBlock Text="Translates game bytecode into native machine code ahead-of-time. Permanently eliminates hot-drop, vehicle driving, and grenade explosion frame-drops." FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,8" TextWrapping="Wrap" />
+                                <TextBlock Text="Translates game bytecode into native machine code ahead-of-time to eliminate hot-drop frame drops." FontSize="10.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,8" TextWrapping="Wrap" />
 
-                                <Grid Margin="0,2,0,0">
+                                <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Background="{DynamicResource BrushCardBackground}" CornerRadius="6" Padding="8,6" Margin="0,0,8,0" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding AdbCompilationStatus}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" TextWrapping="Wrap" />
+                                    <Border Grid.Column="0" Background="{DynamicResource BrushCardBackground}" CornerRadius="6" Padding="8,5" Margin="0,0,8,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding AdbCompilationStatus}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" TextTrimming="CharacterEllipsis" />
                                     </Border>
                                     <Button Grid.Column="1"
                                             Content="⚡ Pre-Compile (AOT)"
                                             Command="{Binding CompileGameDexCommand}"
                                             Style="{StaticResource PrimaryButton}"
-                                            Padding="12,6"
-                                            FontSize="11"
+                                            Padding="12,5"
+                                            FontSize="10.5"
                                             VerticalAlignment="Center"
                                             IsEnabled="{Binding IsAdbCompiling, Converter={StaticResource InverseBooleanConverter}}" />
                                 </Grid>
@@ -332,7 +337,7 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="📊 LIVE IN-VM TELEMETRY &amp; MEMORY" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
                                     <Button Grid.Column="1"
-                                            Content="🔄 Refresh Stats"
+                                            Content="🔄 Refresh"
                                             Command="{Binding RefreshTelemetryCommand}"
                                             Style="{StaticResource SecondaryButton}"
                                             Padding="8,3"
@@ -347,30 +352,30 @@
                                     </Grid.ColumnDefinitions>
                                     <Border Grid.Column="0" Background="{DynamicResource BrushCardBackground}" CornerRadius="6" Padding="8,6" Margin="0,0,4,0">
                                         <StackPanel>
-                                            <TextBlock Text="TOTAL PSS RAM" FontSize="10" Foreground="{DynamicResource BrushTextSecondary}" />
+                                            <TextBlock Text="TOTAL PSS RAM" FontSize="9.5" Foreground="{DynamicResource BrushTextSecondary}" />
                                             <TextBlock Text="{Binding AdbTelemetry.Memory.TotalPssMb, StringFormat='{}{0:F1} MB'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
                                         </StackPanel>
                                     </Border>
                                     <Border Grid.Column="1" Background="{DynamicResource BrushCardBackground}" CornerRadius="6" Padding="8,6" Margin="2,0,2,0">
                                         <StackPanel>
-                                            <TextBlock Text="GFX / VRAM" FontSize="10" Foreground="{DynamicResource BrushTextSecondary}" />
+                                            <TextBlock Text="GFX / VRAM" FontSize="9.5" Foreground="{DynamicResource BrushTextSecondary}" />
                                             <TextBlock Text="{Binding AdbTelemetry.Memory.GraphicsMb, StringFormat='{}{0:F1} MB'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
                                         </StackPanel>
                                     </Border>
                                     <Border Grid.Column="2" Background="{DynamicResource BrushCardBackground}" CornerRadius="6" Padding="8,6" Margin="4,0,0,0">
                                         <StackPanel>
-                                            <TextBlock Text="VM VIEWPORT" FontSize="10" Foreground="{DynamicResource BrushTextSecondary}" />
-                                            <TextBlock Text="{Binding AdbTelemetry.Display.EffectiveResolution}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" />
+                                            <TextBlock Text="VM VIEWPORT" FontSize="9.5" Foreground="{DynamicResource BrushTextSecondary}" />
+                                            <TextBlock Text="{Binding AdbTelemetry.Display.EffectiveResolution}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis" />
                                         </StackPanel>
                                     </Border>
                                 </Grid>
 
-                                <TextBlock Text="{Binding AdbTelemetry.Memory.SummaryDisplay}" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding AdbTelemetry.Memory.SummaryDisplay}" FontSize="10.5" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" />
                             </StackPanel>
                         </Border>
                     </Grid>
 
-                    <!-- Middle Row: In-VM ADB Feature Toggles -->
+                    <!-- Row 2: In-VM ADB Feature Toggles -->
                     <Grid Margin="0,0,0,12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -382,22 +387,21 @@
                                 <TextBlock Text="COMPOSITION, REFRESH, AUDIO &amp; INPUT" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,0,8" />
                                 <CheckBox Content="Zero UI Animation Latency (0.0x Scale)" IsChecked="{Binding AdbZeroAnimations}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
                                 <CheckBox Content="SurfaceFlinger Pure GPU Hardware Rasterizer" IsChecked="{Binding AdbGpuAcceleration}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
-                                <CheckBox Content="Low-Latency VSync Latch (500µs Offset)" IsChecked="{Binding AdbGpuAcceleration}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
                                 <CheckBox Content="240Hz High-Speed Input Dispatch &amp; Aim Polling" IsChecked="{Binding AdbInputPolling}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
                                 <CheckBox Content="True 120Hz Android SurfaceFlinger Refresh Unlock" IsChecked="{Binding Adb120FpsUnlock}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
-                                <CheckBox Content="Fast-Track Low-Latency Audio (Bypass Deep Buffer)" IsChecked="{Binding AdbAudioLatencyReduction}" Foreground="{DynamicResource BrushTextPrimary}" />
+                                <CheckBox Content="Fast-Track Low-Latency Audio (Bypass Buffer)" IsChecked="{Binding AdbAudioLatencyReduction}" Foreground="{DynamicResource BrushTextPrimary}" />
                             </StackPanel>
                         </Border>
 
                         <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="6,0,0,0">
                             <StackPanel>
-                                <TextBlock Text="MEMORY HEAP, NETWORK &amp; BACKGROUND" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,0,8" />
+                                <TextBlock Text="MEMORY HEAP, NETWORK &amp; RESOLUTION" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,0,8" />
                                 <CheckBox Content="1024MB Dalvik Heap Ceiling (Eliminate GC Stutter)" IsChecked="{Binding AdbDalvikHeapBoost}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
                                 <CheckBox Content="Suppress Verbose Logcat &amp; Debug Telemetry" IsChecked="{Binding AdbSuppressLogging}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
                                 <CheckBox Content="Disable Android Adaptive Battery &amp; App Standby" IsChecked="{Binding AdbDisableDoze}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
-                                <CheckBox Content="Sync Low-Jitter DNS (1.1.1.1) &amp; In-VM TCP Buffers" IsChecked="{Binding AdbInVmDnsSync}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
-                                <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                    <Button Content="📐 Apply In-VM Resolution"
+                                <CheckBox Content="Sync Low-Jitter DNS (1.1.1.1) &amp; In-VM TCP Buffers" IsChecked="{Binding AdbInVmDnsSync}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,8" />
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="📐 Apply In-VM Res"
                                             Command="{Binding SetInVmResolutionCommand}"
                                             Style="{StaticResource SecondaryButton}"
                                             Padding="10,4"
@@ -408,12 +412,143 @@
                                             Style="{StaticResource SecondaryButton}"
                                             Padding="8,4"
                                             FontSize="10" />
-                                </WrapPanel>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </Grid>
 
-                    <!-- Bottom Row: Interactive ADB Shell Mini Console -->
+                    <!-- Row 3: PUBG Mobile UE4 Active.sav Direct Patcher -->
+                    <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,12">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="🎯 PUBG MOBILE UE4 GRAPHICS &amp; 120 FPS (Active.sav)" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                                    <TextBlock Text="Injects true 90/120 FPS limits, Smooth/HDR quality, and styles directly into the active VM game save." FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                                    <Button Content="📥 Read Live"
+                                            Command="{Binding PullActiveSavCommand}"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Padding="9,5"
+                                            FontSize="10"
+                                            Margin="0,0,6,0" />
+                                    <Button Content="↩ Restore Snapshot"
+                                            Command="{Binding RestoreActiveSavCommand}"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Padding="8,5"
+                                            FontSize="10" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Presets Strip -->
+                            <ItemsControl ItemsSource="{Binding ActiveSavPresets}" Margin="0,0,0,8">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding Name}"
+                                                Command="{Binding DataContext.SelectActiveSavPresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Padding="10,5"
+                                                FontSize="10.5"
+                                                Margin="0,0,6,6" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- 4 ComboBoxes Deck -->
+                            <Border Background="{DynamicResource BrushCardBackground}" CornerRadius="6" Padding="12,10" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding SelectedActiveSavPreset.Description}" FontSize="11" Foreground="{DynamicResource BrushTextPrimary}" FontWeight="SemiBold" Margin="0,0,0,8" TextWrapping="Wrap" />
+                                    
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Battle FPS -->
+                                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                            <TextBlock Text="Battle In-Game FPS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,3" />
+                                            <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ActiveSavFpsLevel}">
+                                                <ComboBoxItem Content="60 FPS (Extreme)" Tag="{Binding Path=5, FallbackValue=5}" />
+                                                <ComboBoxItem Content="90 FPS (Extreme+)" Tag="{Binding Path=6, FallbackValue=6}" />
+                                                <ComboBoxItem Content="120 FPS (Ultra Extreme)" Tag="{Binding Path=7, FallbackValue=7}" />
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <!-- Battle Quality -->
+                                        <StackPanel Grid.Column="1" Margin="3,0,3,0">
+                                            <TextBlock Text="Battle Quality" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,3" />
+                                            <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ActiveSavBattleQuality}">
+                                                <ComboBoxItem Content="Smooth (Lowest Lag)" Tag="{Binding Path=1, FallbackValue=1}" />
+                                                <ComboBoxItem Content="Balanced" Tag="{Binding Path=2, FallbackValue=2}" />
+                                                <ComboBoxItem Content="HD" Tag="{Binding Path=3, FallbackValue=3}" />
+                                                <ComboBoxItem Content="HDR" Tag="{Binding Path=4, FallbackValue=4}" />
+                                                <ComboBoxItem Content="Ultra HD" Tag="{Binding Path=5, FallbackValue=5}" />
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <!-- Visual Style -->
+                                        <StackPanel Grid.Column="2" Margin="3,0,3,0">
+                                            <TextBlock Text="Visual Style" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,3" />
+                                            <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ActiveSavStyle}">
+                                                <ComboBoxItem Content="Classic (High Contrast)" Tag="{Binding Path=1, FallbackValue=1}" />
+                                                <ComboBoxItem Content="Colorful (Vibrant)" Tag="{Binding Path=2, FallbackValue=2}" />
+                                                <ComboBoxItem Content="Realistic" Tag="{Binding Path=3, FallbackValue=3}" />
+                                                <ComboBoxItem Content="Soft" Tag="{Binding Path=4, FallbackValue=4}" />
+                                                <ComboBoxItem Content="Movie" Tag="{Binding Path=5, FallbackValue=5}" />
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <!-- Lobby FPS -->
+                                        <StackPanel Grid.Column="3" Margin="6,0,0,0">
+                                            <TextBlock Text="Lobby FPS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,3" />
+                                            <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ActiveSavLobbyFpsLevel}">
+                                                <ComboBoxItem Content="60 FPS" Tag="{Binding Path=5, FallbackValue=5}" />
+                                                <ComboBoxItem Content="90 FPS" Tag="{Binding Path=6, FallbackValue=6}" />
+                                                <ComboBoxItem Content="120 FPS" Tag="{Binding Path=7, FallbackValue=7}" />
+                                            </ComboBox>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Sync Action Footer -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0"
+                                        Content="⚡ Inject &amp; Sync In-Game (ADB Live)"
+                                        Command="{Binding SyncActiveSavCommand}"
+                                        Style="{StaticResource SuccessButton}"
+                                        Padding="16,8"
+                                        FontSize="11"
+                                        FontWeight="Bold"
+                                        Margin="0,0,12,0" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding ActiveSavStatusMessage}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource BrushAccentGreen}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Row 4: Interactive ADB Shell Console -->
                     <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14">
                         <StackPanel>
                             <Grid Margin="0,0,0,8">
@@ -432,9 +567,9 @@
 
                             <TextBox Text="{Binding InteractiveAdbOutput, Mode=OneWay}"
                                      IsReadOnly="True"
-                                     FontFamily="Consolas"
+                                     FontFamily="Consolas, Cascadia Code, Courier New"
                                      FontSize="11"
-                                     Height="90"
+                                     Height="85"
                                      VerticalScrollBarVisibility="Auto"
                                      Background="{DynamicResource BrushCardBackground}"
                                      Foreground="{DynamicResource BrushTextPrimary}"
@@ -450,7 +585,7 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBox Grid.Column="0"
                                          Text="{Binding InteractiveAdbCommand, UpdateSourceTrigger=PropertyChanged}"
-                                         FontFamily="Consolas"
+                                         FontFamily="Consolas, Cascadia Code, Courier New"
                                          FontSize="12"
                                          Padding="8,6"
                                          Margin="0,0,8,0"
@@ -468,11 +603,12 @@
                 </StackPanel>
             </Border>
 
-            <!-- In-Game PUBG Mobile Settings Recommendation Guide -->
+            <!-- ==================== IN-GAME SETTINGS GUIDE & DNS BENCHMARK ==================== -->
+            <!-- In-Game Configuration Guide -->
             <Border Style="{StaticResource GlassCard}" Margin="0,0,0,18">
                 <StackPanel>
-                    <TextBlock Text="PUBG Mobile In-Game Configuration Guide" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
-                    <TextBlock Text="For the lowest frame-time spikes and most responsive input latency, configure your in-game settings as follows:" FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,14" />
+                    <TextBlock Text="PUBG Mobile Recommended In-Game Settings" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,4" />
+                    <TextBlock Text="For the lowest frame-time spikes and most responsive input latency, configure your in-game tabs as follows:" FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,14" />
 
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -522,7 +658,7 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="🌐 Gaming DNS &amp; Server Latency Benchmark" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" />
-                            <TextBlock Text="Test regional PUBG server latency and flush your Windows DNS cache for lowest packet jitter." FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                            <TextBlock Text="Test regional PUBG server latency and flush your Windows DNS cache for lowest packet jitter." FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
                         </StackPanel>
                         <Button Grid.Column="1"
                                 Content="🧹 Flush DNS Cache"

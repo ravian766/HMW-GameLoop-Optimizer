@@ -40,7 +40,7 @@ public static class GameLoopDetector
         // 2. Check running processes
         DetectRunningProcesses(config);
 
-        Logger.Info("GameLoopDetector", $"GameLoop Installed: {config.IsInstalled}, Running: {config.IsRunning}, CPU: {config.VmCpuCount} cores, RAM: {config.VmMemorySizeInMb} MB, Res: {config.VmResWidth}x{config.VmResHeight}, ShaderCache: {config.LocalShaderCacheEnabled}, FPS Level: {config.PubgFpsLevel}");
+        Logger.Info("GameLoopDetector", $"GameLoop Installed: {config.IsInstalled}, Running: {config.IsRunning}, Renderer: {(config.ForceDirectX ? "DirectX+" : "OpenGL+")}, CPU: {config.VmCpuCount} cores, RAM: {config.VmMemorySizeInMb} MB, Res: {config.VmResWidth}x{config.VmResHeight}, ShaderCache: {config.LocalShaderCacheEnabled}, FPS Level: {config.PubgFpsLevel}");
 
         return config;
     }

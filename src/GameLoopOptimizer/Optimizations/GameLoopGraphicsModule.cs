@@ -7,15 +7,15 @@ namespace GameLoopOptimizer.Optimizations;
 public class GameLoopGraphicsModule : IOptimizationModule
 {
     public string Id => "gl_graphics_engine";
-    public string Title => "GameLoop DirectX+ & Shader Caching";
+    public string Title => "GameLoop Rendering Engine & Shader Caching";
     public OptimizationCategory Category => OptimizationCategory.GraphicsQuality;
     public RiskLevel RiskLevel => RiskLevel.Safe;
-    public string Description => "Configures GameLoop to use native DirectX+ hardware rasterization and enables persistent shader cache compilation.";
-    public string TechnicalRationale => "Enabling pre-compiled shader caching eliminates in-game asset compilation drops (1% lows), while DirectX+ leverages native GPU pipeline execution on Windows.";
+    public string Description => "Configures GameLoop to use the optimal hardware rasterization pipeline (DirectX+ or OpenGL+) and enables persistent shader cache compilation.";
+    public string TechnicalRationale => "Enabling pre-compiled shader caching eliminates in-game asset compilation drops (1% lows), while selecting the optimal rendering backend (DirectX+ for dedicated NVIDIA/modern AMD, OpenGL+ for Intel iGPUs and legacy architectures) maximizes pipeline efficiency.";
     public bool RequiresAdmin => false;
 
     public string CurrentStateDisplay { get; private set; } = "Unknown";
-    public string RecommendedStateDisplay => "DirectX+ / Cache On / VSync Off";
+    public string RecommendedStateDisplay { get; private set; } = "DirectX+ / Cache On / VSync Off";
     public bool IsOptimized { get; private set; }
     public OptimizationState State { get; private set; } = OptimizationState.Unknown;
 
@@ -28,9 +28,14 @@ public class GameLoopGraphicsModule : IOptimizationModule
             return Task.FromResult(State);
         }
 
-        bool ok = gl.ForceDirectX && gl.LocalShaderCacheEnabled && gl.ShaderCacheEnabled && !gl.VSyncEnabled;
+        var rec = RecommendationEngine.Calculate(hw);
+        string recRenderer = rec.RecommendedRenderer == GraphicsRenderer.DirectXPlus ? "DirectX+" : "OpenGL+";
+        RecommendedStateDisplay = $"{recRenderer} / Cache On / VSync Off";
+
+        bool rendererMatches = gl.ActiveRenderer == rec.RecommendedRenderer;
+        bool ok = rendererMatches && gl.LocalShaderCacheEnabled && gl.ShaderCacheEnabled && !gl.VSyncEnabled;
         IsOptimized = ok;
-        CurrentStateDisplay = ok ? "DirectX+ / Shader Cache Enabled" : $"DirectX+: {gl.ForceDirectX}, Cache: {gl.LocalShaderCacheEnabled}, VSync: {gl.VSyncEnabled}";
+        CurrentStateDisplay = ok ? $"{recRenderer} / Shader Cache Enabled" : $"{(gl.ForceDirectX ? "DirectX+" : "OpenGL+")}, Cache: {gl.LocalShaderCacheEnabled}, VSync: {gl.VSyncEnabled}";
         State = ok ? OptimizationState.Optimized : OptimizationState.Recommended;
         return Task.FromResult(State);
     }
@@ -44,11 +49,15 @@ public class GameLoopGraphicsModule : IOptimizationModule
 
         try
         {
+            var rec = RecommendationEngine.Calculate(hw);
+            int targetDirectXVal = rec.RecommendedForceDirectX ? 1 : 0;
+            string targetRendererName = rec.RecommendedRenderer == GraphicsRenderer.DirectXPlus ? "DirectX+" : "OpenGL+";
+
             using var key = Registry.CurrentUser.CreateSubKey(gl.RegistryKeyPath);
             if (key == null) return Task.FromResult(OptimizationResult.Fail(Id, "Failed to open GameLoop registry key."));
 
             // Record backups
-            BackupRegistryValue(key, gl.RegistryKeyPath, "ForceDirectX", "1");
+            BackupRegistryValue(key, gl.RegistryKeyPath, "ForceDirectX", targetDirectXVal.ToString());
             BackupRegistryValue(key, gl.RegistryKeyPath, "LocalShaderCacheEnabled", "1");
             BackupRegistryValue(key, gl.RegistryKeyPath, "ShaderCacheEnabled", "1");
             BackupRegistryValue(key, gl.RegistryKeyPath, "RenderOptimizeEnabled", "1");
@@ -68,7 +77,7 @@ public class GameLoopGraphicsModule : IOptimizationModule
                     using var subKey = Registry.CurrentUser.CreateSubKey(path);
                     if (subKey != null)
                     {
-                        subKey.SetValue("ForceDirectX", 1, RegistryValueKind.DWord);
+                        subKey.SetValue("ForceDirectX", targetDirectXVal, RegistryValueKind.DWord);
                         subKey.SetValue("LocalShaderCacheEnabled", 1, RegistryValueKind.DWord);
                         subKey.SetValue("ShaderCacheEnabled", 1, RegistryValueKind.DWord);
                         subKey.SetValue("RenderOptimizeEnabled", 1, RegistryValueKind.DWord);
@@ -83,7 +92,7 @@ public class GameLoopGraphicsModule : IOptimizationModule
                     using var hklmKey = Registry.LocalMachine.CreateSubKey($@"SOFTWARE\WOW6432Node\{path}");
                     if (hklmKey != null)
                     {
-                        hklmKey.SetValue("ForceDirectX", 1, RegistryValueKind.DWord);
+                        hklmKey.SetValue("ForceDirectX", targetDirectXVal, RegistryValueKind.DWord);
                         hklmKey.SetValue("LocalShaderCacheEnabled", 1, RegistryValueKind.DWord);
                         hklmKey.SetValue("ShaderCacheEnabled", 1, RegistryValueKind.DWord);
                         hklmKey.SetValue("RenderOptimizeEnabled", 1, RegistryValueKind.DWord);
@@ -94,18 +103,18 @@ public class GameLoopGraphicsModule : IOptimizationModule
                 catch { }
             }
 
-            gl.ForceDirectX = true;
+            gl.ForceDirectX = rec.RecommendedForceDirectX;
             gl.LocalShaderCacheEnabled = true;
             gl.ShaderCacheEnabled = true;
             gl.RenderOptimizeEnabled = true;
             gl.VSyncEnabled = false;
 
             IsOptimized = true;
-            CurrentStateDisplay = "DirectX+ / Shader Cache Enabled";
+            CurrentStateDisplay = $"{targetRendererName} / Shader Cache Enabled";
             State = OptimizationState.Optimized;
 
-            Logger.Success(Title, "Applied DirectX+ renderer, local shader cache, and low-latency VSync settings to GameLoop & TGB.");
-            return Task.FromResult(OptimizationResult.Ok(Id, "DirectX+ rendering and Shader Cache successfully optimized on GameLoop/TGB."));
+            Logger.Success(Title, $"Applied {targetRendererName} renderer, local shader cache, and low-latency VSync settings to GameLoop & TGB.");
+            return Task.FromResult(OptimizationResult.Ok(Id, $"{targetRendererName} rendering and Shader Cache successfully optimized on GameLoop/TGB."));
         }
         catch (Exception ex)
         {
@@ -155,6 +164,6 @@ public class GameLoopGraphicsModule : IOptimizationModule
     public Task<bool> VerifyAsync()
     {
         var gl = GameLoopDetector.DetectGameLoop();
-        return Task.FromResult(gl.ForceDirectX && gl.LocalShaderCacheEnabled);
+        return Task.FromResult(gl.LocalShaderCacheEnabled && gl.ShaderCacheEnabled);
     }
 }

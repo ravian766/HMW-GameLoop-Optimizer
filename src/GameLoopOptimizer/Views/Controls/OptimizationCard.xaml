@@ -75,11 +75,19 @@
 
                 <!-- State comparison -->
                 <WrapPanel Orientation="Horizontal">
-                    <TextBlock Text="CURRENT: " FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding CurrentStateDisplay}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" Margin="0,0,16,0" />
-                    
-                    <TextBlock Text="RECOMMENDED: " FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding RecommendedStateDisplay}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                    <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="8,3" Margin="0,0,6,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="CURRENT: " FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding CurrentStateDisplay}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="➔" FontSize="11" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentCyan}" BorderThickness="1" CornerRadius="6" Padding="8,3">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="TARGET: " FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding RecommendedStateDisplay}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyanBright}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
                 </WrapPanel>
             </StackPanel>
 

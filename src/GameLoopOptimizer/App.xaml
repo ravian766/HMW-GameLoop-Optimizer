@@ -35,6 +35,8 @@
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
             <local:BooleanToRunningStatusConverter x:Key="BooleanToRunningStatusConverter" />
             <local:BooleanToStatusTextConverter x:Key="BooleanToStatusTextConverter" />
+            <local:BooleanToStatusBrushConverter x:Key="BooleanToStatusBrushConverter" />
+            <local:BooleanToAdminBrushConverter x:Key="BooleanToAdminBrushConverter" />
             <local:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
             <local:StringToBooleanConverter x:Key="StringToBooleanConverter" />
             <local:InverseBooleanConverter x:Key="InverseBooleanConverter" />

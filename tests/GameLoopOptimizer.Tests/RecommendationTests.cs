@@ -32,6 +32,7 @@ public class RecommendationTests
         Assert.Equal(4, rec.RecommendedCpuCores); // 4 cores for emulator, 4 threads for Windows
         Assert.Equal(8192, rec.RecommendedRamMb); // 8GB for GameLoop, 8GB for host
         Assert.True(rec.RecommendedForceDirectX);
+        Assert.Equal(GraphicsRenderer.DirectXPlus, rec.RecommendedRenderer);
         Assert.True(rec.RecommendedShaderCache);
         Assert.False(rec.RecommendedVSync);
         Assert.Equal(120, rec.RecommendedFpsLevel);
@@ -68,6 +69,8 @@ public class RecommendationTests
         Assert.Equal(1280, rec.RecommendedResWidth);
         Assert.Equal(720, rec.RecommendedResHeight);
         Assert.Equal(HardwareTier.LowEnd, hw.CalculatedTier);
+        Assert.Equal(GraphicsRenderer.OpenGLPlus, rec.RecommendedRenderer);
+        Assert.False(rec.RecommendedForceDirectX);
     }
 
     [Fact]
@@ -99,5 +102,31 @@ public class RecommendationTests
         Assert.Equal(2560, rec.RecommendedResWidth);
         Assert.Equal(1440, rec.RecommendedResHeight);
         Assert.Equal(HardwareTier.HighEnd, hw.CalculatedTier);
+        Assert.Equal(GraphicsRenderer.DirectXPlus, rec.RecommendedRenderer);
+        Assert.True(rec.RecommendedForceDirectX);
+    }
+
+    [Fact]
+    public void DetermineOptimalRenderer_RecommendsCorrectApiPerGpuVendor()
+    {
+        // 1. NVIDIA Dedicated -> DirectX+
+        var nvidiaHw = new HardwareInfo { GpuVendor = GpuVendor.Nvidia, GpuName = "NVIDIA GeForce RTX 3060", DedicatedVramMb = 12288 };
+        Assert.Equal(GraphicsRenderer.DirectXPlus, RecommendationEngine.DetermineOptimalRenderer(nvidiaHw));
+
+        // 2. Intel Integrated -> OpenGL+
+        var intelIgpuHw = new HardwareInfo { GpuVendor = GpuVendor.Intel, GpuName = "Intel UHD Graphics 620", DedicatedVramMb = 128 };
+        Assert.Equal(GraphicsRenderer.OpenGLPlus, RecommendationEngine.DetermineOptimalRenderer(intelIgpuHw));
+
+        // 3. Intel Arc Dedicated -> DirectX+
+        var intelArcHw = new HardwareInfo { GpuVendor = GpuVendor.Intel, GpuName = "Intel Arc A770", DedicatedVramMb = 16384 };
+        Assert.Equal(GraphicsRenderer.DirectXPlus, RecommendationEngine.DetermineOptimalRenderer(intelArcHw));
+
+        // 4. AMD Modern Dedicated -> DirectX+
+        var amdModernHw = new HardwareInfo { GpuVendor = GpuVendor.Amd, GpuName = "AMD Radeon RX 6700 XT", DedicatedVramMb = 12288 };
+        Assert.Equal(GraphicsRenderer.DirectXPlus, RecommendationEngine.DetermineOptimalRenderer(amdModernHw));
+
+        // 5. AMD Older Legacy -> OpenGL+
+        var amdLegacyHw = new HardwareInfo { GpuVendor = GpuVendor.Amd, GpuName = "AMD Radeon R7 240", DedicatedVramMb = 1024, CalculatedTier = HardwareTier.LowEnd };
+        Assert.Equal(GraphicsRenderer.OpenGLPlus, RecommendationEngine.DetermineOptimalRenderer(amdLegacyHw));
     }
 }

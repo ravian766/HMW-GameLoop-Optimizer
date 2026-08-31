@@ -96,14 +96,17 @@ public static class ScoringEngine
         int gfxPts = 0;
         if (gl.IsInstalled)
         {
-            if (gl.ForceDirectX)
+            bool rendererMatches = gl.ActiveRenderer == rec.RecommendedRenderer;
+            if (rendererMatches)
             {
                 gfxPts += 10;
             }
             else
             {
                 gfxPts += 4;
-                explanations.Add("GameLoop is not set to DirectX+ rendering mode; DirectX+ is recommended for modern dedicated GPUs.");
+                string activeName = gl.ForceDirectX ? "DirectX+" : "OpenGL+";
+                string recName = rec.RecommendedRenderer == GraphicsRenderer.DirectXPlus ? "DirectX+" : "OpenGL+";
+                explanations.Add($"GameLoop is set to {activeName} rendering mode; {recName} is recommended dynamically for your {hw.GpuName}.");
             }
 
             if (gl.LocalShaderCacheEnabled && gl.ShaderCacheEnabled)
@@ -115,7 +118,7 @@ public static class ScoringEngine
                 explanations.Add("Shader cache is currently disabled in GameLoop; enabling it prevents in-game asset compilation stutters.");
             }
             score.GraphicsSettings.Status = gfxPts >= 18 ? "Optimized" : "Needs Review";
-            score.GraphicsSettings.Details = $"DirectX+: {gl.ForceDirectX}, Shader Cache: {gl.LocalShaderCacheEnabled}";
+            score.GraphicsSettings.Details = $"Renderer: {(gl.ForceDirectX ? "DirectX+" : "OpenGL+")}, Shader Cache: {gl.LocalShaderCacheEnabled}";
         }
         else
         {

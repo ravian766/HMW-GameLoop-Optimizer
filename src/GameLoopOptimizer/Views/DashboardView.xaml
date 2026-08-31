@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:controls="clr-namespace:GameLoopOptimizer.Views.Controls"
              mc:Ignorable="d" 
-             d:DesignHeight="780" d:DesignWidth="980">
+             d:DesignHeight="880" d:DesignWidth="1020">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="28,24,28,28">
 
@@ -89,7 +89,7 @@
                 <Border Grid.Column="0" Style="{StaticResource MetricTile}" Margin="0,0,8,0">
                     <StackPanel>
                         <TextBlock Text="CPU LOAD" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
-                        <TextBlock Text="{Binding CurrentCpu, StringFormat='{}{0:F1}%'}" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,4,0,4" />
+                        <TextBlock Text="{Binding CurrentCpu, StringFormat='{}{0:F1}%'}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,4,0,4" />
                         <ProgressBar Value="{Binding CurrentCpu}" Maximum="100" Height="4" Foreground="{DynamicResource BrushAccentCyan}" Background="{DynamicResource BrushBgInput}" BorderThickness="0" Margin="0,0,0,6" />
                         <TextBlock Text="{Binding Hardware.CpuName}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
@@ -99,7 +99,7 @@
                 <Border Grid.Column="1" Style="{StaticResource MetricTile}" Margin="4,0,4,0">
                     <StackPanel>
                         <TextBlock Text="GPU LOAD" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
-                        <TextBlock Text="{Binding CurrentGpu, StringFormat='{}{0:F1}%'}" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource BrushAccentViolet}" Margin="0,4,0,4" />
+                        <TextBlock Text="{Binding CurrentGpu, StringFormat='{}{0:F1}%'}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentViolet}" Margin="0,4,0,4" />
                         <ProgressBar Value="{Binding CurrentGpu}" Maximum="100" Height="4" Foreground="{DynamicResource BrushAccentViolet}" Background="{DynamicResource BrushBgInput}" BorderThickness="0" Margin="0,0,0,6" />
                         <TextBlock Text="{Binding Hardware.GpuName}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
@@ -109,7 +109,7 @@
                 <Border Grid.Column="2" Style="{StaticResource MetricTile}" Margin="4,0,4,0">
                     <StackPanel>
                         <TextBlock Text="RAM USAGE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
-                        <TextBlock Text="{Binding CurrentRam, StringFormat='{}{0:F0}%'}" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" Margin="0,4,0,4" />
+                        <TextBlock Text="{Binding CurrentRam, StringFormat='{}{0:F0}%'}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" Margin="0,4,0,4" />
                         <ProgressBar Value="{Binding CurrentRam}" Maximum="100" Height="4" Foreground="{DynamicResource BrushAccentGreen}" Background="{DynamicResource BrushBgInput}" BorderThickness="0" Margin="0,0,0,6" />
                         <TextBlock Text="{Binding Hardware.TotalRamGb, StringFormat='Total: {0:F1} GB RAM'}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
                     </StackPanel>
@@ -119,7 +119,7 @@
                 <Border Grid.Column="3" Style="{StaticResource MetricTile}" Margin="8,0,0,0">
                     <StackPanel>
                         <TextBlock Text="DISK ACTIVITY" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
-                        <TextBlock Text="{Binding CurrentDiskMb, StringFormat='{}{0:F1} MB/s'}" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" Margin="0,4,0,4" />
+                        <TextBlock Text="{Binding CurrentDiskMb, StringFormat='{}{0:F1} MB/s'}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" Margin="0,4,0,4" />
                         <ProgressBar Value="{Binding CurrentDiskMb}" Maximum="150" Height="4" Foreground="{DynamicResource BrushAccentAmber}" Background="{DynamicResource BrushBgInput}" BorderThickness="0" Margin="0,0,0,6" />
                         <TextBlock Text="{Binding Hardware.SystemDrive, StringFormat='Storage: {0}', FallbackValue='Storage: Primary SSD'}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
                     </StackPanel>
@@ -139,69 +139,114 @@
                         <TextBlock Text="Optimization Score Breakdown" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,16" />
 
                         <!-- Windows OS -->
-                        <Grid Margin="0,0,0,12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="Windows OS &amp; Game Mode Engine" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" />
-                                <TextBlock Text="{Binding Score.WindowsConfig.Details}" FontSize="11" Foreground="{DynamicResource BrushTextMuted}" Margin="0,1,0,0" />
-                            </StackPanel>
-                            <TextBlock Grid.Column="1" Text="{Binding Score.WindowsConfig.Score, StringFormat='{}{0}/20 pts'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
-                        </Grid>
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid Grid.Row="0" Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Windows OS &amp; Game Mode Engine" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" />
+                                        <TextBlock Text="{Binding Score.WindowsConfig.Details}" FontSize="10.5" Foreground="{DynamicResource BrushTextMuted}" Margin="0,1,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding Score.WindowsConfig.Score, StringFormat='{}{0}/20 pts'}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                                </Grid>
+                                <ProgressBar Grid.Row="1" Value="{Binding Score.WindowsConfig.Score}" Maximum="20" Height="3" Foreground="{DynamicResource BrushAccentCyan}" Background="{DynamicResource BrushBgCard}" BorderThickness="0" />
+                            </Grid>
+                        </Border>
 
                         <!-- Power -->
-                        <Grid Margin="0,0,0,12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="Power Delivery &amp; Core Unparking" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" />
-                                <TextBlock Text="{Binding Score.PowerDelivery.Details}" FontSize="11" Foreground="{DynamicResource BrushTextMuted}" Margin="0,1,0,0" />
-                            </StackPanel>
-                            <TextBlock Grid.Column="1" Text="{Binding Score.PowerDelivery.Score, StringFormat='{}{0}/15 pts'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
-                        </Grid>
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid Grid.Row="0" Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Power Delivery &amp; Core Unparking" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" />
+                                        <TextBlock Text="{Binding Score.PowerDelivery.Details}" FontSize="10.5" Foreground="{DynamicResource BrushTextMuted}" Margin="0,1,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding Score.PowerDelivery.Score, StringFormat='{}{0}/15 pts'}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                                </Grid>
+                                <ProgressBar Grid.Row="1" Value="{Binding Score.PowerDelivery.Score}" Maximum="15" Height="3" Foreground="{DynamicResource BrushAccentCyan}" Background="{DynamicResource BrushBgCard}" BorderThickness="0" />
+                            </Grid>
+                        </Border>
 
                         <!-- GameLoop Config -->
-                        <Grid Margin="0,0,0,12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="GameLoop Virtual Engine &amp; ADB" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" />
-                                <TextBlock Text="{Binding Score.GameLoopConfig.Details}" FontSize="11" Foreground="{DynamicResource BrushTextMuted}" Margin="0,1,0,0" />
-                            </StackPanel>
-                            <TextBlock Grid.Column="1" Text="{Binding Score.GameLoopConfig.Score, StringFormat='{}{0}/25 pts'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
-                        </Grid>
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid Grid.Row="0" Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="GameLoop Virtual Engine &amp; ADB" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" />
+                                        <TextBlock Text="{Binding Score.GameLoopConfig.Details}" FontSize="10.5" Foreground="{DynamicResource BrushTextMuted}" Margin="0,1,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding Score.GameLoopConfig.Score, StringFormat='{}{0}/25 pts'}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                                </Grid>
+                                <ProgressBar Grid.Row="1" Value="{Binding Score.GameLoopConfig.Score}" Maximum="25" Height="3" Foreground="{DynamicResource BrushAccentCyan}" Background="{DynamicResource BrushBgCard}" BorderThickness="0" />
+                            </Grid>
+                        </Border>
 
                         <!-- Graphics -->
-                        <Grid Margin="0,0,0,12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="DirectX+ &amp; Persistent Shader Caching" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" />
-                                <TextBlock Text="{Binding Score.GraphicsSettings.Details}" FontSize="11" Foreground="{DynamicResource BrushTextMuted}" Margin="0,1,0,0" />
-                            </StackPanel>
-                            <TextBlock Grid.Column="1" Text="{Binding Score.GraphicsSettings.Score, StringFormat='{}{0}/20 pts'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
-                        </Grid>
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid Grid.Row="0" Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="DirectX+ &amp; Persistent Shader Caching" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" />
+                                        <TextBlock Text="{Binding Score.GraphicsSettings.Details}" FontSize="10.5" Foreground="{DynamicResource BrushTextMuted}" Margin="0,1,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding Score.GraphicsSettings.Score, StringFormat='{}{0}/20 pts'}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                                </Grid>
+                                <ProgressBar Grid.Row="1" Value="{Binding Score.GraphicsSettings.Score}" Maximum="20" Height="3" Foreground="{DynamicResource BrushAccentCyan}" Background="{DynamicResource BrushBgCard}" BorderThickness="0" />
+                            </Grid>
+                        </Border>
 
                         <!-- Memory/Cache -->
-                        <Grid Margin="0,0,0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="Memory, In-VM Cache &amp; Storage Overhead" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" />
-                                <TextBlock Text="{Binding Score.MemoryStorage.Details}" FontSize="11" Foreground="{DynamicResource BrushTextMuted}" Margin="0,1,0,0" />
-                            </StackPanel>
-                            <TextBlock Grid.Column="1" Text="{Binding Score.MemoryStorage.Score, StringFormat='{}{0}/10 pts'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
-                        </Grid>
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid Grid.Row="0" Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Memory, In-VM Cache &amp; Storage Overhead" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" />
+                                        <TextBlock Text="{Binding Score.MemoryStorage.Details}" FontSize="10.5" Foreground="{DynamicResource BrushTextMuted}" Margin="0,1,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding Score.MemoryStorage.Score, StringFormat='{}{0}/10 pts'}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                                </Grid>
+                                <ProgressBar Grid.Row="1" Value="{Binding Score.MemoryStorage.Score}" Maximum="10" Height="3" Foreground="{DynamicResource BrushAccentCyan}" Background="{DynamicResource BrushBgCard}" BorderThickness="0" />
+                            </Grid>
+                        </Border>
                     </StackPanel>
                 </Border>
 
@@ -219,6 +264,138 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- ==================== DEEP JUNK CLEANER & EMULATOR DIAGNOSTIC STUDIO ==================== -->
+            <Grid Margin="0,0,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Deep Junk Cleaner Card -->
+                <Border Grid.Column="0" Style="{StaticResource GlassCard}" Margin="0,0,10,0">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                    <TextBlock Text="🧹 Deep Emulator Junk &amp; Cache Cleaner" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,8,0" />
+                                    <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentAmber}" BorderThickness="1" CornerRadius="6" Padding="6,2">
+                                        <TextBlock Text="{Binding JunkScanResult.TotalSizeFormatted, StringFormat='{}{0} Junk'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="Safely purges DirectX/GPU driver shader caches, crash dumps, and temp buffers." FontSize="11" Foreground="{DynamicResource BrushTextMuted}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Junk Categories List -->
+                        <ItemsControl ItemsSource="{Binding JunkScanResult.Categories}" Margin="0,0,0,12">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{Binding Title}" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" />
+                                                <TextBlock Text="{Binding Description}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" Margin="0,1,0,0" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="{Binding SizeFormatted}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" Margin="6,0,0,0" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Cleaner Actions -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0"
+                                    Content="⚡ Deep Clean"
+                                    Command="{Binding ExecuteDeepCleanCommand}"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Padding="14,7"
+                                    FontSize="11"
+                                    FontWeight="Bold"
+                                    Margin="0,0,8,0" />
+                            <Button Grid.Column="1"
+                                    Content="🔍 Re-Scan"
+                                    Command="{Binding ScanJunkCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="10,7"
+                                    FontSize="11"
+                                    Margin="0,0,8,0" />
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding CleanerStatusMessage}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource BrushAccentGreen}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Fresh Start Emulator Diagnostic Card -->
+                <Border Grid.Column="1" Style="{StaticResource GlassCard}" Margin="10,0,0,0">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                    <TextBlock Text="🛠️ Fresh Start &amp; Health Diagnostics" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,8,0" />
+                                    <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="6" Padding="6,2">
+                                        <TextBlock Text="{Binding HealthReport.StatusBadgeText}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="{Binding HealthReport.SummaryText}" FontSize="11" Foreground="{DynamicResource BrushTextMuted}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Diagnostic Issues List -->
+                        <ItemsControl ItemsSource="{Binding HealthReport.Issues}" Margin="0,0,0,12">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentAmber}" />
+                                            <TextBlock Text="{Binding Description}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Recommendation, StringFormat='Tip: {0}'}" FontSize="10" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Diagnostic Actions -->
+                        <WrapPanel Orientation="Horizontal">
+                            <Button Content="🔍 Re-Run Diagnostics"
+                                    Command="{Binding RunDiagnosticCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="12,7"
+                                    FontSize="11"
+                                    Margin="0,0,8,0" />
+                            <Button Content="🔧 Auto-Repair Basic Issues"
+                                    Command="{Binding AutoRepairIssuesCommand}"
+                                    Style="{StaticResource SuccessButton}"
+                                    Padding="14,7"
+                                    FontSize="11"
+                                    FontWeight="Bold" />
+                        </WrapPanel>
                     </StackPanel>
                 </Border>
             </Grid>

@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:controls="clr-namespace:GameLoopOptimizer.Views.Controls"
              mc:Ignorable="d" 
-             d:DesignHeight="780" d:DesignWidth="940">
+             d:DesignHeight="820" d:DesignWidth="1020">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="28,24,28,28">
 
@@ -17,15 +17,20 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="Hardware Performance Telemetry" FontSize="19" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,4" />
-                        <TextBlock Text="Real-time 1-second system resource monitoring and emulator frame-time pacing analytics." FontSize="13" Foreground="{DynamicResource BrushTextSecondary}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="Hardware Performance Telemetry" FontSize="19" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                                <TextBlock Text="1000ms RESOLUTION" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="Real-time 1-second system resource monitoring and emulator frame-time pacing analytics." FontSize="12.5" Foreground="{DynamicResource BrushTextSecondary}" />
                     </StackPanel>
 
                     <!-- Frame-Time Variance Status -->
-                    <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="14,8" VerticalAlignment="Center">
+                    <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="14,8" VerticalAlignment="Center" Margin="16,0,0,0">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="EST. JITTER: " FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding Metrics.EstimatedFrametimeVarianceMs, StringFormat='{}{0:F1} ms'}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Metrics.EstimatedFrametimeVarianceMs, StringFormat='{}{0:F1} ms'}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyanBright}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -49,7 +54,7 @@
                             <TextBlock Text="CPU UTILIZATION (%)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
                             <TextBlock Text="{Binding Metrics.CpuTotalPercent, StringFormat='{}{0:F1}%'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" HorizontalAlignment="Right" />
                         </Grid>
-                        <controls:LiveChartControl PointsSource="{Binding CpuHistory}" MaxValue="100" Height="140" LineBrush="#00F2FE" />
+                        <controls:LiveChartControl PointsSource="{Binding CpuHistory}" MaxValue="100" Height="140" LineBrush="{DynamicResource BrushAccentCyan}" />
                     </StackPanel>
                 </Border>
 
@@ -60,7 +65,7 @@
                             <TextBlock Text="GPU 3D RASTERIZER (%)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
                             <TextBlock Text="{Binding Metrics.GpuPercent, StringFormat='{}{0:F1}%'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushAccentViolet}" HorizontalAlignment="Right" />
                         </Grid>
-                        <controls:LiveChartControl PointsSource="{Binding GpuHistory}" MaxValue="100" Height="140" LineBrush="#8B5CF6" />
+                        <controls:LiveChartControl PointsSource="{Binding GpuHistory}" MaxValue="100" Height="140" LineBrush="{DynamicResource BrushAccentViolet}" />
                     </StackPanel>
                 </Border>
 
@@ -71,7 +76,7 @@
                             <TextBlock Text="RAM USAGE (%)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
                             <TextBlock Text="{Binding Metrics.RamPercent, StringFormat='{}{0:F0}%'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" HorizontalAlignment="Right" />
                         </Grid>
-                        <controls:LiveChartControl PointsSource="{Binding RamHistory}" MaxValue="100" Height="140" LineBrush="#10B981" />
+                        <controls:LiveChartControl PointsSource="{Binding RamHistory}" MaxValue="100" Height="140" LineBrush="{DynamicResource BrushAccentGreen}" />
                     </StackPanel>
                 </Border>
 
@@ -82,7 +87,7 @@
                             <TextBlock Text="DISK THROUGHPUT (MB/s)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
                             <TextBlock Text="{Binding Metrics.DiskReadMbSec, StringFormat='{}{0:F1} MB/s'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" HorizontalAlignment="Right" />
                         </Grid>
-                        <controls:LiveChartControl PointsSource="{Binding DiskHistory}" MaxValue="60" Height="140" LineBrush="#F59E0B" />
+                        <controls:LiveChartControl PointsSource="{Binding DiskHistory}" MaxValue="60" Height="140" LineBrush="{DynamicResource BrushAccentAmber}" />
                     </StackPanel>
                 </Border>
             </Grid>

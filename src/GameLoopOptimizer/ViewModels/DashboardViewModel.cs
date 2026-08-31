@@ -66,10 +66,51 @@ public class DashboardViewModel : ViewModelBase
         set => SetProperty(ref _isScanning, value);
     }
 
+    // Deep Junk Cleaner Properties
+    private DeepCleanScanResult _junkScanResult = new();
+    public DeepCleanScanResult JunkScanResult
+    {
+        get => _junkScanResult;
+        set => SetProperty(ref _junkScanResult, value);
+    }
+
+    private bool _isCleaningJunk;
+    public bool IsCleaningJunk
+    {
+        get => _isCleaningJunk;
+        set => SetProperty(ref _isCleaningJunk, value);
+    }
+
+    private string _cleanerStatusMessage = string.Empty;
+    public string CleanerStatusMessage
+    {
+        get => _cleanerStatusMessage;
+        set => SetProperty(ref _cleanerStatusMessage, value);
+    }
+
+    // Emulator Health Diagnostic Properties
+    private EmulatorHealthReport _healthReport = new();
+    public EmulatorHealthReport HealthReport
+    {
+        get => _healthReport;
+        set => SetProperty(ref _healthReport, value);
+    }
+
+    private bool _isRunningDiagnostic;
+    public bool IsRunningDiagnostic
+    {
+        get => _isRunningDiagnostic;
+        set => SetProperty(ref _isRunningDiagnostic, value);
+    }
+
     public ObservableCollection<string> ScoreExplanations { get; } = new();
 
     public ICommand ScanSystemCommand { get; }
     public ICommand QuickOptimizeCommand { get; }
+    public ICommand ScanJunkCommand { get; }
+    public ICommand ExecuteDeepCleanCommand { get; }
+    public ICommand RunDiagnosticCommand { get; }
+    public ICommand AutoRepairIssuesCommand { get; }
 
     public DashboardViewModel(
         Func<HardwareInfo> getHw, 
@@ -119,6 +160,70 @@ public class DashboardViewModel : ViewModelBase
             }
         });
 
+        ScanJunkCommand = new AsyncRelayCommand(async () =>
+        {
+            IsCleaningJunk = true;
+            CleanerStatusMessage = "Scanning emulator caches, crash dumps, and temp buffers...";
+            try
+            {
+                var gl = _getGl();
+                JunkScanResult = await Task.Run(() => DeepCleanerService.ScanJunk(gl));
+                CleanerStatusMessage = $"Found {JunkScanResult.TotalSizeFormatted} junk across {JunkScanResult.TotalFileCount} files.";
+            }
+            finally
+            {
+                IsCleaningJunk = false;
+            }
+        });
+
+        ExecuteDeepCleanCommand = new AsyncRelayCommand(async () =>
+        {
+            IsCleaningJunk = true;
+            CleanerStatusMessage = "Purging shader caches, crash dumps, and temp files...";
+            try
+            {
+                var gl = _getGl();
+                var res = await DeepCleanerService.CleanJunkAsync(JunkScanResult, gl, msg => CleanerStatusMessage = msg);
+                CleanerStatusMessage = res.Message;
+                JunkScanResult = await Task.Run(() => DeepCleanerService.ScanJunk(gl));
+            }
+            finally
+            {
+                IsCleaningJunk = false;
+            }
+        });
+
+        RunDiagnosticCommand = new AsyncRelayCommand(async () =>
+        {
+            IsRunningDiagnostic = true;
+            try
+            {
+                var gl = _getGl();
+                var hw = _getHw();
+                HealthReport = await Task.Run(() => EmulatorDiagnosticService.RunDiagnostic(gl, hw));
+            }
+            finally
+            {
+                IsRunningDiagnostic = false;
+            }
+        });
+
+        AutoRepairIssuesCommand = new AsyncRelayCommand(async () =>
+        {
+            IsRunningDiagnostic = true;
+            try
+            {
+                var gl = _getGl();
+                var hw = _getHw();
+                await EmulatorDiagnosticService.AutoFixIssuesAsync(gl, hw);
+                HealthReport = await Task.Run(() => EmulatorDiagnosticService.RunDiagnostic(gl, hw));
+            }
+            finally
+            {
+                IsRunningDiagnostic = false;
+            }
+        });
+
         RefreshDashboard();
     }
 
@@ -130,6 +235,8 @@ public class DashboardViewModel : ViewModelBase
 
         Recommendations = RecommendationEngine.Calculate(hw);
         Score = ScoringEngine.CalculateScore(hw, sys, gl, Recommendations);
+        HealthReport = EmulatorDiagnosticService.RunDiagnostic(gl, hw);
+        JunkScanResult = DeepCleanerService.ScanJunk(gl);
 
         void UpdateExplanations()
         {

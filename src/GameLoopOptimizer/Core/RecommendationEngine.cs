@@ -9,7 +9,12 @@ public class HardwareRecommendations
     public int RecommendedResWidth { get; set; }
     public int RecommendedResHeight { get; set; }
     public int RecommendedDpi { get; set; }
-    public bool RecommendedForceDirectX { get; set; }
+    public GraphicsRenderer RecommendedRenderer { get; set; } = GraphicsRenderer.DirectXPlus;
+    public bool RecommendedForceDirectX
+    {
+        get => RecommendedRenderer == GraphicsRenderer.DirectXPlus;
+        set => RecommendedRenderer = value ? GraphicsRenderer.DirectXPlus : GraphicsRenderer.OpenGLPlus;
+    }
     public bool RecommendedShaderCache { get; set; }
     public bool RecommendedVSync { get; set; }
     public int RecommendedFpsLevel { get; set; }
@@ -91,14 +96,61 @@ public static class RecommendationEngine
             rec.TierLabel = "High-End (Maximum 120 FPS Target & Low Input Lag)";
         }
 
-        // 4. Graphics Engine & Shader Cache
-        rec.RecommendedForceDirectX = true; // DirectX+ is the most stable and responsive renderer on Windows
+        // 4. Hardware-Aware Graphics Engine & Shader Cache
+        rec.RecommendedRenderer = DetermineOptimalRenderer(hw);
         rec.RecommendedShaderCache = true;  // Crucial for eliminating micro-stutters during asset streaming
         rec.RecommendedVSync = false;       // Eliminates render queue input lag
 
+        string rendererName = rec.RecommendedRenderer == GraphicsRenderer.DirectXPlus ? "DirectX+" : "OpenGL+";
         rec.RecommendationSummary = $"Based on your {hw.CpuName} ({hw.LogicalProcessors} threads), {hw.GpuName} ({hw.DedicatedVramMb:F0}MB VRAM), and {hw.TotalRamGb:F0}GB RAM, " +
-            $"allocating {rec.RecommendedCpuCores} cores and {rec.RecommendedRamMb / 1024}GB RAM with DirectX+ and local shader caching is recommended for optimal frame pacing.";
+            $"allocating {rec.RecommendedCpuCores} cores and {rec.RecommendedRamMb / 1024}GB RAM with {rendererName} and local shader caching is recommended for optimal frame pacing.";
 
         return rec;
+    }
+
+    public static GraphicsRenderer DetermineOptimalRenderer(HardwareInfo hw)
+    {
+        // 1. Dedicated NVIDIA GPUs (GTX/RTX/Quadro): Native DirectX+ is the most stable and responsive pipeline
+        if (hw.GpuVendor == GpuVendor.Nvidia && hw.IsDedicatedGpu)
+        {
+            return GraphicsRenderer.DirectXPlus;
+        }
+
+        // 2. Dedicated Intel Arc GPUs: DirectX+ provides native modern D3D12/D3D11 execution
+        if (hw.GpuVendor == GpuVendor.Intel && hw.IsDedicatedGpu && hw.GpuName.Contains("Arc", StringComparison.OrdinalIgnoreCase))
+        {
+            return GraphicsRenderer.DirectXPlus;
+        }
+
+        // 3. Intel Integrated Graphics (HD/UHD/Iris/Xe): OpenGL+ prevents known D3D translation crashes & black screens
+        if (hw.GpuVendor == GpuVendor.Intel)
+        {
+            return GraphicsRenderer.OpenGLPlus;
+        }
+
+        // 4. Dedicated AMD Radeon GPUs
+        if (hw.GpuVendor == GpuVendor.Amd && hw.IsDedicatedGpu)
+        {
+            var gpuLower = hw.GpuName.ToLowerInvariant();
+            // Modern RDNA / RDNA2 / RDNA3 (RX 5000, 6000, 7000 series, Vega) handle DirectX+ well
+            if (gpuLower.Contains("rx 5") || gpuLower.Contains("rx 6") || gpuLower.Contains("rx 7") || 
+                gpuLower.Contains("rx5") || gpuLower.Contains("rx6") || gpuLower.Contains("rx7") || 
+                gpuLower.Contains("vega") || gpuLower.Contains("navi") || hw.DedicatedVramMb >= 4096)
+            {
+                return GraphicsRenderer.DirectXPlus;
+            }
+
+            // Older legacy AMD architectures (R7, R9, HD Series) benefit from lighter OpenGL+
+            return GraphicsRenderer.OpenGLPlus;
+        }
+
+        // 5. Low-End / Non-dedicated systems: OpenGL+ offers lower driver translation overhead
+        if (hw.CalculatedTier == HardwareTier.LowEnd || !hw.IsDedicatedGpu)
+        {
+            return GraphicsRenderer.OpenGLPlus;
+        }
+
+        // Default fallback for mid/high tier dedicated GPUs
+        return GraphicsRenderer.DirectXPlus;
     }
 }

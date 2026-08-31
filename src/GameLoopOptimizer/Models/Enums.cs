@@ -59,3 +59,10 @@ public enum StorageType
     Hdd,
     Unknown
 }
+
+public enum GraphicsRenderer
+{
+    Auto,
+    DirectXPlus,
+    OpenGLPlus
+}

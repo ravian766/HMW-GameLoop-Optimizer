@@ -90,6 +90,55 @@ public class KeymapResolutionViewModel : ViewModelBase
         set => SetProperty(ref _isKeymapCalibrating, value);
     }
 
+    // WASD Response Speed Tuning
+    private int _wasdResponseSpeed = 100;
+    public int WasdResponseSpeed
+    {
+        get => _wasdResponseSpeed;
+        set
+        {
+            if (SetProperty(ref _wasdResponseSpeed, Math.Clamp(value, 50, 100)))
+            {
+                OnPropertyChanged(nameof(WasdSpeedLabel));
+            }
+        }
+    }
+
+    public string WasdSpeedLabel => WasdResponseSpeed switch
+    {
+        100 => "100% (Instant Digital Response - Recommended)",
+        95 => "95% (Smooth High-Speed)",
+        90 => "90% (Standard Stable)",
+        80 => "80% (Stock GameLoop Default)",
+        _ => $"{WasdResponseSpeed}% Custom Speed"
+    };
+
+    // Windows GPU Fullscreen Scaling Properties
+    private bool _isFullScreenScalingActive;
+    public bool IsFullScreenScalingActive
+    {
+        get => _isFullScreenScalingActive;
+        set => SetProperty(ref _isFullScreenScalingActive, value);
+    }
+
+    private string _gpuScalingStatusText = string.Empty;
+    public string GpuScalingStatusText
+    {
+        get => _gpuScalingStatusText;
+        set => SetProperty(ref _gpuScalingStatusText, value);
+    }
+
+    public GpuVendor GpuVendor => _getHw().GpuVendor;
+    public string GpuVendorName => _getHw().GpuVendor switch
+    {
+        GpuVendor.Nvidia => "NVIDIA GeForce",
+        GpuVendor.Amd => "AMD Radeon",
+        GpuVendor.Intel => "Intel Graphics / Arc",
+        _ => "Dedicated / Integrated GPU"
+    };
+
+    public string[] VendorScalingGuide => DisplayScalingService.GetVendorStepByStepGuide(GpuVendor);
+
     public ObservableCollection<KeymapBackupProfile> KeymapProfiles { get; } = new();
 
     // Sensitivity & Recoil Calibration
@@ -163,11 +212,13 @@ public class KeymapResolutionViewModel : ViewModelBase
         set => SetProperty(ref _isBenchmarkingMouse, value);
     }
 
-    // Commands
     public ICommand SelectStretchedPresetCommand { get; }
     public ICommand ApplyStretchedResolutionCommand { get; }
     public ICommand CalibrateAndInjectKeymapCommand { get; }
     public ICommand RestoreStockKeymapCommand { get; }
+    public ICommand ApplyWasdSpeedCommand { get; }
+    public ICommand ToggleGpuScalingCommand { get; }
+    public ICommand LaunchGpuControlPanelCommand { get; }
     public ICommand BackupKeymapCommand { get; }
     public ICommand RestoreKeymapCommand { get; }
     public ICommand RecalculateSensitivityCommand { get; }
@@ -184,6 +235,10 @@ public class KeymapResolutionViewModel : ViewModelBase
         _getGl = getGl;
 
         KeymapBackupManager.ProfilesChanged += (s, e) => RefreshKeymaps();
+
+        ApplyWasdSpeedCommand = new AsyncRelayCommand(ApplyWasdSpeedAsync);
+        ToggleGpuScalingCommand = new AsyncRelayCommand(ToggleGpuScalingAsync);
+        LaunchGpuControlPanelCommand = new RelayCommand(() => DisplayScalingService.LaunchGpuControlPanel(GpuVendor));
 
         SelectStretchedPresetCommand = new RelayCommand(param =>
         {
@@ -391,18 +446,56 @@ public class KeymapResolutionViewModel : ViewModelBase
         }
     }
 
-    public async Task CalibrateAndDeployKeymapAsync()
+    public void RefreshGpuScalingStatus()
+    {
+        var status = DisplayScalingService.CheckCurrentScaling(_getHw());
+        IsFullScreenScalingActive = status.IsFullScreenScalingActive;
+        GpuScalingStatusText = status.Message;
+    }
+
+    public async Task ToggleGpuScalingAsync()
+    {
+        bool targetState = !IsFullScreenScalingActive;
+        StatusMessage = targetState ? "Enabling Windows GPU Fullscreen Stretched Scaling..." : "Reverting GPU Scaling to default...";
+
+        await Task.Run(() => DisplayScalingService.ApplyFullScreenScaling(targetState, true));
+        RefreshGpuScalingStatus();
+        StatusMessage = IsFullScreenScalingActive ? "GPU Fullscreen Stretched Scaling Enabled (No Black Bars)!" : "GPU Scaling reverted.";
+    }
+
+    public async Task ApplyWasdSpeedAsync()
     {
         IsKeymapCalibrating = true;
-        StatusMessage = $"Calibrating and deploying GameLoop keymap for {ResWidth}x{ResHeight} ({AspectRatioDescription})...";
+        StatusMessage = $"Injecting {WasdResponseSpeed}% WASD joystick response speed into GameLoop keymaps...";
         try
         {
             var gl = _getGl();
-            var res = await ResolutionKeymapService.DeployResolutionKeymapAsync(ResWidth, ResHeight, gl);
+            var res = await KeymapSpeedService.ApplyWasdSpeedAsync(WasdResponseSpeed, gl);
             StatusMessage = res.Message;
             if (res.Success)
             {
-                KeymapCalibrationStatus = $"Calibrated for {ResWidth}x{ResHeight} ({res.KeysCalibrated} keys aligned across {res.FilesUpdated} files)";
+                KeymapCalibrationStatus = $"WASD Speed set to {WasdResponseSpeed}% across {res.FilesUpdated} files.";
+                RefreshKeymaps();
+            }
+        }
+        finally
+        {
+            IsKeymapCalibrating = false;
+        }
+    }
+
+    public async Task CalibrateAndDeployKeymapAsync()
+    {
+        IsKeymapCalibrating = true;
+        StatusMessage = $"Calibrating and deploying GameLoop keymap for {ResWidth}x{ResHeight} ({AspectRatioDescription}) with {WasdResponseSpeed}% WASD speed...";
+        try
+        {
+            var gl = _getGl();
+            var res = await ResolutionKeymapService.DeployResolutionKeymapAsync(ResWidth, ResHeight, gl, WasdResponseSpeed);
+            StatusMessage = res.Message;
+            if (res.Success)
+            {
+                KeymapCalibrationStatus = $"Calibrated for {ResWidth}x{ResHeight} ({res.KeysCalibrated} keys aligned across {res.FilesUpdated} files, WASD {WasdResponseSpeed}%)";
                 RefreshKeymaps();
             }
         }

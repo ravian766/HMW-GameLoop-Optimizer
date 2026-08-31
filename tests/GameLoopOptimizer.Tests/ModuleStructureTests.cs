@@ -13,10 +13,13 @@ public class ModuleStructureTests
         var modules = new List<IOptimizationModule>
         {
             new WindowsGameModeModule(),
+            new MmcssGamingPriorityModule(),
+            new DisableGameDvrModule(),
             new PowerPlanModule(),
             new GameLoopResourceModule(),
             new GameLoopGraphicsModule(),
             new GameLoopPUBGConfigModule(),
+            new IfeoProcessPriorityModule(),
             new AdbGpuAccelerationModule(),
             new AdbAnimationLatencyModule(),
             new AdbInputPollingModule(),
@@ -29,6 +32,10 @@ public class ModuleStructureTests
             new AdbAudioLatencyModule(),
             new CpuAffinityModule(),
             new GpuPreferenceModule(),
+            new GpuScalingModule(),
+            new GpuTdrDelayModule(),
+            new DirectXShaderCacheModule(),
+            new OpenGLShaderCacheModule(),
             new AudioLatencyModule(),
             new AudioFootstepClarifierModule(),
             new MemoryOptimizerModule(),
@@ -36,13 +43,14 @@ public class ModuleStructureTests
             new TimerResolutionModule(),
             new ProcessPriorityModule(),
             new NetworkLatencyModule(),
+            new NetworkQoSModule(),
             new NetworkDnsModule(),
             new VisualEffectsModule(),
             new BackgroundThrottleModule()
         };
 
         // Assert
-        Assert.Equal(27, modules.Count);
+        Assert.Equal(35, modules.Count);
 
         var ids = modules.Select(m => m.Id).ToList();
         Assert.Equal(ids.Count, ids.Distinct().Count()); // All IDs unique

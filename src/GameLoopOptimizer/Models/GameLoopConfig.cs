@@ -17,6 +17,7 @@ public class GameLoopConfig
     public int VmDpi { get; set; } = 320;
     public bool VSyncEnabled { get; set; } = false;
     public bool ForceDirectX { get; set; } = true;
+    public GraphicsRenderer ActiveRenderer => ForceDirectX ? GraphicsRenderer.DirectXPlus : GraphicsRenderer.OpenGLPlus;
     public bool EnableGlesv3 { get; set; } = true;
     public bool LocalShaderCacheEnabled { get; set; } = true;
     public bool ShaderCacheEnabled { get; set; } = true;

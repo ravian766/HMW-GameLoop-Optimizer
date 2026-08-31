@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="720" d:DesignWidth="940">
+             d:DesignHeight="780" d:DesignWidth="1020">
     <Grid Margin="28,24,28,28">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -20,7 +20,12 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Optimization &amp; Telemetry Event Log" FontSize="19" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,4" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <TextBlock Text="Optimization &amp; Telemetry Event Log" FontSize="19" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentCyan}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                            <TextBlock Text="AUDIT LOG" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                        </Border>
+                    </StackPanel>
                     <TextBlock Text="Live auditable log of all system queries, registry updates, and rollback actions." FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" />
                 </StackPanel>
 
@@ -31,29 +36,33 @@
                              Background="{DynamicResource BrushBgInput}"
                              Foreground="{DynamicResource BrushTextPrimary}"
                              BorderBrush="{DynamicResource BrushBorderLight}"
-                             Margin="0,0,10,0" />
+                             FontSize="11.5"
+                             Margin="0,0,10,0"
+                             ToolTip="Filter log events by keyword or component" />
 
                     <Button Content="📋 Copy Logs"
                             Command="{Binding CopyLogsCommand}"
                             Style="{StaticResource SecondaryButton}"
                             Padding="14,8"
+                            FontSize="11.5"
                             Margin="0,0,8,0" />
 
                     <Button Content="🗑️ Clear"
                             Command="{Binding ClearLogsCommand}"
                             Style="{StaticResource DangerButton}"
-                            Padding="14,8" />
+                            Padding="14,8"
+                            FontSize="11.5" />
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Console View -->
+        <!-- Cyber Monospace Console View -->
         <Border Grid.Row="1" Background="{DynamicResource BrushBgDarkest}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="10" Padding="14">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                 <ItemsControl ItemsSource="{Binding FilteredLogs}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding Formatted}" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2" />
+                            <TextBlock Text="{Binding Formatted}" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2" />
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

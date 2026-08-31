@@ -91,7 +91,7 @@ public static class ResolutionKeymapService
     /// Parses GameLoop KeyMapping XML and calibrates all PUBG Mobile keybinding coordinates for the target resolution.
     /// Handles fragmented multi-root XML structures safely and updates only PUBG Mobile APK sections.
     /// </summary>
-    public static (string calibratedXml, int calibratedCount) CalibrateKeymapXml(string xmlContent, int targetWidth, int targetHeight)
+    public static (string calibratedXml, int calibratedCount) CalibrateKeymapXml(string xmlContent, int targetWidth, int targetHeight, int wasdSpeed = 100)
     {
         if (string.IsNullOrWhiteSpace(xmlContent)) return (xmlContent, 0);
 
@@ -143,6 +143,12 @@ public static class ResolutionKeymapService
                 return openTag + calibratedInner + closeTag;
             });
 
+            if (wasdSpeed > 0)
+            {
+                var (speedXml, _) = KeymapSpeedService.InjectWasdSpeed(result, wasdSpeed);
+                result = speedXml;
+            }
+
             return (result, count);
         }
         catch (Exception ex)
@@ -153,9 +159,9 @@ public static class ResolutionKeymapService
     }
 
     /// <summary>
-    /// Discovers all GameLoop keymap files, backs them up, injects calibrated coordinates from the stock 16:9 reference XML, and updates registry modes.
+    /// Discovers all GameLoop keymap files, backs them up, injects calibrated coordinates and WASD response speed from the stock 16:9 reference XML, and updates registry modes.
     /// </summary>
-    public static async Task<KeymapCalibrationResult> DeployResolutionKeymapAsync(int targetWidth, int targetHeight, GameLoopConfig config)
+    public static async Task<KeymapCalibrationResult> DeployResolutionKeymapAsync(int targetWidth, int targetHeight, GameLoopConfig config, int wasdSpeed = 100)
     {
         var result = new KeymapCalibrationResult
         {
@@ -184,8 +190,8 @@ public static class ResolutionKeymapService
                 return result;
             }
 
-            // 3. Calibrate fresh from the 16:9 stock base
-            var (calibratedXml, totalCalibrated) = CalibrateKeymapXml(stockXml, targetWidth, targetHeight);
+            // 3. Calibrate fresh from the 16:9 stock base with WASD response speed
+            var (calibratedXml, totalCalibrated) = CalibrateKeymapXml(stockXml, targetWidth, targetHeight, wasdSpeed);
 
             // 4. Discover all target keymap files and write the calibrated XML
             var targetFiles = GetKeymapFilePaths(config);

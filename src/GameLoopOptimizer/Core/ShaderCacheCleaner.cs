@@ -74,7 +74,7 @@ public static class ShaderCacheCleaner
                 }
             }
 
-            Logger.Success("ShaderCacheCleaner", $"Purged corrupted shader caches: {result.FilesDeleted} files removed ({result.MegabytesFreed} MB freed across {result.CleanedPaths.Count} directories).");
+            Logger.Success("ShaderCacheCleaner", $"Purged DirectX & OpenGL shader caches: {result.FilesDeleted} files removed ({result.MegabytesFreed} MB freed across {result.CleanedPaths.Count} directories).");
             return result;
         });
     }
