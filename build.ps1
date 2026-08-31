@@ -26,6 +26,10 @@ if ($RunTests) {
 if ($PublishSingleFile) {
     Write-Host "`n[3/3] Publishing application bundle..." -ForegroundColor Yellow
     $publishDir = "d:/SourceCode/Gameloop_Opt/publish"
+    
+    # Terminate any running GameLoopOptimizer process before publish
+    Get-Process -Name GameLoopOptimizer -ErrorAction SilentlyContinue | Stop-Process -Force
+
     dotnet publish src/GameLoopOptimizer/GameLoopOptimizer.csproj -c $Configuration -r win-x64 --self-contained false -o $publishDir
 
     Write-Host "`nBuild Completed Successfully!" -ForegroundColor Green

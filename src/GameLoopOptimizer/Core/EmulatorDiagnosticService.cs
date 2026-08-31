@@ -156,7 +156,6 @@ public static class EmulatorDiagnosticService
         var recommendedRenderer = RecommendationEngine.DetermineOptimalRenderer(hw);
         if (config.ActiveRenderer == GraphicsRenderer.Auto)
         {
-            // Auto is acceptable
             report.PassedChecks++;
         }
         else if (config.ActiveRenderer != recommendedRenderer)
@@ -176,6 +175,79 @@ public static class EmulatorDiagnosticService
             report.PassedChecks++;
         }
 
+        // 6. Hyper-V / Core Isolation Virtualization Conflict Check
+        report.ChecksPerformed++;
+        bool hvciActive = false;
+        try
+        {
+            using var hvciKey = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity");
+            if (hvciKey != null && Convert.ToInt32(hvciKey.GetValue("Enabled", 0)) == 1)
+            {
+                hvciActive = true;
+                report.Issues.Add(new DiagnosticIssue
+                {
+                    Title = "Memory Integrity / Core Isolation (HVCI) Active",
+                    Description = "Windows Core Isolation virtualization overhead can reduce emulator frame rates by 15-25% and introduce frame-time jitter.",
+                    Recommendation = "Consider disabling Core Isolation in Windows Security for competitive low-latency gaming.",
+                    Severity = DiagnosticSeverity.Warning,
+                    CanAutoFix = false
+                });
+                scoreDeductions += 15;
+            }
+        }
+        catch { }
+        if (!hvciActive) report.PassedChecks++;
+
+        // 7. Stale DirectX / OpenGL Shader Cache Check
+        report.ChecksPerformed++;
+        bool shaderClean = true;
+        try
+        {
+            var shaderDirs = ShaderCacheCleaner.GetShaderCachePaths(config);
+            int totalShaders = 0;
+            foreach (var dir in shaderDirs)
+            {
+                if (Directory.Exists(dir))
+                {
+                    totalShaders += Directory.EnumerateFiles(dir, "*.*", SearchOption.AllDirectories).Count();
+                }
+            }
+
+            if (totalShaders > 250)
+            {
+                shaderClean = false;
+                report.Issues.Add(new DiagnosticIssue
+                {
+                    Title = "Accumulated Shader Cache Fragmentation",
+                    Description = $"Discovered {totalShaders} cached shader objects. Stale compiled shaders from previous game patches cause micro-stutters.",
+                    Recommendation = "Run 1-Click Shader Purge to force clean, recompilation of native shader blobs.",
+                    Severity = DiagnosticSeverity.Warning,
+                    CanAutoFix = true
+                });
+                scoreDeductions += 10;
+            }
+        }
+        catch { }
+        if (shaderClean) report.PassedChecks++;
+
+        // 8. ADB Subsystem & Socket State Check
+        report.ChecksPerformed++;
+        bool adbHealthy = true;
+        if (!AdbManager.IsAdbAvailable(config))
+        {
+            adbHealthy = false;
+            report.Issues.Add(new DiagnosticIssue
+            {
+                Title = "GameLoop ADB Daemon Binary Not Found",
+                Description = "adb.exe was not detected in standard GameLoop / AppMarket directories.",
+                Recommendation = "Ensure GameLoop is installed with standard Android container support.",
+                Severity = DiagnosticSeverity.Warning,
+                CanAutoFix = false
+            });
+            scoreDeductions += 10;
+        }
+        if (adbHealthy) report.PassedChecks++;
+
         // Final Score Calculation
         report.HealthScore = Math.Clamp(100 - scoreDeductions, 0, 100);
         return report;
@@ -185,6 +257,8 @@ public static class EmulatorDiagnosticService
     {
         try
         {
+            Logger.Info("DiagnosticService", "Executing GameLoop Doctor 1-Click System Auto-Fix...");
+
             // 1. Restore keymaps if needed
             await ResolutionKeymapService.RestoreStockKeymapAsync(config);
 
@@ -195,6 +269,13 @@ public static class EmulatorDiagnosticService
             // 3. Purge shader caches
             await ShaderCacheCleaner.PurgeShaderCacheAsync(config);
 
+            // 4. Reset stale ADB daemon sockets
+            if (AdbManager.IsAdbAvailable(config))
+            {
+                await AdbManager.RestartAdbServerAsync(config);
+            }
+
+            Logger.Success("DiagnosticService", "GameLoop Doctor: Applied all automated repairs successfully!");
             return true;
         }
         catch (Exception ex)

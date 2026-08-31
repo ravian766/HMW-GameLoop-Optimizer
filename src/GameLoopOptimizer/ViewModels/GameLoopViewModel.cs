@@ -11,9 +11,15 @@ public class GameLoopViewModel : ViewModelBase
 {
     private readonly Func<HardwareInfo> _getHw;
     private readonly Func<GameLoopConfig> _getGl;
+    private readonly IEventAggregator _eventAggregator;
 
     public HardwareInfo Hardware => _getHw();
     public GameLoopConfig Config => _getGl();
+
+    // Sub-ViewModels (Decomposed Subsystems)
+    public AdbStudioViewModel AdbStudio { get; }
+    public ActiveSavViewModel ActiveSav { get; }
+    public AimSensitivityViewModel AimSens { get; }
 
     private HardwareRecommendations _recommendations = new();
     public HardwareRecommendations Recommendations
@@ -49,7 +55,7 @@ public class GameLoopViewModel : ViewModelBase
         }
     }
 
-    // Editable properties
+    // Editable engine properties
     private int _cpuCores = 4;
     public int CpuCores
     {
@@ -143,119 +149,160 @@ public class GameLoopViewModel : ViewModelBase
     };
 
     public string CurrentGraphicsAndScaleDisplay => $"{CurrentContentScaleDisplayName} • {CurrentGraphicsDisplayName}";
-
     public string CurrentEngineAndResDisplay => $"{CpuCores}C/{RamMb / 1024.0:F0}GB • {ResWidth}x{ResHeight}";
 
-    // Active.sav UE4 In-Game Engine Optimization Properties
-    public ObservableCollection<ActiveSavProfile> ActiveSavPresets { get; } = new(ActiveSavProfile.BuiltInPresets);
-
-    private ActiveSavProfile _selectedActiveSavPreset = ActiveSavProfile.BuiltInPresets.First();
+    // Delegated Active.sav Properties (for backward-compatible XAML binding)
+    public ObservableCollection<ActiveSavProfile> ActiveSavPresets => ActiveSav.ActiveSavPresets;
     public ActiveSavProfile SelectedActiveSavPreset
     {
-        get => _selectedActiveSavPreset;
-        set
-        {
-            if (SetProperty(ref _selectedActiveSavPreset, value))
-            {
-                if (!value.IsCustom)
-                {
-                    _activeSavFpsLevel = value.FpsLevel;
-                    _activeSavBattleQuality = value.BattleQuality;
-                    _activeSavLobbyFpsLevel = value.LobbyFpsLevel;
-                    _activeSavLobbyQuality = value.LobbyQuality;
-                    _activeSavStyle = value.Style;
-                    _activeSavGraphicFavor = value.GraphicFavor;
-                    OnPropertyChanged(nameof(ActiveSavFpsLevel));
-                    OnPropertyChanged(nameof(ActiveSavBattleQuality));
-                    OnPropertyChanged(nameof(ActiveSavLobbyFpsLevel));
-                    OnPropertyChanged(nameof(ActiveSavLobbyQuality));
-                    OnPropertyChanged(nameof(ActiveSavStyle));
-                    OnPropertyChanged(nameof(ActiveSavGraphicFavor));
-                }
-                OnPropertyChanged(nameof(IsCustomActiveSav));
-            }
-        }
+        get => ActiveSav.SelectedActiveSavPreset;
+        set => ActiveSav.SelectedActiveSavPreset = value;
     }
-
-    private int _activeSavFpsLevel = 7;
     public int ActiveSavFpsLevel
     {
-        get => _activeSavFpsLevel;
-        set
-        {
-            if (SetProperty(ref _activeSavFpsLevel, value))
-            {
-                OnPropertyChanged(nameof(ActiveSavFpsLabel));
-            }
-        }
+        get => ActiveSav.ActiveSavFpsLevel;
+        set => ActiveSav.ActiveSavFpsLevel = value;
     }
-
-    private int _activeSavBattleQuality = 1;
     public int ActiveSavBattleQuality
     {
-        get => _activeSavBattleQuality;
-        set
-        {
-            if (SetProperty(ref _activeSavBattleQuality, value))
-            {
-                OnPropertyChanged(nameof(ActiveSavQualityLabel));
-            }
-        }
+        get => ActiveSav.ActiveSavBattleQuality;
+        set => ActiveSav.ActiveSavBattleQuality = value;
     }
-
-    private int _activeSavLobbyFpsLevel = 7;
     public int ActiveSavLobbyFpsLevel
     {
-        get => _activeSavLobbyFpsLevel;
-        set => SetProperty(ref _activeSavLobbyFpsLevel, value);
+        get => ActiveSav.ActiveSavLobbyFpsLevel;
+        set => ActiveSav.ActiveSavLobbyFpsLevel = value;
     }
-
-    private int _activeSavLobbyQuality = 1;
     public int ActiveSavLobbyQuality
     {
-        get => _activeSavLobbyQuality;
-        set => SetProperty(ref _activeSavLobbyQuality, value);
+        get => ActiveSav.ActiveSavLobbyQuality;
+        set => ActiveSav.ActiveSavLobbyQuality = value;
     }
-
-    private int _activeSavStyle = 1;
     public int ActiveSavStyle
     {
-        get => _activeSavStyle;
-        set
-        {
-            if (SetProperty(ref _activeSavStyle, value))
-            {
-                OnPropertyChanged(nameof(ActiveSavStyleLabel));
-            }
-        }
+        get => ActiveSav.ActiveSavStyle;
+        set => ActiveSav.ActiveSavStyle = value;
     }
-
-    private int _activeSavGraphicFavor = 4;
     public int ActiveSavGraphicFavor
     {
-        get => _activeSavGraphicFavor;
-        set => SetProperty(ref _activeSavGraphicFavor, value);
+        get => ActiveSav.ActiveSavGraphicFavor;
+        set => ActiveSav.ActiveSavGraphicFavor = value;
     }
-
-    public bool IsCustomActiveSav => SelectedActiveSavPreset?.IsCustom == true;
-    public string ActiveSavFpsLabel => ActiveSavProfile.GetFpsLabel(ActiveSavFpsLevel);
-    public string ActiveSavQualityLabel => ActiveSavProfile.GetQualityLabel(ActiveSavBattleQuality);
-    public string ActiveSavStyleLabel => ActiveSavProfile.GetStyleLabel(ActiveSavStyle);
-
-    private string _activeSavStatusMessage = "Ready to sync UE4 in-game configuration";
+    public bool IsCustomActiveSav => ActiveSav.IsCustomActiveSav;
+    public string ActiveSavFpsLabel => ActiveSav.ActiveSavFpsLabel;
+    public string ActiveSavQualityLabel => ActiveSav.ActiveSavQualityLabel;
+    public string ActiveSavStyleLabel => ActiveSav.ActiveSavStyleLabel;
     public string ActiveSavStatusMessage
     {
-        get => _activeSavStatusMessage;
-        set => SetProperty(ref _activeSavStatusMessage, value);
+        get => ActiveSav.ActiveSavStatusMessage;
+        set => ActiveSav.ActiveSavStatusMessage = value;
     }
-
-    private bool _isSyncingActiveSav = false;
     public bool IsSyncingActiveSav
     {
-        get => _isSyncingActiveSav;
-        set => SetProperty(ref _isSyncingActiveSav, value);
+        get => ActiveSav.IsSyncingActiveSav;
+        set => ActiveSav.IsSyncingActiveSav = value;
     }
 
+    // Delegated ADB Subsystem Properties (for backward-compatible XAML binding)
+    public bool IsAdbAvailable => AdbStudio.IsAdbAvailable;
+    public bool IsAdbConnected => AdbStudio.IsAdbConnected;
+    public string AdbDeviceName => AdbStudio.AdbDeviceName;
+    public string AdbStatusText => AdbStudio.AdbStatusText;
+    public bool IsAdbBusy => AdbStudio.IsAdbBusy;
+    public bool AdbZeroAnimations
+    {
+        get => AdbStudio.AdbZeroAnimations;
+        set => AdbStudio.AdbZeroAnimations = value;
+    }
+    public bool AdbGpuAcceleration
+    {
+        get => AdbStudio.AdbGpuAcceleration;
+        set => AdbStudio.AdbGpuAcceleration = value;
+    }
+    public bool AdbDalvikHeapBoost
+    {
+        get => AdbStudio.AdbDalvikHeapBoost;
+        set => AdbStudio.AdbDalvikHeapBoost = value;
+    }
+    public bool AdbSuppressLogging
+    {
+        get => AdbStudio.AdbSuppressLogging;
+        set => AdbStudio.AdbSuppressLogging = value;
+    }
+    public bool AdbDisableDoze
+    {
+        get => AdbStudio.AdbDisableDoze;
+        set => AdbStudio.AdbDisableDoze = value;
+    }
+    public bool AdbInputPolling
+    {
+        get => AdbStudio.AdbInputPolling;
+        set => AdbStudio.AdbInputPolling = value;
+    }
+    public bool Adb120FpsUnlock
+    {
+        get => AdbStudio.Adb120FpsUnlock;
+        set => AdbStudio.Adb120FpsUnlock = value;
+    }
+    public bool AdbInVmDnsSync
+    {
+        get => AdbStudio.AdbInVmDnsSync;
+        set => AdbStudio.AdbInVmDnsSync = value;
+    }
+    public bool AdbAudioLatencyReduction
+    {
+        get => AdbStudio.AdbAudioLatencyReduction;
+        set => AdbStudio.AdbAudioLatencyReduction = value;
+    }
+    public bool IsPointerLocationEnabled
+    {
+        get => AdbStudio.IsPointerLocationEnabled;
+        set => AdbStudio.IsPointerLocationEnabled = value;
+    }
+    public string CustomAdbPortText
+    {
+        get => AdbStudio.CustomAdbPortText;
+        set => AdbStudio.CustomAdbPortText = value;
+    }
+    public bool IsInstallingApk => AdbStudio.IsInstallingApk;
+    public ObservableCollection<GamePackageInfo> InstalledGamePackages => AdbStudio.InstalledGamePackages;
+    public GamePackageInfo? SelectedGamePackage
+    {
+        get => AdbStudio.SelectedGamePackage;
+        set => AdbStudio.SelectedGamePackage = value;
+    }
+    public AdbTelemetrySnapshot AdbTelemetry => AdbStudio.AdbTelemetry;
+    public string InteractiveAdbCommand
+    {
+        get => AdbStudio.InteractiveAdbCommand;
+        set => AdbStudio.InteractiveAdbCommand = value;
+    }
+    public string InteractiveAdbOutput
+    {
+        get => AdbStudio.InteractiveAdbOutput;
+        set => AdbStudio.InteractiveAdbOutput = value;
+    }
+    public bool IsAdbCompiling => AdbStudio.IsAdbCompiling;
+    public string AdbCompilationStatus => AdbStudio.AdbCompilationStatus;
+
+    // Delegated Aim & Sensitivity Properties (for backward-compatible XAML binding)
+    public int SelectedMouseDpi
+    {
+        get => AimSens.SelectedMouseDpi;
+        set => AimSens.SelectedMouseDpi = value;
+    }
+    public ObservableCollection<int> DpiOptions => AimSens.DpiOptions;
+    public AimPlaystyle SelectedPlaystyle
+    {
+        get => AimSens.SelectedPlaystyle;
+        set => AimSens.SelectedPlaystyle = value;
+    }
+    public ObservableCollection<AimPlaystyle> PlaystyleOptions => AimSens.PlaystyleOptions;
+    public SensitivityProfileResult SensitivityResult => AimSens.SensitivityResult;
+    public MouseBenchmarkMetrics MouseMetrics => AimSens.MouseMetrics;
+    public bool IsBenchmarkingMouse => AimSens.IsBenchmarkingMouse;
+
+    // Resolution & Stretched Display Properties
     private string _selectedResolutionString = "1920x1080";
     public string SelectedResolutionString
     {
@@ -278,7 +325,7 @@ public class GameLoopViewModel : ViewModelBase
             if (SetProperty(ref _resWidth, value))
             {
                 OnPropertyChanged(nameof(AspectRatioDescription));
-                RecalculateSensitivity();
+                AimSens.RecalculateSensitivity();
             }
         }
     }
@@ -292,7 +339,7 @@ public class GameLoopViewModel : ViewModelBase
             if (SetProperty(ref _resHeight, value))
             {
                 OnPropertyChanged(nameof(AspectRatioDescription));
-                RecalculateSensitivity();
+                AimSens.RecalculateSensitivity();
             }
         }
     }
@@ -331,176 +378,6 @@ public class GameLoopViewModel : ViewModelBase
     {
         get => _isBenchmarkingPing;
         set => SetProperty(ref _isBenchmarkingPing, value);
-    }
-
-    // ADB Subsystem Properties
-    private bool _isAdbAvailable;
-    public bool IsAdbAvailable
-    {
-        get => _isAdbAvailable;
-        set => SetProperty(ref _isAdbAvailable, value);
-    }
-
-    private bool _isAdbConnected;
-    public bool IsAdbConnected
-    {
-        get => _isAdbConnected;
-        set => SetProperty(ref _isAdbConnected, value);
-    }
-
-    private string _adbDeviceName = "Not Connected";
-    public string AdbDeviceName
-    {
-        get => _adbDeviceName;
-        set => SetProperty(ref _adbDeviceName, value);
-    }
-
-    private string _adbStatusText = "Checking ADB Status...";
-    public string AdbStatusText
-    {
-        get => _adbStatusText;
-        set => SetProperty(ref _adbStatusText, value);
-    }
-
-    private bool _isAdbBusy;
-    public bool IsAdbBusy
-    {
-        get => _isAdbBusy;
-        set => SetProperty(ref _isAdbBusy, value);
-    }
-
-    private bool _adbZeroAnimations = true;
-    public bool AdbZeroAnimations
-    {
-        get => _adbZeroAnimations;
-        set => SetProperty(ref _adbZeroAnimations, value);
-    }
-
-    private bool _adbGpuAcceleration = true;
-    public bool AdbGpuAcceleration
-    {
-        get => _adbGpuAcceleration;
-        set => SetProperty(ref _adbGpuAcceleration, value);
-    }
-
-    private bool _adbDalvikHeapBoost = true;
-    public bool AdbDalvikHeapBoost
-    {
-        get => _adbDalvikHeapBoost;
-        set => SetProperty(ref _adbDalvikHeapBoost, value);
-    }
-
-    private bool _adbSuppressLogging = true;
-    public bool AdbSuppressLogging
-    {
-        get => _adbSuppressLogging;
-        set => SetProperty(ref _adbSuppressLogging, value);
-    }
-
-    private bool _adbDisableDoze = true;
-    public bool AdbDisableDoze
-    {
-        get => _adbDisableDoze;
-        set => SetProperty(ref _adbDisableDoze, value);
-    }
-
-    private bool _adbInputPolling = true;
-    public bool AdbInputPolling
-    {
-        get => _adbInputPolling;
-        set => SetProperty(ref _adbInputPolling, value);
-    }
-
-    private bool _adb120FpsUnlock = true;
-    public bool Adb120FpsUnlock
-    {
-        get => _adb120FpsUnlock;
-        set => SetProperty(ref _adb120FpsUnlock, value);
-    }
-
-    private bool _adbInVmDnsSync = true;
-    public bool AdbInVmDnsSync
-    {
-        get => _adbInVmDnsSync;
-        set => SetProperty(ref _adbInVmDnsSync, value);
-    }
-
-    private bool _adbAudioLatencyReduction = true;
-    public bool AdbAudioLatencyReduction
-    {
-        get => _adbAudioLatencyReduction;
-        set => SetProperty(ref _adbAudioLatencyReduction, value);
-    }
-
-    private bool _isPointerLocationEnabled;
-    public bool IsPointerLocationEnabled
-    {
-        get => _isPointerLocationEnabled;
-        set => SetProperty(ref _isPointerLocationEnabled, value);
-    }
-
-    private string _customAdbPortText = "127.0.0.1:5555";
-    public string CustomAdbPortText
-    {
-        get => _customAdbPortText;
-        set => SetProperty(ref _customAdbPortText, value);
-    }
-
-    private bool _isInstallingApk;
-    public bool IsInstallingApk
-    {
-        get => _isInstallingApk;
-        set => SetProperty(ref _isInstallingApk, value);
-    }
-
-    public ObservableCollection<GamePackageInfo> InstalledGamePackages { get; } = new();
-
-    private GamePackageInfo? _selectedGamePackage;
-    public GamePackageInfo? SelectedGamePackage
-    {
-        get => _selectedGamePackage;
-        set
-        {
-            if (SetProperty(ref _selectedGamePackage, value))
-            {
-                _ = Task.Run(async () => await RefreshTelemetryAsync());
-            }
-        }
-    }
-
-    private AdbTelemetrySnapshot _adbTelemetry = new();
-    public AdbTelemetrySnapshot AdbTelemetry
-    {
-        get => _adbTelemetry;
-        set => SetProperty(ref _adbTelemetry, value);
-    }
-
-    private string _interactiveAdbCommand = string.Empty;
-    public string InteractiveAdbCommand
-    {
-        get => _interactiveAdbCommand;
-        set => SetProperty(ref _interactiveAdbCommand, value);
-    }
-
-    private string _interactiveAdbOutput = "ADB Shell Console Ready. Type a command (e.g., 'getprop ro.product.model' or 'pm list packages') and click Execute.\n";
-    public string InteractiveAdbOutput
-    {
-        get => _interactiveAdbOutput;
-        set => SetProperty(ref _interactiveAdbOutput, value);
-    }
-
-    private bool _isAdbCompiling;
-    public bool IsAdbCompiling
-    {
-        get => _isAdbCompiling;
-        set => SetProperty(ref _isAdbCompiling, value);
-    }
-
-    private string _adbCompilationStatus = "Ready to compile DEX bytecode to native AOT.";
-    public string AdbCompilationStatus
-    {
-        get => _adbCompilationStatus;
-        set => SetProperty(ref _adbCompilationStatus, value);
     }
 
     private bool _autoInjectKeymapWithResolution = true;
@@ -546,6 +423,7 @@ public class GameLoopViewModel : ViewModelBase
         set => SetProperty(ref _isKeymapCalibrating, value);
     }
 
+    // Commands
     public ICommand ApplySettingsCommand { get; }
     public ICommand ApplyRecommendedCommand { get; }
     public ICommand LaunchGameLoopCommand { get; }
@@ -556,21 +434,25 @@ public class GameLoopViewModel : ViewModelBase
     public ICommand RestoreKeymapCommand { get; }
     public ICommand BenchmarkPingCommand { get; }
     public ICommand FlushDnsCommand { get; }
-    public ICommand ConnectAdbCommand { get; }
-    public ICommand ConnectCustomPortCommand { get; }
-    public ICommand ApplyAllAdbOptimizationsCommand { get; }
-    public ICommand TrimInVmCacheCommand { get; }
-    public ICommand RestartAdbServerCommand { get; }
-    public ICommand CompileGameDexCommand { get; }
-    public ICommand LaunchGameCommand { get; }
-    public ICommand ForceStopGameCommand { get; }
-    public ICommand ClearGameDataCommand { get; }
-    public ICommand InstallApkCommand { get; }
-    public ICommand TogglePointerLocationCommand { get; }
-    public ICommand CaptureInVmScreenshotCommand { get; }
-    public ICommand ExecuteCustomAdbShellCommand { get; }
-    public ICommand ClearConsoleOutputCommand { get; }
-    public ICommand RefreshTelemetryCommand { get; }
+
+    // Delegated Commands to Sub-ViewModels
+    public ICommand ConnectAdbCommand => AdbStudio.ConnectAdbCommand;
+    public ICommand ConnectCustomPortCommand => AdbStudio.ConnectCustomPortCommand;
+    public ICommand ApplyAllAdbOptimizationsCommand => AdbStudio.ApplyAllAdbOptimizationsCommand;
+    public ICommand RestoreStockVmSettingsCommand => AdbStudio.RestoreStockVmSettingsCommand;
+    public ICommand TrimInVmCacheCommand => AdbStudio.TrimInVmCacheCommand;
+    public ICommand RestartAdbServerCommand => AdbStudio.RestartAdbServerCommand;
+    public ICommand CompileGameDexCommand => AdbStudio.CompileGameDexCommand;
+    public ICommand LaunchGameCommand => AdbStudio.LaunchGameCommand;
+    public ICommand ForceStopGameCommand => AdbStudio.ForceStopGameCommand;
+    public ICommand ClearGameDataCommand => AdbStudio.ClearGameDataCommand;
+    public ICommand InstallApkCommand => AdbStudio.InstallApkCommand;
+    public ICommand TogglePointerLocationCommand => AdbStudio.TogglePointerLocationCommand;
+    public ICommand CaptureInVmScreenshotCommand => AdbStudio.CaptureInVmScreenshotCommand;
+    public ICommand ExecuteCustomAdbShellCommand => AdbStudio.ExecuteCustomAdbShellCommand;
+    public ICommand ClearConsoleOutputCommand => AdbStudio.ClearConsoleOutputCommand;
+    public ICommand RefreshTelemetryCommand => AdbStudio.RefreshTelemetryCommand;
+
     public ICommand SetInVmResolutionCommand { get; }
     public ICommand ResetInVmResolutionCommand { get; }
     public ICommand SelectStretchedPresetCommand { get; }
@@ -578,35 +460,42 @@ public class GameLoopViewModel : ViewModelBase
     public ICommand CalibrateAndInjectKeymapCommand { get; }
     public ICommand RestoreStockKeymapCommand { get; }
     public ICommand ApplyWasdSpeedCommand { get; }
-    public ICommand SyncActiveSavCommand { get; }
-    public ICommand PullActiveSavCommand { get; }
-    public ICommand RestoreActiveSavCommand { get; }
-    public ICommand SelectActiveSavPresetCommand { get; }
+
+    public ICommand SyncActiveSavCommand => ActiveSav.SyncActiveSavCommand;
+    public ICommand PullActiveSavCommand => ActiveSav.PullActiveSavCommand;
+    public ICommand RestoreActiveSavCommand => ActiveSav.RestoreActiveSavCommand;
+    public ICommand SelectActiveSavPresetCommand => ActiveSav.SelectActiveSavPresetCommand;
+
+    public ICommand RecalculateSensitivityCommand => AimSens.RecalculateSensitivityCommand;
+    public ICommand StartMouseBenchmarkCommand => AimSens.StartMouseBenchmarkCommand;
+    public ICommand StopMouseBenchmarkCommand => AimSens.StopMouseBenchmarkCommand;
 
     public event EventHandler? SettingsSaved;
 
-    public GameLoopViewModel(Func<HardwareInfo> getHw, Func<GameLoopConfig> getGl)
+    public GameLoopViewModel(Func<HardwareInfo> getHw, Func<GameLoopConfig> getGl, IEventAggregator? eventAggregator = null)
     {
         _getHw = getHw;
         _getGl = getGl;
+        _eventAggregator = eventAggregator ?? EventAggregator.Default;
         _selectedDeviceProfile = DeviceProfiles.First();
 
+        // Initialize sub-viewmodels
+        AdbStudio = new AdbStudioViewModel(getGl, _eventAggregator);
+        ActiveSav = new ActiveSavViewModel(getGl, () => SelectedDeviceProfile, _eventAggregator);
+        AimSens = new AimSensitivityViewModel(() => ResHeight, _eventAggregator);
+
+        // Forward child ViewModel PropertyChanged notifications
+        AdbStudio.PropertyChanged += (s, e) => OnPropertyChanged(e.PropertyName);
+        ActiveSav.PropertyChanged += (s, e) => OnPropertyChanged(e.PropertyName);
+        AimSens.PropertyChanged += (s, e) => OnPropertyChanged(e.PropertyName);
+
+        _eventAggregator.Subscribe<StatusNotificationMessage>(msg => StatusMessage = msg.Message);
         KeymapBackupManager.ProfilesChanged += (s, e) => RefreshKeymaps();
 
         ApplyWasdSpeedCommand = new AsyncRelayCommand(ApplyWasdSpeedAsync);
-        SyncActiveSavCommand = new AsyncRelayCommand(SyncActiveSavAsync);
-        PullActiveSavCommand = new AsyncRelayCommand(PullActiveSavAsync);
-        RestoreActiveSavCommand = new AsyncRelayCommand(RestoreActiveSavAsync);
-        SelectActiveSavPresetCommand = new RelayCommand(p =>
-        {
-            if (p is ActiveSavProfile prof)
-            {
-                SelectedActiveSavPreset = prof;
-            }
-        });
-
         ApplySettingsCommand = new AsyncRelayCommand(SaveCustomSettingsAsync);
         ApplyRecommendedCommand = new AsyncRelayCommand(ApplyRecommendedSettingsAsync);
+
         LaunchGameLoopCommand = new RelayCommand(() => ProcessManager.FocusOrLaunchGameLoop(Config));
         RestartGameLoopCommand = new AsyncRelayCommand(async () =>
         {
@@ -686,307 +575,35 @@ public class GameLoopViewModel : ViewModelBase
             StatusMessage = ok ? "DNS Resolver cache flushed successfully." : "Failed to flush DNS cache.";
         });
 
-        RecalculateSensitivityCommand = new RelayCommand(() => RecalculateSensitivity());
-
-        StartMouseBenchmarkCommand = new RelayCommand(() =>
-        {
-            IsBenchmarkingMouse = true;
-            _mouseBenchmark.Start();
-            MouseMetrics = _mouseBenchmark.GetCurrentMetrics();
-            StatusMessage = "Mouse Polling Benchmark active. Move your cursor inside the test canvas.";
-        });
-
-        StopMouseBenchmarkCommand = new RelayCommand(() =>
-        {
-            _mouseBenchmark.Stop();
-            IsBenchmarkingMouse = false;
-            MouseMetrics = _mouseBenchmark.GetCurrentMetrics();
-            StatusMessage = "Mouse Polling Benchmark stopped.";
-        });
-
-        ConnectAdbCommand = new AsyncRelayCommand(async () =>
-        {
-            IsAdbBusy = true;
-            AdbStatusText = "Connecting to GameLoop Android VM via ADB...";
-            try
-            {
-                bool connected = await AdbManager.AutoConnectGameLoopAsync(Config);
-                await RefreshAdbStatusAsync();
-                StatusMessage = connected 
-                    ? $"ADB Connected successfully to {AdbDeviceName}!" 
-                    : "Failed to connect to GameLoop ADB. Ensure GameLoop is running.";
-            }
-            finally
-            {
-                IsAdbBusy = false;
-            }
-        });
-
-        ConnectCustomPortCommand = new AsyncRelayCommand(async () =>
-        {
-            if (string.IsNullOrWhiteSpace(CustomAdbPortText)) return;
-            IsAdbBusy = true;
-            StatusMessage = $"Connecting to ADB target {CustomAdbPortText}...";
-            try
-            {
-                bool connected = await AdbManager.ConnectCustomDeviceAsync(CustomAdbPortText, Config);
-                await RefreshAdbStatusAsync();
-                StatusMessage = connected 
-                    ? $"Connected to ADB target {CustomAdbPortText}!" 
-                    : $"Failed to connect to {CustomAdbPortText}.";
-            }
-            finally
-            {
-                IsAdbBusy = false;
-            }
-        });
-
-        LaunchGameCommand = new AsyncRelayCommand(async () =>
-        {
-            string targetPkg = SelectedGamePackage?.PackageName ?? "com.tencent.ig";
-            IsAdbBusy = true;
-            StatusMessage = $"Launching {SelectedGamePackage?.DisplayName ?? targetPkg} in Android VM...";
-            try
-            {
-                bool ok = await AdbManager.LaunchGamePackageAsync(targetPkg, Config);
-                StatusMessage = ok 
-                    ? $"Launched {SelectedGamePackage?.DisplayName ?? targetPkg} successfully!" 
-                    : $"Failed to launch {targetPkg}. Ensure GameLoop is running.";
-                await RefreshTelemetryAsync();
-            }
-            finally
-            {
-                IsAdbBusy = false;
-            }
-        });
-
-        ForceStopGameCommand = new AsyncRelayCommand(async () =>
-        {
-            string targetPkg = SelectedGamePackage?.PackageName ?? "com.tencent.ig";
-            IsAdbBusy = true;
-            StatusMessage = $"Force-stopping {SelectedGamePackage?.DisplayName ?? targetPkg}...";
-            try
-            {
-                bool ok = await AdbManager.ForceStopGamePackageAsync(targetPkg, Config);
-                StatusMessage = ok 
-                    ? $"Terminated {SelectedGamePackage?.DisplayName ?? targetPkg} process in VM." 
-                    : $"Failed to stop {targetPkg}.";
-                await RefreshTelemetryAsync();
-            }
-            finally
-            {
-                IsAdbBusy = false;
-            }
-        });
-
-        ClearGameDataCommand = new AsyncRelayCommand(async () =>
-        {
-            string targetPkg = SelectedGamePackage?.PackageName ?? "com.tencent.ig";
-            IsAdbBusy = true;
-            StatusMessage = $"Clearing app data for {SelectedGamePackage?.DisplayName ?? targetPkg}...";
-            try
-            {
-                bool ok = await AdbManager.ClearGameDataAsync(targetPkg, Config);
-                StatusMessage = ok 
-                    ? $"Cleared app data for {SelectedGamePackage?.DisplayName ?? targetPkg}!" 
-                    : $"Failed to clear app data for {targetPkg}.";
-                await RefreshTelemetryAsync();
-            }
-            finally
-            {
-                IsAdbBusy = false;
-            }
-        });
-
-        InstallApkCommand = new AsyncRelayCommand(async () =>
-        {
-            var dialog = new OpenFileDialog
-            {
-                Title = "Select Android Application Package (APK)",
-                Filter = "Android Package (*.apk)|*.apk|All Files (*.*)|*.*",
-                Multiselect = false
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                string apkPath = dialog.FileName;
-                IsInstallingApk = true;
-                IsAdbBusy = true;
-                StatusMessage = $"Sideloading {Path.GetFileName(apkPath)} into GameLoop VM...";
-                try
-                {
-                    string res = await AdbManager.InstallApkAsync(apkPath, Config);
-                    StatusMessage = res;
-                    await RefreshAdbStatusAsync();
-                }
-                finally
-                {
-                    IsInstallingApk = false;
-                    IsAdbBusy = false;
-                }
-            }
-        });
-
-        TogglePointerLocationCommand = new AsyncRelayCommand(async () =>
-        {
-            IsPointerLocationEnabled = !IsPointerLocationEnabled;
-            IsAdbBusy = true;
-            StatusMessage = IsPointerLocationEnabled 
-                ? "Enabled on-screen touch coordinate crosshairs & pointer overlay." 
-                : "Disabled touch coordinate crosshairs overlay.";
-            try
-            {
-                await AdbManager.SetPointerLocationOverlayAsync(IsPointerLocationEnabled, Config);
-            }
-            finally
-            {
-                IsAdbBusy = false;
-            }
-        });
-
-        ApplyAllAdbOptimizationsCommand = new AsyncRelayCommand(ApplyAllAdbOptimizationsAsync);
-
-        TrimInVmCacheCommand = new AsyncRelayCommand(async () =>
-        {
-            IsAdbBusy = true;
-            StatusMessage = "Trimming GameLoop Android VM application & shader caches...";
-            try
-            {
-                bool trimmed = await AdbManager.TrimAppCacheAsync(Config);
-                StatusMessage = trimmed 
-                    ? "In-VM app and shader caches trimmed successfully!" 
-                    : "Failed to trim Android VM caches. Ensure ADB is connected.";
-            }
-            finally
-            {
-                IsAdbBusy = false;
-            }
-        });
-
-        RestartAdbServerCommand = new AsyncRelayCommand(async () =>
-        {
-            IsAdbBusy = true;
-            StatusMessage = "Restarting ADB daemon service...";
-            try
-            {
-                bool ok = await AdbManager.RestartAdbServerAsync(Config);
-                await RefreshAdbStatusAsync();
-                StatusMessage = ok ? "ADB Server restarted and reconnected." : "ADB Server restarted (device not detected).";
-            }
-            finally
-            {
-                IsAdbBusy = false;
-            }
-        });
-
-        CompileGameDexCommand = new AsyncRelayCommand(async () =>
-        {
-            string targetPkg = SelectedGamePackage?.PackageName ?? "com.tencent.ig";
-            IsAdbCompiling = true;
-            AdbCompilationStatus = $"Compiling DEX bytecode to native machine code for {targetPkg}...";
-            StatusMessage = $"Pre-compiling {targetPkg} into AOT native code...";
-            try
-            {
-                string result = await AdbManager.CompilePackageSpeedAsync(targetPkg, Config);
-                AdbCompilationStatus = result;
-                StatusMessage = $"AOT Compilation Complete for {targetPkg}!";
-                await RefreshTelemetryAsync();
-            }
-            catch (Exception ex)
-            {
-                AdbCompilationStatus = $"Error: {ex.Message}";
-                StatusMessage = $"AOT compilation failed: {ex.Message}";
-            }
-            finally
-            {
-                IsAdbCompiling = false;
-            }
-        });
-
-        CaptureInVmScreenshotCommand = new AsyncRelayCommand(async () =>
-        {
-            IsAdbBusy = true;
-            StatusMessage = "Capturing direct framebuffer screenshot from Android VM...";
-            try
-            {
-                string picFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
-                string shotDir = Path.Combine(picFolder, "GameLoop_Screenshots");
-                if (!Directory.Exists(shotDir)) Directory.CreateDirectory(shotDir);
-                string shotPath = Path.Combine(shotDir, $"GameLoop_{DateTime.Now:yyyyMMdd_HHmmss}.png");
-
-                bool ok = await AdbManager.CaptureScreenAsync(shotPath, Config);
-                if (ok)
-                {
-                    StatusMessage = $"Screenshot saved to: {shotPath}";
-                    Logger.Success("AdbStudio", $"Saved in-VM screenshot to {shotPath}");
-                }
-                else
-                {
-                    StatusMessage = "Failed to capture in-VM screenshot. Ensure ADB is connected.";
-                }
-            }
-            finally
-            {
-                IsAdbBusy = false;
-            }
-        });
-
-        ExecuteCustomAdbShellCommand = new AsyncRelayCommand(async () =>
-        {
-            if (string.IsNullOrWhiteSpace(InteractiveAdbCommand)) return;
-            string cmd = InteractiveAdbCommand.Trim();
-            InteractiveAdbOutput += $"\n> {cmd}\n";
-            InteractiveAdbCommand = string.Empty;
-            try
-            {
-                string outText = await AdbManager.ExecuteShellCommandAsync(cmd, null, 8000, Config);
-                InteractiveAdbOutput += outText + "\n";
-            }
-            catch (Exception ex)
-            {
-                InteractiveAdbOutput += $"[Error] {ex.Message}\n";
-            }
-        });
-
-        ClearConsoleOutputCommand = new RelayCommand(() =>
-        {
-            InteractiveAdbOutput = "ADB Shell Console Cleared.\n";
-        });
-
-        RefreshTelemetryCommand = new AsyncRelayCommand(async () =>
-        {
-            await RefreshTelemetryAsync();
-        });
-
         SetInVmResolutionCommand = new AsyncRelayCommand(async () =>
         {
-            IsAdbBusy = true;
+            AdbStudio.IsAdbBusy = true;
             StatusMessage = $"Overriding in-VM resolution to {ResWidth}x{ResHeight} @ {StretchedDpi} DPI...";
             try
             {
                 bool ok = await AdbManager.SetInVmResolutionAsync(ResWidth, ResHeight, StretchedDpi, Config);
                 StatusMessage = ok ? $"In-VM resolution scaled to {ResWidth}x{ResHeight}!" : "Failed to override in-VM resolution.";
-                await RefreshTelemetryAsync();
+                await AdbStudio.RefreshTelemetryAsync();
             }
             finally
             {
-                IsAdbBusy = false;
+                AdbStudio.IsAdbBusy = false;
             }
         });
 
         ResetInVmResolutionCommand = new AsyncRelayCommand(async () =>
         {
-            IsAdbBusy = true;
+            AdbStudio.IsAdbBusy = true;
             StatusMessage = "Resetting in-VM display viewport size...";
             try
             {
                 bool ok = await AdbManager.ResetInVmResolutionAsync(Config);
                 StatusMessage = ok ? "In-VM display viewport reset to default!" : "Failed to reset in-VM resolution.";
-                await RefreshTelemetryAsync();
+                await AdbStudio.RefreshTelemetryAsync();
             }
             finally
             {
-                IsAdbBusy = false;
+                AdbStudio.IsAdbBusy = false;
             }
         });
 
@@ -1020,9 +637,19 @@ public class GameLoopViewModel : ViewModelBase
 
         RefreshData();
         RefreshKeymaps();
-        RecalculateSensitivity();
-        Task.Run(async () => await RefreshAdbStatusAsync());
+        AimSens.RecalculateSensitivity();
+        Task.Run(async () => await AdbStudio.RefreshAdbStatusAsync());
     }
+
+    public void RecalculateSensitivity() => AimSens.RecalculateSensitivity();
+    public void RecordMouseSample() => AimSens.RecordMouseSample();
+    public Task RefreshAdbStatusAsync() => AdbStudio.RefreshAdbStatusAsync();
+    public Task RefreshTelemetryAsync() => AdbStudio.RefreshTelemetryAsync();
+    public Task ApplyAllAdbOptimizationsAsync() => AdbStudio.ApplyAllAdbOptimizationsAsync();
+    public Task RestoreStockVmSettingsAsync() => AdbStudio.RestoreStockVmSettingsAsync();
+    public Task SyncActiveSavAsync() => ActiveSav.SyncActiveSavAsync();
+    public Task PullActiveSavAsync() => ActiveSav.PullActiveSavAsync();
+    public Task RestoreActiveSavAsync() => ActiveSav.RestoreActiveSavAsync();
 
     public void RefreshKeymaps()
     {
@@ -1106,7 +733,6 @@ public class GameLoopViewModel : ViewModelBase
 
                 SaveSettingsToRegistry(gl);
 
-                // Synchronize device profile directly into running Android VM
                 if (SelectedDeviceProfile != null)
                 {
                     await AdbManager.SpoofDeviceProfileAsync(SelectedDeviceProfile, gl);
@@ -1131,11 +757,8 @@ public class GameLoopViewModel : ViewModelBase
             @"Software\Tencent\TxGameAssistant"
         };
 
-        // GameLoop Setting Center expects 90 as maximum registry flag (120 FPS is unlocked via Android SurfaceFlinger)
         int registryFps = FpsLevel >= 90 ? 90 : FpsLevel;
-        // GameLoop Setting Center ContentScale: 1 = 720P, 2 = 1080P, 3 = 2K
         int registryContentScale = PubgContentScale > 0 ? PubgContentScale : 2;
-        // GameLoop Setting Center RenderQuality: 0 = Auto, 1 = Smooth, 2 = Balanced, 3 = HD
         int registryRenderQuality = PubgRenderQuality;
 
         var profile = SelectedDeviceProfile ?? DeviceProfiles.First();
@@ -1161,7 +784,6 @@ public class GameLoopViewModel : ViewModelBase
                     key.SetValue("SetGraphicsCard", 1, RegistryValueKind.DWord);
                     key.SetValue("GraphicsCardEnabled", 1, RegistryValueKind.DWord);
 
-                    // PUBG Mobile (Global & Regional Editions)
                     key.SetValue("com.tencent.ig_FPSLevel", registryFps, RegistryValueKind.DWord);
                     key.SetValue("com.tencent.ig_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
                     key.SetValue("com.tencent.ig_ContentScale", registryContentScale, RegistryValueKind.DWord);
@@ -1217,8 +839,8 @@ public class GameLoopViewModel : ViewModelBase
         ForceDirectX = Recommendations.RecommendedForceDirectX;
         ShaderCacheEnabled = Recommendations.RecommendedShaderCache;
         FpsLevel = 120;
-        PubgRenderQuality = 1; // Smooth (流畅)
-        PubgContentScale = 2; // 1080P HD (高清)
+        PubgRenderQuality = 1;
+        PubgContentScale = 2;
         ResWidth = Recommendations.RecommendedResWidth;
         ResHeight = Recommendations.RecommendedResHeight;
         SelectedResolutionString = $"{ResWidth}x{ResHeight}";
@@ -1226,274 +848,6 @@ public class GameLoopViewModel : ViewModelBase
 
         await SaveCustomSettingsAsync();
         StatusMessage = "Applied hardware-recommended GameLoop/TGB settings. (Restart GameLoop if open)";
-    }
-
-    // Sensitivity & Recoil Calibration
-    private int _selectedMouseDpi = 800;
-    public int SelectedMouseDpi
-    {
-        get => _selectedMouseDpi;
-        set
-        {
-            if (SetProperty(ref _selectedMouseDpi, value))
-            {
-                RecalculateSensitivity();
-            }
-        }
-    }
-
-    public ObservableCollection<int> DpiOptions { get; } = new() { 400, 800, 1000, 1200, 1600, 2400, 3200 };
-
-    private AimPlaystyle _selectedPlaystyle = AimPlaystyle.BalancedCompetitive;
-    public AimPlaystyle SelectedPlaystyle
-    {
-        get => _selectedPlaystyle;
-        set
-        {
-            if (SetProperty(ref _selectedPlaystyle, value))
-            {
-                RecalculateSensitivity();
-            }
-        }
-    }
-
-    public ObservableCollection<AimPlaystyle> PlaystyleOptions { get; } = new()
-    {
-        AimPlaystyle.PrecisionLowSens,
-        AimPlaystyle.BalancedCompetitive,
-        AimPlaystyle.HighSensFastFlick
-    };
-
-    private SensitivityProfileResult _sensitivityResult = SensitivityCalculator.Calculate(800, AimPlaystyle.BalancedCompetitive);
-    public SensitivityProfileResult SensitivityResult
-    {
-        get => _sensitivityResult;
-        set => SetProperty(ref _sensitivityResult, value);
-    }
-
-    // Mouse Benchmark Tool
-    private readonly MouseBenchmarkService _mouseBenchmark = new();
-    private MouseBenchmarkMetrics _mouseMetrics = new();
-    public MouseBenchmarkMetrics MouseMetrics
-    {
-        get => _mouseMetrics;
-        set => SetProperty(ref _mouseMetrics, value);
-    }
-
-    private bool _isBenchmarkingMouse;
-    public bool IsBenchmarkingMouse
-    {
-        get => _isBenchmarkingMouse;
-        set => SetProperty(ref _isBenchmarkingMouse, value);
-    }
-
-    public ICommand RecalculateSensitivityCommand { get; }
-    public ICommand StartMouseBenchmarkCommand { get; }
-    public ICommand StopMouseBenchmarkCommand { get; }
-
-    public void RecalculateSensitivity()
-    {
-        SensitivityResult = SensitivityCalculator.Calculate(SelectedMouseDpi, SelectedPlaystyle, ResHeight);
-    }
-
-    public void RecordMouseSample()
-    {
-        if (IsBenchmarkingMouse)
-        {
-            MouseMetrics = _mouseBenchmark.RecordMovement();
-        }
-    }
-
-    private void InitAimAndBenchmarkCommands()
-    {
-        // Already initialized
-    }
-
-    public async Task RefreshAdbStatusAsync()
-    {
-        var gl = _getGl();
-        IsAdbAvailable = AdbManager.IsAdbAvailable(gl);
-
-        if (!IsAdbAvailable)
-        {
-            AdbStatusText = "ADB Binary Not Detected";
-            IsAdbConnected = false;
-            AdbDeviceName = "Not Installed";
-            return;
-        }
-
-        var devices = await AdbManager.GetConnectedDevicesAsync(gl);
-        var active = devices.FirstOrDefault(d => d.State.Equals("device", StringComparison.OrdinalIgnoreCase));
-
-        if (active != null)
-        {
-            IsAdbConnected = true;
-            AdbManager.ActiveDeviceSerial = active.Serial;
-            AdbDeviceName = active.Serial;
-            AdbStatusText = $"Connected ({active.Serial} - {active.Model})";
-        }
-        else
-        {
-            // Try auto-connecting to localhost ports
-            bool connected = await AdbManager.AutoConnectGameLoopAsync(gl);
-            if (connected)
-            {
-                IsAdbConnected = true;
-                AdbDeviceName = AdbManager.ActiveDeviceSerial ?? "127.0.0.1:5555";
-                AdbStatusText = $"Connected ({AdbDeviceName})";
-            }
-            else
-            {
-                IsAdbConnected = false;
-                AdbDeviceName = "Disconnected";
-                AdbStatusText = "GameLoop Android VM Offline / Disconnected";
-            }
-        }
-
-        if (IsAdbConnected)
-        {
-            var pkgs = await AdbManager.GetInstalledGamePackagesAsync(gl);
-            void UpdatePkgsAction()
-            {
-                InstalledGamePackages.Clear();
-                foreach (var p in pkgs) InstalledGamePackages.Add(p);
-                if (SelectedGamePackage == null || !InstalledGamePackages.Contains(SelectedGamePackage))
-                {
-                    SelectedGamePackage = InstalledGamePackages.FirstOrDefault(p => p.IsInstalled) ?? InstalledGamePackages.FirstOrDefault();
-                }
-            }
-
-            if (System.Windows.Application.Current?.Dispatcher != null && !System.Windows.Application.Current.Dispatcher.CheckAccess())
-            {
-                System.Windows.Application.Current.Dispatcher.Invoke(UpdatePkgsAction);
-            }
-            else
-            {
-                UpdatePkgsAction();
-            }
-
-            await RefreshTelemetryAsync();
-        }
-    }
-
-    public async Task RefreshTelemetryAsync()
-    {
-        if (!IsAdbConnected) return;
-        try
-        {
-            var gl = _getGl();
-            var snap = await AdbTelemetryService.FetchTelemetryAsync(SelectedGamePackage?.PackageName, gl);
-            AdbTelemetry = snap;
-        }
-        catch (Exception ex)
-        {
-            Logger.Warn("AdbTelemetry", $"Failed to fetch telemetry: {ex.Message}");
-        }
-    }
-
-    public async Task ApplyAllAdbOptimizationsAsync()
-    {
-        IsAdbBusy = true;
-        StatusMessage = "Applying Android VM In-Emulator Optimizations via ADB...";
-
-        try
-        {
-            var gl = _getGl();
-            if (!IsAdbConnected)
-            {
-                await AdbManager.AutoConnectGameLoopAsync(gl);
-                await RefreshAdbStatusAsync();
-            }
-
-            int count = 0;
-            string targetPkg = SelectedGamePackage?.PackageName ?? "com.tencent.ig";
-
-            if (AdbGpuAcceleration)
-            {
-                await AdbManager.SetPropAsync("debug.sf.hw", "1", gl);
-                await AdbManager.SetPropAsync("debug.egl.hw", "1", gl);
-                await AdbManager.SetPropAsync("debug.composition.type", "gpu", gl);
-                await AdbManager.SetPropAsync("debug.sf.latch_unsignaled", "1", gl);
-                await AdbManager.SetPropAsync("debug.sf.early_phase_offset_ns", "500000", gl);
-                await AdbManager.SetPropAsync("debug.sf.early_app_phase_offset_ns", "500000", gl);
-                count++;
-            }
-
-            if (AdbZeroAnimations)
-            {
-                await AdbManager.PutGlobalSettingAsync("window_animation_scale", "0", gl);
-                await AdbManager.PutGlobalSettingAsync("transition_animation_scale", "0", gl);
-                await AdbManager.PutGlobalSettingAsync("animator_duration_scale", "0", gl);
-                count++;
-            }
-
-            if (AdbInputPolling)
-            {
-                await AdbManager.SetPropAsync("windowsmgr.max_events_per_sec", "240", gl);
-                await AdbManager.SetPropAsync("persist.sys.scrollingcache", "3", gl);
-                await AdbManager.SetPropAsync("persist.vendor.touch.sensitivity", "10", gl);
-                count++;
-            }
-
-            if (Adb120FpsUnlock)
-            {
-                await AdbManager.SetPropAsync("debug.sf.fps", "120", gl);
-                await AdbManager.SetPropAsync("ro.surface_flinger.max_frame_rate", "120", gl);
-                await AdbManager.SetPropAsync("persist.vendor.dfps.level", "120", gl);
-                count++;
-            }
-
-            if (AdbDalvikHeapBoost)
-            {
-                await AdbManager.SetPropAsync("dalvik.vm.heapgrowthlimit", "512m", gl);
-                await AdbManager.SetPropAsync("dalvik.vm.heapsize", "1024m", gl);
-                await AdbManager.SetPropAsync("dalvik.vm.heaptargetutilization", "0.75", gl);
-                await AdbManager.SetPropAsync("dalvik.vm.dexopt-flags", "v=n,o=v", gl);
-                count++;
-            }
-
-            if (AdbSuppressLogging)
-            {
-                await AdbManager.SetPropAsync("log.tag", "ALL=SUPPRESS", gl);
-                await AdbManager.SetPropAsync("log.tag.stats_log", "OFF", gl);
-                count++;
-            }
-
-            if (AdbDisableDoze)
-            {
-                await AdbManager.PutGlobalSettingAsync("app_standby_enabled", "0", gl);
-                await AdbManager.PutGlobalSettingAsync("adaptive_battery_management_enabled", "0", gl);
-                await AdbManager.ExecuteShellCommandAsync($"cmd appops set {targetPkg} RUN_IN_BACKGROUND allow", null, 4000, gl);
-                count++;
-            }
-
-            if (AdbInVmDnsSync)
-            {
-                await AdbManager.SetInVmDnsAsync("1.1.1.1", "1.0.0.1", gl);
-                await AdbManager.OptimizeInVmTcpStackAsync(gl);
-                count++;
-            }
-
-            if (AdbAudioLatencyReduction)
-            {
-                await AdbManager.OptimizeInVmAudioLatencyAsync(gl);
-                count++;
-            }
-
-            await RefreshTelemetryAsync();
-
-            StatusMessage = $"Applied {count} Android VM optimizations via ADB successfully!";
-            Logger.Success("GameLoopViewModel", $"Applied {count} ADB in-VM optimization profiles for {targetPkg}.");
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Failed to apply ADB optimizations: {ex.Message}";
-            Logger.Error("GameLoopViewModel", $"ADB optimization failed: {ex.Message}");
-        }
-        finally
-        {
-            IsAdbBusy = false;
-        }
     }
 
     public static string CalculateAspectRatio(int width, int height)
@@ -1522,7 +876,6 @@ public class GameLoopViewModel : ViewModelBase
         {
             StatusMessage = $"Configuring {ResWidth}x{ResHeight} ({AspectRatioDescription})...";
 
-            // 1. Save to Registry
             await Task.Run(() =>
             {
                 var targetPaths = new[]
@@ -1559,7 +912,6 @@ public class GameLoopViewModel : ViewModelBase
                 }
             });
 
-            // 2. Synchronize Android VM via ADB if available
             var gl = _getGl();
             if (AdbManager.IsAdbAvailable(gl))
             {
@@ -1567,7 +919,6 @@ public class GameLoopViewModel : ViewModelBase
                 await AdbManager.ExecuteShellCommandAsync($"wm density {StretchedDpi}", null, 4000, gl);
             }
 
-            // 3. Auto-calibrate and deploy GameLoop keymap if enabled
             if (AutoInjectKeymapWithResolution)
             {
                 var kmRes = await ResolutionKeymapService.DeployResolutionKeymapAsync(ResWidth, ResHeight, gl);
@@ -1600,9 +951,13 @@ public class GameLoopViewModel : ViewModelBase
             StatusMessage = res.Message;
             if (res.Success)
             {
-                KeymapCalibrationStatus = $"Calibrated for {ResWidth}x{ResHeight} ({res.KeysCalibrated} keys aligned, WASD {WasdResponseSpeed}%)";
+                KeymapCalibrationStatus = $"Calibrated for {ResWidth}x{ResHeight} ({res.KeysCalibrated} keys across {res.FilesUpdated} files)";
                 RefreshKeymaps();
             }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Keymap calibration failed: {ex.Message}";
         }
         finally
         {
@@ -1613,7 +968,7 @@ public class GameLoopViewModel : ViewModelBase
     public async Task ApplyWasdSpeedAsync()
     {
         IsKeymapCalibrating = true;
-        StatusMessage = $"Injecting {WasdResponseSpeed}% WASD joystick response speed into GameLoop keymaps...";
+        StatusMessage = $"Applying {WasdResponseSpeed}% WASD response speed to keymap...";
         try
         {
             var gl = _getGl();
@@ -1621,9 +976,13 @@ public class GameLoopViewModel : ViewModelBase
             StatusMessage = res.Message;
             if (res.Success)
             {
-                KeymapCalibrationStatus = $"WASD Speed set to {WasdResponseSpeed}% across {res.FilesUpdated} files.";
+                KeymapCalibrationStatus = $"WASD responsiveness set to {WasdResponseSpeed}%.";
                 RefreshKeymaps();
             }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Failed to update WASD speed: {ex.Message}";
         }
         finally
         {
@@ -1649,93 +1008,6 @@ public class GameLoopViewModel : ViewModelBase
         finally
         {
             IsKeymapCalibrating = false;
-        }
-    }
-
-    public async Task SyncActiveSavAsync()
-    {
-        IsSyncingActiveSav = true;
-        ActiveSavStatusMessage = "Injecting UE4 in-game bytecode via ADB...";
-        try
-        {
-            var gl = _getGl();
-            var profileToApply = new ActiveSavProfile
-            {
-                Name = SelectedActiveSavPreset.IsCustom ? "Custom In-Game Configuration" : SelectedActiveSavPreset.Name,
-                FpsLevel = ActiveSavFpsLevel,
-                LobbyFpsLevel = ActiveSavLobbyFpsLevel,
-                BattleQuality = ActiveSavBattleQuality,
-                LobbyQuality = ActiveSavLobbyQuality,
-                Style = ActiveSavStyle,
-                GraphicFavor = ActiveSavGraphicFavor,
-                IsCustom = SelectedActiveSavPreset.IsCustom
-            };
-
-            var devProfile = SelectedDeviceProfile ?? DeviceProfiles.FirstOrDefault(p => p.MaxSupportedFps >= 120) ?? DeviceProfiles.First();
-
-            // Also synchronize GameLoop emulator registry keys so GameLoop launcher matches in-game save
-            PubgRenderQuality = ActiveSavBattleQuality;
-            SaveSettingsToRegistry(gl);
-
-            var res = await ActiveSavService.PushActiveSavProfileAsync(profileToApply, gl, devProfile);
-            ActiveSavStatusMessage = res.Message;
-            if (res.Success)
-            {
-                StatusMessage = $"Applied {profileToApply.Name} directly to In-Game Active.sav ({devProfile.DisplayName})!";
-            }
-        }
-        finally
-        {
-            IsSyncingActiveSav = false;
-        }
-    }
-
-    public async Task PullActiveSavAsync()
-    {
-        IsSyncingActiveSav = true;
-        ActiveSavStatusMessage = "Reading in-game Active.sav from VM...";
-        try
-        {
-            var gl = _getGl();
-            var res = await ActiveSavService.PullActiveSavAsync(gl);
-            ActiveSavStatusMessage = res.Message;
-            if (res.Success && res.CurrentProfile != null)
-            {
-                ActiveSavFpsLevel = res.CurrentProfile.FpsLevel;
-                ActiveSavBattleQuality = res.CurrentProfile.BattleQuality;
-                ActiveSavLobbyFpsLevel = res.CurrentProfile.LobbyFpsLevel;
-                ActiveSavLobbyQuality = res.CurrentProfile.LobbyQuality;
-                ActiveSavStyle = res.CurrentProfile.Style;
-                ActiveSavGraphicFavor = res.CurrentProfile.GraphicFavor <= 0 ? 4 : res.CurrentProfile.GraphicFavor;
-
-                // Match with built-in preset if exact match, or select Custom
-                var match = ActiveSavPresets.FirstOrDefault(p => !p.IsCustom && p.FpsLevel == res.CurrentProfile.FpsLevel && p.BattleQuality == res.CurrentProfile.BattleQuality && p.Style == res.CurrentProfile.Style);
-                SelectedActiveSavPreset = match ?? ActiveSavPresets.First(p => p.IsCustom);
-            }
-        }
-        finally
-        {
-            IsSyncingActiveSav = false;
-        }
-    }
-
-    public async Task RestoreActiveSavAsync()
-    {
-        IsSyncingActiveSav = true;
-        ActiveSavStatusMessage = "Restoring Active.sav from latest backup snapshot...";
-        try
-        {
-            var gl = _getGl();
-            var res = await ActiveSavService.RestoreLatestBackupAsync(gl);
-            ActiveSavStatusMessage = res.Message;
-            if (res.Success)
-            {
-                await PullActiveSavAsync();
-            }
-        }
-        finally
-        {
-            IsSyncingActiveSav = false;
         }
     }
 }

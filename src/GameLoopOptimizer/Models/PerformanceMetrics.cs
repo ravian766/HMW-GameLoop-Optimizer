@@ -27,7 +27,11 @@ public class PerformanceMetrics
     public bool IsGameLoopActive { get; set; }
 
     public double Fps { get; set; }
+    public double AvgFps { get; set; }
+    public double OnePercentLowFps { get; set; }
+    public double PointOnePercentLowFps { get; set; }
     public double EstimatedFrametimeVarianceMs { get; set; }
+    public double StutterIndexPercent { get; set; }
 }
 
 public class GamingSessionState
@@ -39,8 +43,13 @@ public class GamingSessionState
     public double PeakRamMb { get; set; }
     public double PeakCpuPercent { get; set; }
     public double AvgCpuPercent { get; set; }
+    public double AvgFps { get; set; }
+    public double MinOnePercentLowFps { get; set; }
+    public double MinPointOnePercentLowFps { get; set; }
+    public int StutterEventsCount { get; set; }
     public int MetricSamplesCount { get; set; }
     public double TotalCpuAccumulator { get; set; }
+    public double TotalFpsAccumulator { get; set; }
 
     public List<string> AppliedTemporaryChanges { get; set; } = new();
     public List<BackupEntry> SessionBackups { get; set; } = new();

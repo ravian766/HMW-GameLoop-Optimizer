@@ -4,50 +4,189 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="780" d:DesignWidth="1020">
-    <Grid Margin="28,24,28,28">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+             d:DesignHeight="1200" d:DesignWidth="1020">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="28,24,28,28">
 
-        <!-- Top Header & Restore All Bar -->
-        <Border Grid.Row="0" Style="{StaticResource GlowingHeroCard}" Margin="0,0,0,18">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+            <!-- ==================== TOP HERO HEADER ==================== -->
+            <Border Style="{StaticResource GlowingHeroCard}" Margin="0,0,0,18">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
 
-                <StackPanel VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <TextBlock Text="Backup &amp; Reversion Ledger" FontSize="19" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
-                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentCyan}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
-                            <TextBlock Text="AUDIT TRAIL" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
-                        </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="🛡️ Snapshot Ledger &amp; Resource Vault" FontSize="19" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentCyan}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                                <TextBlock Text="ZERO DATA LOSS" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="Revert system optimizations and backup/restore multi-gigabyte in-game map packs (Paks) via GameLoop PC Shared Folder."
+                                   FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" />
+                        <TextBlock Text="{Binding StatusMessage}" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,4,0,0" />
                     </StackPanel>
-                    <TextBlock Text="Every registry, power, and GameLoop modification is snapshotted before application and can be reverted individually or completely."
-                               FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" />
-                    <TextBlock Text="{Binding StatusMessage}" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,4,0,0" />
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
+                        <Button Content="🗑️ Clear Reversion Ledger"
+                                Command="{Binding ClearHistoryCommand}"
+                                Style="{StaticResource DangerButton}"
+                                Padding="14,10"
+                                Margin="0,0,10,0" />
+
+                        <Button Content="🔄 Restore All Modifications"
+                                Command="{Binding RestoreAllCommand}"
+                                Style="{StaticResource PrimaryButton}"
+                                Padding="20,10" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ==================== GAME RESOURCE & MAPS VAULT (PAKS) ==================== -->
+            <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="12" Padding="20,18" Margin="0,0,0,20">
+                <StackPanel>
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="🎮 Game Resource &amp; Map Vault (Paks)" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,8,0" />
+                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="5" Padding="6,2" VerticalAlignment="Center">
+                                    <TextBlock Text="FAST ADB TRANSFER" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="Extract and archive 10-15 GB of in-game maps (Erangel, Miramar, Sanhok, Livik) and HD audio/skin resources. Restore them in seconds after game updates without re-downloading."
+                                       FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding PakStatusMessage}" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,6,0,0" />
+                        </StackPanel>
+
+                        <!-- Action & Folder Shortcuts -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="📥 Import Maps"
+                                    Command="{Binding ImportBackupFolderCommand}"
+                                    ToolTip="Import an existing folder containing .pak map files from a previous Windows install"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="10,8"
+                                    Margin="0,0,6,0" />
+
+                            <Button Content="📂 Set Vault Drive"
+                                    Command="{Binding ChangeVaultLocationCommand}"
+                                    ToolTip="Move Pak Vault to a permanent non-system drive (e.g. D:\GameLoop_PakVault)"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="10,8"
+                                    Margin="0,0,6,0" />
+
+                            <Button Content="🔍 Auto-Scan Drives"
+                                    Command="{Binding AutoDiscoverVaultsCommand}"
+                                    ToolTip="Automatically search all drives (D:, E:) for existing Map Vaults"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="10,8"
+                                    Margin="0,0,6,0" />
+
+                            <Button Content="🗄️ Open Vault"
+                                    Command="{Binding OpenPakVaultCommand}"
+                                    ToolTip="Open Current Pak Vault Directory in Explorer"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="10,8" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Target Game Package Selector & Backup Trigger Bar -->
+                    <Border Background="{DynamicResource BrushCardGradient}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,14">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                                <TextBlock Text="Target Game:" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox ItemsSource="{Binding AvailableGamePackages}"
+                                          SelectedItem="{Binding SelectedGamePackage}"
+                                          DisplayMemberPath="DisplayName"
+                                          Width="220"
+                                          Padding="8,5"
+                                          VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
+                                <TextBlock Text="{Binding VaultLocationPath, StringFormat='Vault Drive: {0}'}" 
+                                           FontSize="10.5" 
+                                           FontFamily="Consolas, Cascadia Code" 
+                                           Foreground="{DynamicResource BrushAccentCyan}" 
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding DetectedSharedFolderPath, StringFormat='PC Shared: {0}'}" 
+                                           FontSize="10" 
+                                           FontFamily="Consolas, Cascadia Code" 
+                                           Foreground="{DynamicResource BrushTextMuted}" 
+                                           TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+
+                            <Button Grid.Column="2"
+                                    Content="📦 Backup In-Game Maps &amp; Paks"
+                                    Command="{Binding BackupGameResourcesCommand}"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Padding="16,9" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Saved Pak Backups List -->
+                    <TextBlock Text="Saved Game Resource Snapshots:" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,8" />
+
+                    <ItemsControl ItemsSource="{Binding PakBackups}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
+                                                <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                                                <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushAccentCyan}" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding FormattedSize}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding SummaryText}" FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,2" />
+                                            <TextBlock Text="{Binding FormattedDate, StringFormat='Created on: {0}'}" FontSize="10.5" Foreground="{DynamicResource BrushTextMuted}" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Content="⚡ Restore Maps to Game"
+                                                    Command="{Binding DataContext.RestorePakBackupCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Style="{StaticResource PrimaryButton}"
+                                                    Padding="12,6"
+                                                    FontSize="11"
+                                                    Margin="0,0,8,0" />
+
+                                            <Button Content="✕"
+                                                    Command="{Binding DataContext.DeletePakBackupCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    ToolTip="Delete this snapshot from PC"
+                                                    Style="{StaticResource DangerButton}"
+                                                    Padding="8,6"
+                                                    FontSize="11" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
+            </Border>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
-                    <Button Content="🗑️ Clear History"
-                            Command="{Binding ClearHistoryCommand}"
-                            Style="{StaticResource DangerButton}"
-                            Padding="14,10"
-                            Margin="0,0,10,0" />
+            <!-- ==================== SYSTEM & REGISTRY AUDIT LEDGER ==================== -->
+            <TextBlock Text="System &amp; Emulator Registry Modification Ledger" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,10" />
 
-                    <Button Content="🔄 Restore All Modifications"
-                            Command="{Binding RestoreAllCommand}"
-                            Style="{StaticResource PrimaryButton}"
-                            Padding="20,10" />
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- Backup Ledger List -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <ItemsControl ItemsSource="{Binding Backups}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -107,6 +246,6 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-        </ScrollViewer>
-    </Grid>
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>

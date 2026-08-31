@@ -16,6 +16,7 @@ public class MainViewModel : ViewModelBase
     public SystemInfo System => _system;
     public GameLoopConfig GameLoop => _gameLoop;
 
+    public IEventAggregator EventAggregator { get; }
     public PerformanceMonitorService MonitorService { get; }
     public GameLoopWatchdogService WatchdogService { get; }
     public List<IOptimizationModule> Modules { get; }
@@ -114,16 +115,28 @@ public class MainViewModel : ViewModelBase
     public ICommand DismissUpdateCommand { get; }
     public ICommand DownloadAndApplyUpdateCommand { get; }
 
-    public MainViewModel()
+    public MainViewModel() : this(null, null, null, null)
+    {
+    }
+
+    public MainViewModel(
+        IEventAggregator? eventAggregator = null,
+        PerformanceMonitorService? monitorService = null,
+        GameLoopWatchdogService? watchdogService = null,
+        IEnumerable<IOptimizationModule>? modules = null)
     {
         IsAdmin = PermissionManager.IsAdministrator;
+        EventAggregator = eventAggregator ?? Core.EventAggregator.Default;
 
-        // Initialize Telemetry Monitor
-        MonitorService = new PerformanceMonitorService();
+        // Initialize Telemetry Monitor & Watchdog
+        MonitorService = monitorService ?? new PerformanceMonitorService();
         MonitorService.Start();
 
-        // Initialize Optimization Modules (including Android VM / ADB Suite)
-        Modules = new List<IOptimizationModule>
+        WatchdogService = watchdogService ?? new GameLoopWatchdogService(() => _gameLoop);
+        WatchdogService.Start();
+
+        // Initialize Optimization Modules
+        Modules = modules?.ToList() ?? new List<IOptimizationModule>
         {
             new WindowsGameModeModule(),
             new MmcssGamingPriorityModule(),
@@ -164,10 +177,6 @@ public class MainViewModel : ViewModelBase
             new BackgroundThrottleModule()
         };
 
-        // Initialize Auto-Gaming Watchdog Daemon
-        WatchdogService = new GameLoopWatchdogService(() => _gameLoop);
-        WatchdogService.Start();
-
         // Create child ViewModels
         DashboardVM = new DashboardViewModel(
             () => _hardware, 
@@ -185,7 +194,8 @@ public class MainViewModel : ViewModelBase
 
         GameLoopVM = new GameLoopViewModel(
             () => _hardware, 
-            () => _gameLoop);
+            () => _gameLoop,
+            EventAggregator);
 
         KeymapResolutionVM = new KeymapResolutionViewModel(
             () => _hardware,
@@ -206,23 +216,27 @@ public class MainViewModel : ViewModelBase
 
         _currentView = DashboardVM;
 
-        // Wire events
-        OptimizerVM.OptimizationsChanged += (s, e) =>
+        // Wire decoupled events via EventAggregator
+        EventAggregator.Subscribe<OptimizationsChangedMessage>(_ =>
         {
             RefreshSystemData();
             DashboardVM.RefreshDashboard();
             GameLoopVM.RefreshData();
             KeymapResolutionVM.RefreshKeymaps();
-        };
+        });
 
-        BackupVM.BackupsRestored += async (s, e) =>
+        EventAggregator.Subscribe<BackupRestoredMessage>(async _ =>
         {
             RefreshSystemData();
             DashboardVM.RefreshDashboard();
             await OptimizerVM.AnalyzeAllAsync();
             GameLoopVM.RefreshData();
             KeymapResolutionVM.RefreshKeymaps();
-        };
+        });
+
+        // Direct VM event bridge to publish messages
+        OptimizerVM.OptimizationsChanged += (s, e) => EventAggregator.Publish(new OptimizationsChangedMessage());
+        BackupVM.BackupsRestored += (s, e) => EventAggregator.Publish(new BackupRestoredMessage());
 
         NavigateCommand = new RelayCommand(param =>
         {
@@ -296,7 +310,7 @@ public class MainViewModel : ViewModelBase
         // Silent background update check
         _ = Task.Run(async () =>
         {
-            await Task.Delay(2500); // Give UI time to render smoothly first
+            await Task.Delay(2500);
             await CheckForUpdatesSilentlyAsync();
         });
     }
@@ -395,6 +409,8 @@ public class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(Hardware));
         OnPropertyChanged(nameof(System));
         OnPropertyChanged(nameof(GameLoop));
+
+        EventAggregator.Publish(new SystemDataRefreshedMessage());
     }
 
     public async Task QuickOptimizeAsync()
@@ -411,13 +427,9 @@ public class MainViewModel : ViewModelBase
         OptimizerVM.CurrentProfile = OptimizationProfile.MaximumPerformance;
         await OptimizerVM.OptimizeSelectedAsync();
 
-        // 1. Purge Standby memory cache
         StandbyListCleanerService.PurgeStandbyList();
-
-        // 2. Set 0.5ms ultra-low latency multimedia timer
         Optimizations.TimerResolutionModule.SetHighPrecision(0.5);
 
-        // 3. Inject 120 FPS high refresh if ADB is available
         if (AdbManager.IsAdbAvailable(_gameLoop))
         {
             await AdbManager.Unlock120FpsAsync(_gameLoop);

@@ -246,6 +246,27 @@ public class GameLoopWatchdogService : IDisposable
 
             if (string.IsNullOrEmpty(foundTitle) && _isGameLoopRunning)
             {
+                // Fallback: check ADB foreground window
+                Task.Run(async () =>
+                {
+                    string? adbPkg = await DetectForegroundPackageViaAdbAsync();
+                    if (!string.IsNullOrEmpty(adbPkg) && adbPkg != _detectedGamePackage)
+                    {
+                        var known = AdbManager.KnownGamePackages.FirstOrDefault(p => p.PackageName.Equals(adbPkg, StringComparison.OrdinalIgnoreCase));
+                        string title = known?.DisplayName ?? adbPkg;
+                        DetectedGameTitle = title;
+                        _detectedGamePackage = adbPkg;
+                        DetectedGamePackage = adbPkg;
+                        GameTitleChanged?.Invoke(DetectedGameTitle, DetectedGamePackage);
+
+                        if (_isAutoGameBoostEnabled && _detectedGamePackage != _lastBoostedPackage)
+                        {
+                            _lastBoostedPackage = _detectedGamePackage;
+                            await ExecuteGameBoostAsync(title, adbPkg);
+                        }
+                    }
+                });
+
                 foundTitle = "GameLoop Active";
             }
 
@@ -365,6 +386,27 @@ public class GameLoopWatchdogService : IDisposable
         int freed = ProcessManager.TrimWorkingSets();
         Logger.Success("Watchdog", $"Post-gaming maintenance: Cleaned working sets across {freed} processes.");
         GameLoopStateChanged?.Invoke(false);
+    }
+
+    public async Task<string?> DetectForegroundPackageViaAdbAsync()
+    {
+        var gl = _getGl();
+        if (!AdbManager.IsAdbAvailable(gl)) return null;
+
+        try
+        {
+            var output = await AdbManager.ExecuteShellCommandAsync("dumpsys window | grep -E 'mCurrentFocus|mFocusedApp'", null, 2500, gl);
+            foreach (var pkg in AdbManager.KnownGamePackages)
+            {
+                if (output.Contains(pkg.PackageName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return pkg.PackageName;
+                }
+            }
+        }
+        catch { }
+
+        return null;
     }
 
     public void Dispose()

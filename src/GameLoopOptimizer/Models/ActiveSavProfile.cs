@@ -65,7 +65,7 @@ public class ActiveSavProfile
             BattleQuality = 1,
             LobbyQuality = 1,
             Style = 1,
-            GraphicFavor = 1,
+            GraphicFavor = 4, // 4 = Customize (crucial to prevent game from overriding)
             IsCustom = false
         },
         new ActiveSavProfile
@@ -77,7 +77,7 @@ public class ActiveSavProfile
             BattleQuality = 1,
             LobbyQuality = 1,
             Style = 2,
-            GraphicFavor = 1,
+            GraphicFavor = 4,
             IsCustom = false
         },
         new ActiveSavProfile
@@ -89,7 +89,7 @@ public class ActiveSavProfile
             BattleQuality = 4,
             LobbyQuality = 3,
             Style = 2,
-            GraphicFavor = 2,
+            GraphicFavor = 4,
             IsCustom = false
         },
         new ActiveSavProfile
@@ -101,7 +101,7 @@ public class ActiveSavProfile
             BattleQuality = 3,
             LobbyQuality = 2,
             Style = 1,
-            GraphicFavor = 2,
+            GraphicFavor = 4,
             IsCustom = false
         },
         new ActiveSavProfile
@@ -113,7 +113,7 @@ public class ActiveSavProfile
             BattleQuality = 1,
             LobbyQuality = 1,
             Style = 1,
-            GraphicFavor = 1,
+            GraphicFavor = 4,
             IsCustom = true
         }
     };

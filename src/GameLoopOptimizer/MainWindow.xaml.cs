@@ -19,7 +19,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        _viewModel = new MainViewModel();
+        _viewModel = App.Services?.GetService(typeof(MainViewModel)) as MainViewModel ?? new MainViewModel();
         DataContext = _viewModel;
 
         InitializeSystemTray();

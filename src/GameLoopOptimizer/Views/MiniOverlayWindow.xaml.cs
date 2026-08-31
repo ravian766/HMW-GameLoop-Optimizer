@@ -44,6 +44,8 @@ public partial class MiniOverlayWindow : Window
         if (metrics.Fps > 0)
         {
             TxtFps.Text = $"{metrics.Fps:F0}";
+            TxtOnePercentLow.Text = metrics.OnePercentLowFps > 0 ? $"{metrics.OnePercentLowFps:F0}" : "--";
+
             if (metrics.Fps >= 105)
             {
                 TxtFps.Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0xE6, 0x76)); // Neon Green (105 - 120 FPS)
@@ -64,6 +66,7 @@ public partial class MiniOverlayWindow : Window
         else
         {
             TxtFps.Text = metrics.IsGameLoopActive ? "120" : "--";
+            TxtOnePercentLow.Text = "--";
             TxtFps.Foreground = (Brush)FindResource("BrushTextPrimary");
         }
 

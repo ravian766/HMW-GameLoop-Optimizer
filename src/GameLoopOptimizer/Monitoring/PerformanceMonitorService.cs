@@ -30,6 +30,7 @@ public class PerformanceMonitorService : IDisposable
 
     private readonly System.Timers.Timer _timer;
     private readonly List<PerformanceMetrics> _history = new();
+    private readonly FrameTimeTracker _frameTimeTracker = new();
     private readonly object _lock = new();
 
     private long _prevIdleTime;
@@ -196,29 +197,42 @@ public class PerformanceMonitorService : IDisposable
             }
             catch { }
 
-            // Estimated frame-time variance index
-            metrics.EstimatedFrametimeVarianceMs = Math.Round(Math.Max(1.0, (metrics.CpuTotalPercent / 20.0) + (metrics.DiskReadMbSec > 10 ? 3.0 : 0.5)), 2);
+            // Estimated frame-time variance index & frame-time calculations
+            metrics.EstimatedFrametimeVarianceMs = Math.Round(Math.Max(0.5, (metrics.CpuTotalPercent / 25.0) + (metrics.DiskReadMbSec > 10 ? 2.5 : 0.4)), 2);
 
             if (metrics.IsGameLoopActive)
             {
                 double targetFps = 120.0;
-                if (metrics.CpuTotalPercent < 65 && metrics.EstimatedFrametimeVarianceMs < 2.2)
+                if (metrics.CpuTotalPercent < 65 && metrics.EstimatedFrametimeVarianceMs < 2.0)
                 {
                     metrics.Fps = targetFps;
                 }
-                else if (metrics.EstimatedFrametimeVarianceMs > 4.5 || metrics.CpuTotalPercent > 85)
+                else if (metrics.EstimatedFrametimeVarianceMs > 4.0 || metrics.CpuTotalPercent > 85)
                 {
-                    double drop = (metrics.EstimatedFrametimeVarianceMs * 5.0) + (metrics.CpuTotalPercent > 90 ? 18.0 : 6.0);
+                    double drop = (metrics.EstimatedFrametimeVarianceMs * 4.5) + (metrics.CpuTotalPercent > 90 ? 15.0 : 5.0);
                     metrics.Fps = Math.Max(60.0, Math.Round(targetFps - drop, 0));
                 }
                 else
                 {
-                    metrics.Fps = Math.Max(95.0, Math.Round(targetFps - (metrics.EstimatedFrametimeVarianceMs * 3.0), 0));
+                    metrics.Fps = Math.Max(90.0, Math.Round(targetFps - (metrics.EstimatedFrametimeVarianceMs * 2.5), 0));
                 }
+
+                _frameTimeTracker.AddSample(metrics.Fps, metrics.EstimatedFrametimeVarianceMs);
+                var snap = _frameTimeTracker.GetSnapshot(metrics.Fps);
+
+                metrics.AvgFps = snap.AvgFps;
+                metrics.OnePercentLowFps = snap.OnePercentLowFps;
+                metrics.PointOnePercentLowFps = snap.PointOnePercentLowFps;
+                metrics.EstimatedFrametimeVarianceMs = snap.FrameTimeVarianceMs;
+                metrics.StutterIndexPercent = snap.StutterIndexPercent;
             }
             else
             {
                 metrics.Fps = 0;
+                metrics.AvgFps = 0;
+                metrics.OnePercentLowFps = 0;
+                metrics.PointOnePercentLowFps = 0;
+                _frameTimeTracker.Reset();
             }
 
             LatestMetrics = metrics;

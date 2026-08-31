@@ -99,6 +99,27 @@ public class GamingSessionViewModel : ViewModelBase
                 Session.TotalCpuAccumulator += m.CpuTotalPercent;
                 Session.AvgCpuPercent = Math.Round(Session.TotalCpuAccumulator / Session.MetricSamplesCount, 1);
 
+                if (m.Fps > 0)
+                {
+                    Session.TotalFpsAccumulator += m.Fps;
+                    Session.AvgFps = Math.Round(Session.TotalFpsAccumulator / Session.MetricSamplesCount, 1);
+
+                    if (Session.MinOnePercentLowFps == 0 || (m.OnePercentLowFps > 0 && m.OnePercentLowFps < Session.MinOnePercentLowFps))
+                    {
+                        Session.MinOnePercentLowFps = m.OnePercentLowFps;
+                    }
+
+                    if (Session.MinPointOnePercentLowFps == 0 || (m.PointOnePercentLowFps > 0 && m.PointOnePercentLowFps < Session.MinPointOnePercentLowFps))
+                    {
+                        Session.MinPointOnePercentLowFps = m.PointOnePercentLowFps;
+                    }
+
+                    if (m.EstimatedFrametimeVarianceMs > 3.5)
+                    {
+                        Session.StutterEventsCount++;
+                    }
+                }
+
                 if (m.CpuTotalPercent > Session.PeakCpuPercent) Session.PeakCpuPercent = m.CpuTotalPercent;
                 if (m.GameLoopRamMb > Session.PeakRamMb) Session.PeakRamMb = m.GameLoopRamMb;
 
@@ -161,6 +182,8 @@ public class GamingSessionViewModel : ViewModelBase
         }
 
         SummaryReport = $"Session Duration: {FormattedDuration}\n" +
+                        $"Average FPS: {(Session.AvgFps > 0 ? Session.AvgFps.ToString("F1") : "N/A (Inactive)")} | 1% Low: {(Session.MinOnePercentLowFps > 0 ? Session.MinOnePercentLowFps.ToString("F1") + " FPS" : "N/A")}\n" +
+                        $"Micro-Stutter Spikes Detected: {Session.StutterEventsCount} events\n" +
                         $"Average CPU Usage: {Session.AvgCpuPercent}%\n" +
                         $"Peak CPU Spike: {Session.PeakCpuPercent}%\n" +
                         $"Peak GameLoop Memory: {Session.PeakRamMb:F0} MB\n" +
