@@ -6,7 +6,9 @@ public class ActiveSavProfile
     public string Description { get; set; } = string.Empty;
     public bool IsCustom { get; set; } = false;
 
-    // In-game FPS Cap: 1=20 FPS, 2=25 FPS, 3=30 FPS, 4=40 FPS, 5=60 FPS (Extreme), 6=90 FPS (Extreme+), 7=120 FPS (Ultra Extreme)
+    // In-game FPS Cap (matches PanelLoop/PUBG engine values):
+    // 1=Low (20 FPS), 2=Medium (25 FPS), 3=High (30 FPS), 4=Ultra (40 FPS),
+    // 5=Extreme (60 FPS), 6=90 FPS, 7=120 FPS
     public int FpsLevel { get; set; } = 7;
     public int LobbyFpsLevel { get; set; } = 7;
 
@@ -17,8 +19,8 @@ public class ActiveSavProfile
     // Visual Style: 1=Classic, 2=Colorful, 3=Realistic, 4=Soft, 5=Movie
     public int Style { get; set; } = 1;
 
-    // Graphic Favor: 1=Performance/Soft Shadows, 2=Balanced
-    public int GraphicFavor { get; set; } = 1;
+    // Graphic Favor: 4=Customize (Bypasses game preset overrides), 1=Better Graphics, 2=Balanced, 3=Better Frame Rate
+    public int GraphicFavor { get; set; } = 4;
 
     public static string GetFpsLabel(int fps) => fps switch
     {
@@ -27,8 +29,8 @@ public class ActiveSavProfile
         3 => "High (30 FPS)",
         4 => "Ultra (40 FPS)",
         5 => "Extreme (60 FPS)",
-        6 => "90 FPS (Extreme+)",
-        7 => "120 FPS (Ultra Extreme)",
+        6 => "90 FPS",
+        7 => "120 FPS",
         _ => $"{fps} Level"
     };
 

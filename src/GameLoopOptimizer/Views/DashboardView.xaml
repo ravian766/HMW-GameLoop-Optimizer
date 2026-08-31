@@ -58,18 +58,28 @@
                         <controls:CircularGauge Value="{Binding Score.TotalScore}" Width="138" Height="138" Margin="0,0,22,0" />
 
                         <StackPanel VerticalAlignment="Center">
-                            <Button Content="⚡ Quick Optimize"
-                                    Command="{Binding QuickOptimizeCommand}"
+                            <Button Content="🔥 Pro Esports Setup"
+                                    ToolTip="1-Click Maximum Performance: Competitive Profile, GPU Driver Tuning, 0.5ms Timer, Standby RAM Purge, and 120 FPS Unlock"
+                                    Command="{Binding ProEsportsOptimizeCommand}"
                                     Style="{StaticResource PrimaryButton}"
-                                    Padding="22,12"
+                                    Padding="20,11"
                                     FontSize="13"
-                                    Margin="0,0,0,10" />
+                                    FontWeight="Bold"
+                                    Margin="0,0,0,8" />
+
+                            <Button Content="⚡ Quick Optimize"
+                                    ToolTip="Applies recommended safe system and GameLoop tweaks"
+                                    Command="{Binding QuickOptimizeCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="18,8"
+                                    FontSize="12"
+                                    Margin="0,0,0,8" />
 
                             <Button Content="🔍 Re-Scan System"
                                     Command="{Binding ScanSystemCommand}"
                                     Style="{StaticResource SecondaryButton}"
-                                    Padding="18,9"
-                                    FontSize="12" />
+                                    Padding="18,8"
+                                    FontSize="11" />
                         </StackPanel>
                     </StackPanel>
                 </Grid>

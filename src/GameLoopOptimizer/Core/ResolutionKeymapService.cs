@@ -19,6 +19,13 @@ public class KeymapCalibrationResult
     public string Message { get; set; } = string.Empty;
 }
 
+public enum HudCalibrationMode
+{
+    GeneralOnFoot,
+    VehicleDriving,
+    SwimmingAndParachute
+}
+
 public static class ResolutionKeymapService
 {
     public static readonly string[] PubgApkNames = new[]
@@ -33,15 +40,26 @@ public static class ResolutionKeymapService
     };
 
     /// <summary>
-    /// Transforms normalized (0.0 - 1.0) coordinates from standard 16:9 (1920x1080) into target aspect ratio (e.g. 1440x1080, 1728x1080, 1080x1080).
-    /// Uses physical HUD anchor zoning (Left-anchored, Center-anchored, Right-anchored) so that GameLoop's click points
-    /// land precisely on the Android UI buttons regardless of horizontal viewport stretch.
+    /// Calculates deadzone and radius compensated sprint offset for stretched resolutions.
+    /// Prevents joystick sprint cancellation when moving diagonally on 4:3 or 1:1 stretched views.
     /// </summary>
-    public static (double newX, double newY) CalibrateCoordinate(double x, double y, int targetWidth, int targetHeight, int baseWidth = 1920, int baseHeight = 1080)
+    public static double CalculateCompensatedWasdOffset(double baseOffset, int targetWidth, int targetHeight, int baseWidth = 1920, int baseHeight = 1080)
+    {
+        if (targetWidth <= 0 || targetHeight <= 0) return baseOffset;
+        double baseRatio = (double)baseWidth / baseHeight;
+        double targetRatio = (double)targetWidth / targetHeight;
+        double sx = baseRatio / targetRatio;
+        return Math.Clamp(baseOffset * sx, 0.04, 0.18);
+    }
+
+    /// <summary>
+    /// Transforms normalized coordinates with specialized HUD anchor modes (On-Foot, Vehicle Driving, Swimming/Parachute).
+    /// </summary>
+    public static (double newX, double newY) CalibrateCoordinateForHudMode(double x, double y, int targetWidth, int targetHeight, HudCalibrationMode mode, int baseWidth = 1920, int baseHeight = 1080)
     {
         if (targetWidth <= 0 || targetHeight <= 0) return (x, y);
 
-        double baseRatio = (double)baseWidth / baseHeight; // 16:9 = 1.777778
+        double baseRatio = (double)baseWidth / baseHeight;
         double targetRatio = (double)targetWidth / targetHeight;
 
         if (Math.Abs(baseRatio - targetRatio) < 0.005)
@@ -49,42 +67,78 @@ public static class ResolutionKeymapService
             return (Math.Clamp(x, 0.01, 0.99), Math.Clamp(y, 0.01, 0.99));
         }
 
-        // Horizontal stretch factor: when width decreases (e.g. 1440 vs 1920), Sx = (1920/1080) / (1440/1080) = 1.333333
         double sx = baseRatio / targetRatio;
-
         double newX;
-        if (x < 0.38)
+
+        switch (mode)
         {
-            // Left-anchored HUD elements (WASD Joystick, Sprint, Backpack, Map, Left Fire)
-            // Physical pixel from left: Px = x * 1920.
-            // On target width W: newX = Px / W = x * (1920 / W) = x * sx.
-            newX = x * sx;
-        }
-        else if (x > 0.62)
-        {
-            // Right-anchored HUD elements (Scope, Right Fire, Crouch, Prone, Jump, Reload, Peek Q/E)
-            // Physical pixel from right: DistRight = (1.0 - x) * 1920.
-            // On target width W: newDistRight = DistRight / W = (1.0 - x) * sx.
-            // newX = 1.0 - newDistRight.
-            double distFromRight = 1.0 - x;
-            double newDistFromRight = distFromRight * sx;
-            newX = 1.0 - newDistFromRight;
-        }
-        else
-        {
-            // Center-anchored elements (Weapon slots 1/2, Interact F/G/H, Vehicle Drive/GetIn, Meds)
-            // Physical offset from center: CenterOffset = (x - 0.5) * 1920.
-            // On target width W: newOffset = CenterOffset / W = (x - 0.5) * sx.
-            // newX = 0.5 + newOffset.
-            double offsetFromCenter = x - 0.5;
-            newX = 0.5 + (offsetFromCenter * sx);
+            case HudCalibrationMode.VehicleDriving:
+                // Vehicle controls: wide steering split on left, gas/brake pedal cluster on right
+                if (x < 0.44)
+                {
+                    newX = x * sx;
+                }
+                else if (x > 0.56)
+                {
+                    double distFromRight = 1.0 - x;
+                    newX = 1.0 - (distFromRight * sx);
+                }
+                else
+                {
+                    double offsetFromCenter = x - 0.5;
+                    newX = 0.5 + (offsetFromCenter * sx);
+                }
+                break;
+
+            case HudCalibrationMode.SwimmingAndParachute:
+                // Floating and dive surface controls
+                if (x < 0.35)
+                {
+                    newX = x * sx;
+                }
+                else if (x > 0.65)
+                {
+                    double distFromRight = 1.0 - x;
+                    newX = 1.0 - (distFromRight * sx);
+                }
+                else
+                {
+                    double offsetFromCenter = x - 0.5;
+                    newX = 0.5 + (offsetFromCenter * sx);
+                }
+                break;
+
+            case HudCalibrationMode.GeneralOnFoot:
+            default:
+                if (x < 0.38)
+                {
+                    newX = x * sx;
+                }
+                else if (x > 0.62)
+                {
+                    double distFromRight = 1.0 - x;
+                    newX = 1.0 - (distFromRight * sx);
+                }
+                else
+                {
+                    double offsetFromCenter = x - 0.5;
+                    newX = 0.5 + (offsetFromCenter * sx);
+                }
+                break;
         }
 
-        // Clamp to safe screen bounds
         newX = Math.Clamp(newX, 0.01, 0.99);
         double newY = Math.Clamp(y, 0.01, 0.99);
 
         return (Math.Round(newX, 6), Math.Round(newY, 6));
+    }
+
+    /// <summary>
+    /// Transforms normalized (0.0 - 1.0) coordinates from standard 16:9 (1920x1080) into target aspect ratio.
+    /// </summary>
+    public static (double newX, double newY) CalibrateCoordinate(double x, double y, int targetWidth, int targetHeight, int baseWidth = 1920, int baseHeight = 1080)
+    {
+        return CalibrateCoordinateForHudMode(x, y, targetWidth, targetHeight, HudCalibrationMode.GeneralOnFoot, baseWidth, baseHeight);
     }
 
     /// <summary>

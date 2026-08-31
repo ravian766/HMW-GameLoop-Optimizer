@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="HMW In-Game Performance HUD"
         Height="48"
-        Width="600"
+        Width="660"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -64,10 +64,32 @@
                     <TextBlock x:Name="TxtRadar" Text="⚡ Smooth" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
                 </Border>
 
+                <!-- Frametime Variance Micro-Indicator -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                    <TextBlock Text="VAR " FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextMuted}" />
+                    <TextBlock x:Name="TxtVariance" Text="0.8ms" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                </StackPanel>
+
                 <!-- Timer -->
-                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="4" Padding="5,2">
+                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="4" Padding="5,2" Margin="0,0,8,0">
                     <TextBlock Text="0.50ms" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
                 </Border>
+
+                <!-- Click-Through Toggle Button -->
+                <Button x:Name="BtnClickThrough"
+                        Content="🔓 Move"
+                        ToolTip="Toggle Click-Through Mode (pass clicks into GameLoop)"
+                        Foreground="{DynamicResource BrushTextPrimary}"
+                        Background="{DynamicResource BrushBgInput}"
+                        BorderBrush="{DynamicResource BrushBorderLight}"
+                        BorderThickness="1"
+                        FontSize="10"
+                        FontWeight="SemiBold"
+                        Padding="6,2"
+                        Cursor="Hand"
+                        VerticalAlignment="Center"
+                        Click="ToggleClickThrough_Click"
+                        Margin="0,0,6,0" />
             </StackPanel>
 
             <!-- Close overlay button -->

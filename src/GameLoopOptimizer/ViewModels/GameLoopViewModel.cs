@@ -33,6 +33,18 @@ public class GameLoopViewModel : ViewModelBase
             if (SetProperty(ref _selectedDeviceProfile, value) && value != null)
             {
                 FpsLevel = value.MaxSupportedFps;
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var gl = _getGl();
+                        if (gl.IsInstalled)
+                        {
+                            await AdbManager.SpoofDeviceProfileAsync(value, gl);
+                        }
+                    }
+                    catch { }
+                });
             }
         }
     }
@@ -218,7 +230,7 @@ public class GameLoopViewModel : ViewModelBase
         }
     }
 
-    private int _activeSavGraphicFavor = 1;
+    private int _activeSavGraphicFavor = 4;
     public int ActiveSavGraphicFavor
     {
         get => _activeSavGraphicFavor;
@@ -1094,16 +1106,21 @@ public class GameLoopViewModel : ViewModelBase
 
                 SaveSettingsToRegistry(gl);
 
+                // Synchronize device profile directly into running Android VM
+                if (SelectedDeviceProfile != null)
+                {
+                    await AdbManager.SpoofDeviceProfileAsync(SelectedDeviceProfile, gl);
+                }
+
                 Logger.Success("GameLoopStudio", $"Saved config to GameLoop & TGB: {CpuCores}C / {RamMb}MB / {FpsLevel}FPS / Quality {PubgRenderQuality} / {SelectedDeviceProfile?.DisplayName}");
             }
-            StatusMessage = "Settings saved to GameLoop registry successfully! Restart GameLoop to take effect.";
+            StatusMessage = "Settings saved & synchronized to In-VM Android subsystem! Restart GameLoop for complete engine reload.";
         }
         catch (Exception ex)
         {
             StatusMessage = $"Error saving settings: {ex.Message}";
             Logger.Error("GameLoopStudio", $"Failed to save GameLoop settings: {ex.Message}");
         }
-        await Task.CompletedTask;
     }
 
     private void SaveSettingsToRegistry(GameLoopConfig gl)
@@ -1654,11 +1671,17 @@ public class GameLoopViewModel : ViewModelBase
                 IsCustom = SelectedActiveSavPreset.IsCustom
             };
 
-            var res = await ActiveSavService.PushActiveSavProfileAsync(profileToApply, gl);
+            var devProfile = SelectedDeviceProfile ?? DeviceProfiles.FirstOrDefault(p => p.MaxSupportedFps >= 120) ?? DeviceProfiles.First();
+
+            // Also synchronize GameLoop emulator registry keys so GameLoop launcher matches in-game save
+            PubgRenderQuality = ActiveSavBattleQuality;
+            SaveSettingsToRegistry(gl);
+
+            var res = await ActiveSavService.PushActiveSavProfileAsync(profileToApply, gl, devProfile);
             ActiveSavStatusMessage = res.Message;
             if (res.Success)
             {
-                StatusMessage = $"Applied {profileToApply.Name} directly to In-Game Active.sav!";
+                StatusMessage = $"Applied {profileToApply.Name} directly to In-Game Active.sav ({devProfile.DisplayName})!";
             }
         }
         finally
@@ -1683,7 +1706,7 @@ public class GameLoopViewModel : ViewModelBase
                 ActiveSavLobbyFpsLevel = res.CurrentProfile.LobbyFpsLevel;
                 ActiveSavLobbyQuality = res.CurrentProfile.LobbyQuality;
                 ActiveSavStyle = res.CurrentProfile.Style;
-                ActiveSavGraphicFavor = res.CurrentProfile.GraphicFavor;
+                ActiveSavGraphicFavor = res.CurrentProfile.GraphicFavor <= 0 ? 4 : res.CurrentProfile.GraphicFavor;
 
                 // Match with built-in preset if exact match, or select Custom
                 var match = ActiveSavPresets.FirstOrDefault(p => !p.IsCustom && p.FpsLevel == res.CurrentProfile.FpsLevel && p.BattleQuality == res.CurrentProfile.BattleQuality && p.Style == res.CurrentProfile.Style);

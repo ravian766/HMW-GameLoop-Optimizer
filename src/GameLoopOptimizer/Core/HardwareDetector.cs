@@ -167,6 +167,25 @@ public static class HardwareDetector
             Logger.Warn("HardwareDetector", $"GlobalMemoryStatusEx failed: {ex.Message}");
             info.TotalRamGb = 8.0;
         }
+
+        try
+        {
+            using var searcher = new ManagementObjectSearcher("SELECT Capacity, Speed, MemoryType, SMBIOSMemoryType FROM Win32_PhysicalMemory");
+            int stickCount = 0;
+            foreach (var item in searcher.Get())
+            {
+                stickCount++;
+            }
+            if (stickCount > 0)
+            {
+                info.RamStickCount = stickCount;
+            }
+        }
+        catch
+        {
+            // Fallback default
+            info.RamStickCount = 2;
+        }
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]

@@ -188,6 +188,23 @@ public static class AdbManager
         return await ExecuteAdbCommandAsync(args, timeoutMs, config);
     }
 
+    public static async Task<string> ExecuteBatchShellCommandAsync(IEnumerable<string> shellCommands, string? targetDevice = null, int timeoutMs = 12000, GameLoopConfig? config = null)
+    {
+        var cmds = shellCommands.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()).ToList();
+        if (cmds.Count == 0) return string.Empty;
+
+        string compound = string.Join(" ; ", cmds);
+        return await ExecuteShellCommandAsync($"\"{compound}\"", targetDevice, timeoutMs, config);
+    }
+
+    public static async Task<bool> BatchSetPropsAsync(IDictionary<string, string> properties, string? targetDevice = null, GameLoopConfig? config = null)
+    {
+        if (properties == null || properties.Count == 0) return true;
+        var cmds = properties.Select(kvp => $"setprop {kvp.Key} {kvp.Value}");
+        var res = await ExecuteBatchShellCommandAsync(cmds, targetDevice, 8000, config);
+        return !res.Contains("Error:", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static async Task<List<AdbDeviceInfo>> GetConnectedDevicesAsync(GameLoopConfig? config = null)
     {
         var list = new List<AdbDeviceInfo>();
@@ -750,12 +767,21 @@ public static class AdbManager
         try
         {
             await AutoConnectGameLoopAsync(config);
-            await SetPropAsync("debug.sf.fps", "120", config);
-            await SetPropAsync("ro.surface_flinger.max_frame_rate", "120", config);
-            await SetPropAsync("persist.vendor.dfps.level", "120", config);
-            await SetPropAsync("ro.vendor.display.default_fps", "120", config);
-            Logger.Success("AdbManager", "Injected 120 FPS high-refresh unlock parameters into Android VM.");
-            return true;
+            var props = new Dictionary<string, string>
+            {
+                { "debug.sf.fps", "120" },
+                { "persist.sys.display.rate", "120" },
+                { "persist.vendor.dfps.level", "120" },
+                { "ro.vendor.display.default_fps", "120" },
+                { "debug.egl.hw", "1" },
+                { "debug.sf.swaprect", "1" }
+            };
+            var ok = await BatchSetPropsAsync(props, null, config);
+            if (ok)
+            {
+                Logger.Success("AdbManager", "Injected 120 FPS high-refresh unlock parameters into Android VM (Batched).");
+            }
+            return ok;
         }
         catch (Exception ex)
         {
@@ -763,5 +789,50 @@ public static class AdbManager
             return false;
         }
     }
+
+    public static async Task<bool> SpoofDeviceProfileAsync(DeviceProfile profile, GameLoopConfig? config = null)
+    {
+        if (profile == null) return false;
+        try
+        {
+            await AutoConnectGameLoopAsync(config);
+            string brand = profile.Manufacturer.ToLowerInvariant();
+            var props = new Dictionary<string, string>
+            {
+                { "ro.product.model", profile.Model },
+                { "ro.product.brand", brand },
+                { "ro.product.manufacturer", brand },
+                { "ro.product.name", profile.Model },
+                { "ro.product.device", profile.Model },
+                { "ro.build.product", profile.Model }
+            };
+            var ok = await BatchSetPropsAsync(props, null, config);
+            if (ok)
+            {
+                Logger.Success("AdbManager", $"Synchronized In-VM Device Profile to {profile.DisplayName} ({profile.Model}).");
+            }
+            return ok;
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn("AdbManager", $"Failed to spoof device profile: {ex.Message}");
+            return false;
+        }
+    }
+
+    public static async Task<string> GetInVmDeviceModelAsync(GameLoopConfig? config = null)
+    {
+        try
+        {
+            await AutoConnectGameLoopAsync(config);
+            var model = await GetPropAsync("ro.product.model", config);
+            return model.Trim();
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
 }
+
 

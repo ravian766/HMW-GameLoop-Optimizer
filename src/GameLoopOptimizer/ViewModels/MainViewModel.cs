@@ -145,6 +145,7 @@ public class MainViewModel : ViewModelBase
             new AdbAudioLatencyModule(),
             new CpuAffinityModule(),
             new GpuPreferenceModule(),
+            new GpuDriverProfileModule(),
             new GpuScalingModule(),
             new GpuTdrDelayModule(),
             new DirectXShaderCacheModule(),
@@ -152,6 +153,7 @@ public class MainViewModel : ViewModelBase
             new AudioLatencyModule(),
             new AudioFootstepClarifierModule(),
             new MemoryOptimizerModule(),
+            new StandbyListCleanerModule(),
             new CleanupOptimizerModule(),
             new TimerResolutionModule(),
             new ProcessPriorityModule(),
@@ -172,7 +174,8 @@ public class MainViewModel : ViewModelBase
             () => _system, 
             () => _gameLoop, 
             MonitorService, 
-            QuickOptimizeAsync);
+            QuickOptimizeAsync,
+            ProEsportsOptimizeAsync);
 
         OptimizerVM = new OptimizerViewModel(
             Modules, 
@@ -400,5 +403,28 @@ public class MainViewModel : ViewModelBase
         await OptimizerVM.OptimizeSelectedAsync();
         RefreshSystemData();
         DashboardVM.RefreshDashboard();
+    }
+
+    public async Task ProEsportsOptimizeAsync()
+    {
+        Logger.Info("EsportsMode", "Engaging 1-Click Pro Esports Setup...");
+        OptimizerVM.CurrentProfile = OptimizationProfile.MaximumPerformance;
+        await OptimizerVM.OptimizeSelectedAsync();
+
+        // 1. Purge Standby memory cache
+        StandbyListCleanerService.PurgeStandbyList();
+
+        // 2. Set 0.5ms ultra-low latency multimedia timer
+        Optimizations.TimerResolutionModule.SetHighPrecision(0.5);
+
+        // 3. Inject 120 FPS high refresh if ADB is available
+        if (AdbManager.IsAdbAvailable(_gameLoop))
+        {
+            await AdbManager.Unlock120FpsAsync(_gameLoop);
+        }
+
+        RefreshSystemData();
+        DashboardVM.RefreshDashboard();
+        Logger.Success("EsportsMode", "1-Click Pro Esports Setup completed successfully!");
     }
 }

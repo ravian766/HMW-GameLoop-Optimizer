@@ -83,6 +83,16 @@ public partial class MainWindow : Window
             Optimizations.TimerResolutionModule.SetHighPrecision(0.5);
             Logger.Success("TimerResolution", "HotKey Ctrl+Shift+T: Re-asserted 0.5ms High-Precision Timer.");
         };
+        _hotkeyManager.ClickThruHotkeyPressed += () =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (_overlayWindow != null && _overlayWindow.IsVisible)
+                {
+                    _overlayWindow.ToggleClickThrough();
+                }
+            });
+        };
         _hotkeyManager.FpsHotkeyPressed += () =>
         {
             Task.Run(async () =>

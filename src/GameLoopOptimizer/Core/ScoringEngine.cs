@@ -133,10 +133,19 @@ public static class ScoringEngine
         if (hw.FreeDiskSpaceGb >= 20) memPts += 5;
         else memPts += 2;
 
-        memPts += 5; // Working set baseline
-        score.MemoryStorage.Score = memPts;
-        score.MemoryStorage.Status = "Good";
-        score.MemoryStorage.Details = $"{hw.FreeDiskSpaceGb:F0} GB Free Space ({hw.PrimaryDriveType})";
+        if (hw.IsDualChannel)
+        {
+            memPts += 5;
+        }
+        else
+        {
+            memPts += 3;
+            explanations.Add("Single-channel RAM detected; running dual-channel RAM doubles memory bandwidth for the Android VM, drastically reducing 1% low frame drops.");
+        }
+
+        score.MemoryStorage.Score = Math.Min(score.MemoryStorage.MaxScore, memPts);
+        score.MemoryStorage.Status = memPts >= 9 ? "Optimal" : "Adequate";
+        score.MemoryStorage.Details = $"{hw.FreeDiskSpaceGb:F0} GB Free ({hw.PrimaryDriveType}) • {(hw.IsDualChannel ? "Dual-Channel" : "Single-Channel")}";
 
         // 6. Background Processes (Max 10)
         int bgPts = 10;

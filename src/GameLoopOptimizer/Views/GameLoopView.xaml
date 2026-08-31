@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d" 
              d:DesignHeight="1400" d:DesignWidth="1020">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -64,7 +65,15 @@
                     <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,6,0">
                         <StackPanel>
                             <TextBlock Text="DEVICE FINGERPRINT" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
-                            <TextBlock Text="{Binding SelectedDeviceProfile.DisplayName, FallbackValue='ASUS ROG Phone 2'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis" />
+                            <ComboBox ItemsSource="{Binding DeviceProfiles}"
+                                      SelectedItem="{Binding SelectedDeviceProfile}"
+                                      DisplayMemberPath="DisplayName"
+                                      FontSize="11"
+                                      FontWeight="Bold"
+                                      Padding="4,2"
+                                      BorderThickness="0"
+                                      Background="Transparent"
+                                      Foreground="{DynamicResource BrushTextPrimary}" />
                         </StackPanel>
                     </Border>
 
@@ -110,10 +119,18 @@
                         <StackPanel Grid.Column="0" Margin="0,0,8,0">
                             <TextBlock Text="CPU Core Count Allocation" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,4" />
                             <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding CpuCores}">
-                                <ComboBoxItem Content="2 Cores (Low-End / Dual-Core Host)" Tag="{Binding Path=2, FallbackValue=2}" />
-                                <ComboBoxItem Content="4 Cores (Recommended Sweet Spot)" Tag="{Binding Path=4, FallbackValue=4}" />
-                                <ComboBoxItem Content="6 Cores (High Core-Count Host)" Tag="{Binding Path=6, FallbackValue=6}" />
-                                <ComboBoxItem Content="8 Cores (Multi-Threaded Workstation)" Tag="{Binding Path=8, FallbackValue=8}" />
+                                <ComboBoxItem Content="2 Cores (Low-End / Dual-Core Host)">
+                                    <ComboBoxItem.Tag><sys:Int32>2</sys:Int32></ComboBoxItem.Tag>
+                                </ComboBoxItem>
+                                <ComboBoxItem Content="4 Cores (Recommended Sweet Spot)">
+                                    <ComboBoxItem.Tag><sys:Int32>4</sys:Int32></ComboBoxItem.Tag>
+                                </ComboBoxItem>
+                                <ComboBoxItem Content="6 Cores (High Core-Count Host)">
+                                    <ComboBoxItem.Tag><sys:Int32>6</sys:Int32></ComboBoxItem.Tag>
+                                </ComboBoxItem>
+                                <ComboBoxItem Content="8 Cores (Multi-Threaded Workstation)">
+                                    <ComboBoxItem.Tag><sys:Int32>8</sys:Int32></ComboBoxItem.Tag>
+                                </ComboBoxItem>
                             </ComboBox>
                         </StackPanel>
 
@@ -121,9 +138,15 @@
                         <StackPanel Grid.Column="1" Margin="8,0,0,0">
                             <TextBlock Text="RAM Memory Allocation" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,4" />
                             <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding RamMb}">
-                                <ComboBoxItem Content="2048 MB (2 GB - Minimal)" Tag="{Binding Path=2048, FallbackValue=2048}" />
-                                <ComboBoxItem Content="4096 MB (4 GB - Standard)" Tag="{Binding Path=4096, FallbackValue=4096}" />
-                                <ComboBoxItem Content="8192 MB (8 GB - High Performance)" Tag="{Binding Path=8192, FallbackValue=8192}" />
+                                <ComboBoxItem Content="2048 MB (2 GB - Minimal)">
+                                    <ComboBoxItem.Tag><sys:Int32>2048</sys:Int32></ComboBoxItem.Tag>
+                                </ComboBoxItem>
+                                <ComboBoxItem Content="4096 MB (4 GB - Standard)">
+                                    <ComboBoxItem.Tag><sys:Int32>4096</sys:Int32></ComboBoxItem.Tag>
+                                </ComboBoxItem>
+                                <ComboBoxItem Content="8192 MB (8 GB - High Performance)">
+                                    <ComboBoxItem.Tag><sys:Int32>8192</sys:Int32></ComboBoxItem.Tag>
+                                </ComboBoxItem>
                             </ComboBox>
                         </StackPanel>
                     </Grid>
@@ -469,6 +492,25 @@
                                 <StackPanel>
                                     <TextBlock Text="{Binding SelectedActiveSavPreset.Description}" FontSize="11" Foreground="{DynamicResource BrushTextPrimary}" FontWeight="SemiBold" Margin="0,0,0,8" TextWrapping="Wrap" />
                                     
+                                    <!-- Device Model & 120 FPS Spoofing Fingerprint -->
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Device Model Fingerprint (90 / 120 FPS Whitelist Spoofing)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,0,3" />
+                                            <ComboBox ItemsSource="{Binding DeviceProfiles}"
+                                                      SelectedItem="{Binding SelectedDeviceProfile}"
+                                                      DisplayMemberPath="DisplayName"
+                                                      FontSize="11"
+                                                      Padding="8,5" />
+                                        </StackPanel>
+                                        <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="10,6" Margin="10,0,0,0" VerticalAlignment="Bottom">
+                                            <TextBlock Text="{Binding SelectedDeviceProfile.Description}" FontSize="10.5" Foreground="{DynamicResource BrushTextSecondary}" />
+                                        </Border>
+                                    </Grid>
+
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -481,9 +523,15 @@
                                         <StackPanel Grid.Column="0" Margin="0,0,6,0">
                                             <TextBlock Text="Battle In-Game FPS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,3" />
                                             <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ActiveSavFpsLevel}">
-                                                <ComboBoxItem Content="60 FPS (Extreme)" Tag="{Binding Path=5, FallbackValue=5}" />
-                                                <ComboBoxItem Content="90 FPS (Extreme+)" Tag="{Binding Path=6, FallbackValue=6}" />
-                                                <ComboBoxItem Content="120 FPS (Ultra Extreme)" Tag="{Binding Path=7, FallbackValue=7}" />
+                                                <ComboBoxItem Content="60 FPS (Extreme)">
+                                                    <ComboBoxItem.Tag><sys:Int32>5</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Content="90 FPS (Extreme+)">
+                                                    <ComboBoxItem.Tag><sys:Int32>6</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Content="120 FPS (Ultra Extreme)">
+                                                    <ComboBoxItem.Tag><sys:Int32>7</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
                                             </ComboBox>
                                         </StackPanel>
 
@@ -491,11 +539,21 @@
                                         <StackPanel Grid.Column="1" Margin="3,0,3,0">
                                             <TextBlock Text="Battle Quality" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,3" />
                                             <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ActiveSavBattleQuality}">
-                                                <ComboBoxItem Content="Smooth (Lowest Lag)" Tag="{Binding Path=1, FallbackValue=1}" />
-                                                <ComboBoxItem Content="Balanced" Tag="{Binding Path=2, FallbackValue=2}" />
-                                                <ComboBoxItem Content="HD" Tag="{Binding Path=3, FallbackValue=3}" />
-                                                <ComboBoxItem Content="HDR" Tag="{Binding Path=4, FallbackValue=4}" />
-                                                <ComboBoxItem Content="Ultra HD" Tag="{Binding Path=5, FallbackValue=5}" />
+                                                <ComboBoxItem Content="Smooth (Lowest Lag)">
+                                                    <ComboBoxItem.Tag><sys:Int32>1</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Content="Balanced">
+                                                    <ComboBoxItem.Tag><sys:Int32>2</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Content="HD">
+                                                    <ComboBoxItem.Tag><sys:Int32>3</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Content="HDR">
+                                                    <ComboBoxItem.Tag><sys:Int32>4</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Content="Ultra HD">
+                                                    <ComboBoxItem.Tag><sys:Int32>5</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
                                             </ComboBox>
                                         </StackPanel>
 
@@ -503,11 +561,21 @@
                                         <StackPanel Grid.Column="2" Margin="3,0,3,0">
                                             <TextBlock Text="Visual Style" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,3" />
                                             <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ActiveSavStyle}">
-                                                <ComboBoxItem Content="Classic (High Contrast)" Tag="{Binding Path=1, FallbackValue=1}" />
-                                                <ComboBoxItem Content="Colorful (Vibrant)" Tag="{Binding Path=2, FallbackValue=2}" />
-                                                <ComboBoxItem Content="Realistic" Tag="{Binding Path=3, FallbackValue=3}" />
-                                                <ComboBoxItem Content="Soft" Tag="{Binding Path=4, FallbackValue=4}" />
-                                                <ComboBoxItem Content="Movie" Tag="{Binding Path=5, FallbackValue=5}" />
+                                                <ComboBoxItem Content="Classic (High Contrast)">
+                                                    <ComboBoxItem.Tag><sys:Int32>1</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Content="Colorful (Vibrant)">
+                                                    <ComboBoxItem.Tag><sys:Int32>2</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Content="Realistic">
+                                                    <ComboBoxItem.Tag><sys:Int32>3</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Content="Soft">
+                                                    <ComboBoxItem.Tag><sys:Int32>4</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Content="Movie">
+                                                    <ComboBoxItem.Tag><sys:Int32>5</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
                                             </ComboBox>
                                         </StackPanel>
 
@@ -515,9 +583,15 @@
                                         <StackPanel Grid.Column="3" Margin="6,0,0,0">
                                             <TextBlock Text="Lobby FPS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,3" />
                                             <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ActiveSavLobbyFpsLevel}">
-                                                <ComboBoxItem Content="60 FPS" Tag="{Binding Path=5, FallbackValue=5}" />
-                                                <ComboBoxItem Content="90 FPS" Tag="{Binding Path=6, FallbackValue=6}" />
-                                                <ComboBoxItem Content="120 FPS" Tag="{Binding Path=7, FallbackValue=7}" />
+                                                <ComboBoxItem Content="60 FPS">
+                                                    <ComboBoxItem.Tag><sys:Int32>5</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Content="90 FPS">
+                                                    <ComboBoxItem.Tag><sys:Int32>6</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
+                                                <ComboBoxItem Content="120 FPS">
+                                                    <ComboBoxItem.Tag><sys:Int32>7</sys:Int32></ComboBoxItem.Tag>
+                                                </ComboBoxItem>
                                             </ComboBox>
                                         </StackPanel>
                                     </Grid>

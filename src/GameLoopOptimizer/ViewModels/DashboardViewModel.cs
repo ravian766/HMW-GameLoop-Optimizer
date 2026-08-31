@@ -107,6 +107,7 @@ public class DashboardViewModel : ViewModelBase
 
     public ICommand ScanSystemCommand { get; }
     public ICommand QuickOptimizeCommand { get; }
+    public ICommand ProEsportsOptimizeCommand { get; }
     public ICommand ScanJunkCommand { get; }
     public ICommand ExecuteDeepCleanCommand { get; }
     public ICommand RunDiagnosticCommand { get; }
@@ -117,7 +118,8 @@ public class DashboardViewModel : ViewModelBase
         Func<SystemInfo> getSys, 
         Func<GameLoopConfig> getGl, 
         PerformanceMonitorService monitor,
-        Func<Task> onQuickOptimize)
+        Func<Task> onQuickOptimize,
+        Func<Task>? onProEsportsOptimize = null)
     {
         _getHw = getHw;
         _getSys = getSys;
@@ -152,6 +154,27 @@ public class DashboardViewModel : ViewModelBase
             try
             {
                 await onQuickOptimize();
+                RefreshDashboard();
+            }
+            finally
+            {
+                IsScanning = false;
+            }
+        });
+
+        ProEsportsOptimizeCommand = new AsyncRelayCommand(async () =>
+        {
+            IsScanning = true;
+            try
+            {
+                if (onProEsportsOptimize != null)
+                {
+                    await onProEsportsOptimize();
+                }
+                else
+                {
+                    await onQuickOptimize();
+                }
                 RefreshDashboard();
             }
             finally

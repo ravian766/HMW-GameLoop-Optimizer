@@ -14,8 +14,28 @@ public class DeviceProfile
     {
         new DeviceProfile
         {
+            Id = "tabs9ultra",
+            DisplayName = "Samsung Galaxy Tab S9 Ultra (SM-X910 - Official 120 FPS)",
+            Manufacturer = "samsung",
+            Model = "SM-X910",
+            DevicePhoneString = "Samsung Tab S9 Ultra",
+            MaxSupportedFps = 120,
+            Description = "Officially certified 120 FPS ultra-high framerate device string for PUBG Mobile 3.x+."
+        },
+        new DeviceProfile
+        {
+            Id = "rog6",
+            DisplayName = "Asus ROG Phone 6 Pro (120 FPS High Refresh)",
+            Manufacturer = "asus",
+            Model = "ASUS_AI2201_D",
+            DevicePhoneString = "ROG Phone 6 Pro",
+            MaxSupportedFps = 120,
+            Description = "Premier 120 FPS high-refresh whitelist device for PUBG Mobile 3.x+."
+        },
+        new DeviceProfile
+        {
             Id = "rog2",
-            DisplayName = "Asus ROG Phone 2 (Recommended 120 FPS)",
+            DisplayName = "Asus ROG Phone 2 (Legacy 90/120 FPS)",
             Manufacturer = "Asus",
             Model = "ASUS_I001DA",
             DevicePhoneString = "Asus ROG 2",

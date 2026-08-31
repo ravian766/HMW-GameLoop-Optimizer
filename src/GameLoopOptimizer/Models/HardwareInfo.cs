@@ -16,6 +16,8 @@ public class HardwareInfo
 
     public double TotalRamGb { get; set; } = 8;
     public string RamSpeedType { get; set; } = "DDR4";
+    public int RamStickCount { get; set; } = 2;
+    public bool IsDualChannel => RamStickCount >= 2;
 
     public string SystemDrive { get; set; } = "C:";
     public StorageType PrimaryDriveType { get; set; } = StorageType.Ssd;
