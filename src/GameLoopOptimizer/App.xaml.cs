@@ -1,6 +1,7 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using GameLoopOptimizer.Core;
+using GameLoopOptimizer.Core.Navigation;
 using GameLoopOptimizer.Monitoring;
 using GameLoopOptimizer.Optimizations;
 using GameLoopOptimizer.ViewModels;
@@ -18,15 +19,13 @@ public partial class App : Application
         // Core Infrastructure Singletons
         services.AddSingleton<IEventAggregator>(EventAggregator.Default);
         services.AddSingleton<IAdbManager>(DefaultAdbManager.Instance);
+        services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<PerformanceMonitorService>();
         services.AddSingleton(sp => new GameLoopWatchdogService(() => GameLoopDetector.DetectGameLoop()));
         services.AddSingleton<IDaemonServiceManager, DaemonServiceManager>();
 
-        // Auto-discover all IOptimizationModule implementations
-        var moduleTypes = typeof(IOptimizationModule).Assembly.GetTypes()
-            .Where(t => typeof(IOptimizationModule).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
-
-        foreach (var type in moduleTypes)
+        // Auto-discover all IOptimizationModule implementations via registry
+        foreach (var type in OptimizationModuleRegistry.GetModuleTypes())
         {
             services.AddSingleton(typeof(IOptimizationModule), type);
         }

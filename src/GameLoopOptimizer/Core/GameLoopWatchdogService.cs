@@ -18,6 +18,8 @@ public class GameLoopWatchdogService : IDisposable
     private bool _isAutoGameBoostEnabled = true;
     private int _tickCount = 0;
     private string _lastBoostedPackage = string.Empty;
+    private int _adbCheckCooldown = 0;
+    private bool _isAdbChecking = false;
 
     private long _lastIdleTime = 0;
     private long _lastKernelTime = 0;
@@ -189,7 +191,7 @@ public class GameLoopWatchdogService : IDisposable
     {
         try
         {
-            // Inspect window titles of running emulator processes
+            // 1. Inspect window titles of running emulator processes
             var emulatorProcs = Process.GetProcessesByName("AndroidEmulator")
                 .Concat(Process.GetProcessesByName("AndroidEmulatorEn"))
                 .Concat(Process.GetProcessesByName("AndroidEmulatorEx"))
@@ -244,44 +246,74 @@ public class GameLoopWatchdogService : IDisposable
                 }
             }
 
-            if (string.IsNullOrEmpty(foundTitle) && _isGameLoopRunning)
+            // Window title directly identified the game
+            if (!string.IsNullOrEmpty(foundPkg))
             {
-                // Fallback: check ADB foreground window
-                Task.Run(async () =>
+                if (foundPkg != _detectedGamePackage || foundTitle != DetectedGameTitle)
                 {
-                    string? adbPkg = await DetectForegroundPackageViaAdbAsync();
-                    if (!string.IsNullOrEmpty(adbPkg) && adbPkg != _detectedGamePackage)
+                    DetectedGameTitle = foundTitle;
+                    _detectedGamePackage = foundPkg;
+                    DetectedGamePackage = foundPkg;
+                    GameTitleChanged?.Invoke(DetectedGameTitle, DetectedGamePackage);
+
+                    if (foundPkg != _lastBoostedPackage && _isAutoGameBoostEnabled)
                     {
-                        var known = AdbManager.KnownGamePackages.FirstOrDefault(p => p.PackageName.Equals(adbPkg, StringComparison.OrdinalIgnoreCase));
-                        string title = known?.DisplayName ?? adbPkg;
-                        DetectedGameTitle = title;
-                        _detectedGamePackage = adbPkg;
-                        DetectedGamePackage = adbPkg;
-                        GameTitleChanged?.Invoke(DetectedGameTitle, DetectedGamePackage);
-
-                        if (_isAutoGameBoostEnabled && _detectedGamePackage != _lastBoostedPackage)
-                        {
-                            _lastBoostedPackage = _detectedGamePackage;
-                            await ExecuteGameBoostAsync(title, adbPkg);
-                        }
+                        _lastBoostedPackage = foundPkg;
+                        Task.Run(async () => await ExecuteGameBoostAsync(foundTitle, foundPkg));
                     }
-                });
-
-                foundTitle = "GameLoop Active";
+                }
+                return;
             }
 
-            if (foundTitle != DetectedGameTitle || foundPkg != _detectedGamePackage)
+            // Window title did not match a specific game.
+            // If we already have a detected game package from ADB, preserve it (never wipe active game state mid-session)
+            if (!string.IsNullOrEmpty(_detectedGamePackage))
             {
-                DetectedGameTitle = string.IsNullOrEmpty(foundTitle) ? "Standby" : foundTitle;
-                _detectedGamePackage = foundPkg;
-                DetectedGamePackage = foundPkg;
-                GameTitleChanged?.Invoke(DetectedGameTitle, DetectedGamePackage);
+                return;
+            }
 
-                if (!string.IsNullOrEmpty(foundPkg) && foundPkg != _lastBoostedPackage && _isAutoGameBoostEnabled)
+            if (DetectedGameTitle != "GameLoop Active")
+            {
+                DetectedGameTitle = "GameLoop Active";
+                GameTitleChanged?.Invoke(DetectedGameTitle, DetectedGamePackage);
+            }
+
+            // Fallback: Check ADB only when no package is identified, rate-limited to once every ~16 seconds (8 ticks)
+            if (_isGameLoopRunning && !_isAdbChecking && _adbCheckCooldown <= 0)
+            {
+                _adbCheckCooldown = 8;
+                _isAdbChecking = true;
+
+                Task.Run(async () =>
                 {
-                    _lastBoostedPackage = foundPkg;
-                    Task.Run(async () => await ExecuteGameBoostAsync(foundTitle, foundPkg));
-                }
+                    try
+                    {
+                        string? adbPkg = await DetectForegroundPackageViaAdbAsync();
+                        if (!string.IsNullOrEmpty(adbPkg) && adbPkg != _detectedGamePackage)
+                        {
+                            var known = AdbManager.KnownGamePackages.FirstOrDefault(p => p.PackageName.Equals(adbPkg, StringComparison.OrdinalIgnoreCase));
+                            string title = known?.DisplayName ?? adbPkg;
+                            DetectedGameTitle = title;
+                            _detectedGamePackage = adbPkg;
+                            DetectedGamePackage = adbPkg;
+                            GameTitleChanged?.Invoke(DetectedGameTitle, DetectedGamePackage);
+
+                            if (_isAutoGameBoostEnabled && _detectedGamePackage != _lastBoostedPackage)
+                            {
+                                _lastBoostedPackage = _detectedGamePackage;
+                                await ExecuteGameBoostAsync(title, adbPkg);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        _isAdbChecking = false;
+                    }
+                });
+            }
+            else if (_adbCheckCooldown > 0)
+            {
+                _adbCheckCooldown--;
             }
         }
         catch { }
@@ -301,18 +333,14 @@ public class GameLoopWatchdogService : IDisposable
             long mask = ProcessManager.CalculateOptimalAffinityMask(Environment.ProcessorCount, Math.Max(1, Environment.ProcessorCount / 2));
             ProcessManager.SetGameLoopAffinity(mask);
 
-            // 3. In-VM Priority elevation & Ahead-of-Time DEX Compile
+            // 3. In-VM Priority elevation
             var gl = _getGl();
             if (AdbManager.IsAdbAvailable(gl))
             {
                 await AdbManager.ElevateGameProcessPriorityAsync(packageName, gl);
-                // Compile DEX bytecode to eliminate micro-stutter
-                await AdbManager.CompilePackageSpeedAsync(packageName, gl);
             }
 
-            // 4. Memory trim
-            ProcessManager.TrimWorkingSets();
-            Logger.Success("Watchdog", $"Autonomous Game Boost active for '{gameTitle}'. Keymappings preserved intact.");
+            Logger.Success("Watchdog", $"Autonomous Game Boost active for '{gameTitle}'. Keymappings and frame pacing preserved.");
         }
         catch (Exception ex)
         {
@@ -381,6 +409,11 @@ public class GameLoopWatchdogService : IDisposable
     private void OnGameLoopClosed()
     {
         Logger.Info("Watchdog", "GameLoop closed. Running post-game cleanup & restoring standard Windows timer.");
+        _detectedGamePackage = string.Empty;
+        DetectedGamePackage = string.Empty;
+        DetectedGameTitle = "Standby";
+        _lastBoostedPackage = string.Empty;
+        _adbCheckCooldown = 0;
         TimerResolutionModule.RestoreTimer();
         ProcessManager.ResetGameLoopAffinity();
         int freed = ProcessManager.TrimWorkingSets();

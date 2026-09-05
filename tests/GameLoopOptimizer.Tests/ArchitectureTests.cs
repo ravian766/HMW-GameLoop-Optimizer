@@ -1,6 +1,7 @@
 using Xunit;
 using Microsoft.Extensions.DependencyInjection;
 using GameLoopOptimizer.Core;
+using GameLoopOptimizer.Core.Navigation;
 using GameLoopOptimizer.Models;
 using GameLoopOptimizer.Optimizations;
 using GameLoopOptimizer.ViewModels;
@@ -91,5 +92,47 @@ public class ArchitectureTests
     {
         IAdbManager manager = DefaultAdbManager.Instance;
         Assert.NotNull(manager);
+    }
+
+    [Fact]
+    public void NavigationService_NavigatesAndUpdatesState()
+    {
+        var nav = new NavigationService();
+        var dummyView = new object();
+        bool eventFired = false;
+        string? navigatedTab = null;
+
+        nav.RegisterView("TestTab", () => dummyView);
+        nav.Navigated += (s, tab) =>
+        {
+            eventFired = true;
+            navigatedTab = tab;
+        };
+
+        nav.NavigateTo("TestTab");
+
+        Assert.True(eventFired);
+        Assert.Equal("TestTab", navigatedTab);
+        Assert.Equal("TestTab", nav.ActiveTab);
+        Assert.Same(dummyView, nav.CurrentView);
+    }
+
+    [Fact]
+    public void OptimizationModuleRegistry_DiscoversAndInstantiatesConcreteModules()
+    {
+        var types = OptimizationModuleRegistry.GetModuleTypes();
+        Assert.NotEmpty(types);
+        Assert.True(types.Count >= 30, $"Expected >= 30 types, found {types.Count}");
+
+        var modules = OptimizationModuleRegistry.CreateAllModules();
+        Assert.Equal(types.Count, modules.Count);
+        Assert.All(modules, m => Assert.NotNull(m));
+    }
+
+    [Fact]
+    public void NativeMethods_ReturnsValidPhysicalMemoryLoad()
+    {
+        double load = NativeMethods.GetMemoryLoadPercent();
+        Assert.True(load >= 0 && load <= 100, $"Expected memory load between 0-100, got {load}");
     }
 }

@@ -732,6 +732,7 @@ public class GameLoopViewModel : ViewModelBase
                 gl.VmResHeight = ResHeight;
 
                 SaveSettingsToRegistry(gl);
+                GameLoopDetector.InvalidateCache();
 
                 if (SelectedDeviceProfile != null)
                 {

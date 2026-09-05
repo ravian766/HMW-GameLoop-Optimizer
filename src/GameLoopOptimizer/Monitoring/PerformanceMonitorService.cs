@@ -7,23 +7,6 @@ namespace GameLoopOptimizer.Monitoring;
 
 public class PerformanceMonitorService : IDisposable
 {
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-    private struct MEMORYSTATUSEX
-    {
-        public uint dwLength;
-        public uint dwMemoryLoad;
-        public ulong ullTotalPhys;
-        public ulong ullAvailPhys;
-        public ulong ullTotalPageFile;
-        public ulong ullAvailPageFile;
-        public ulong ullTotalVirtual;
-        public ulong ullAvailVirtual;
-        public ulong ullAvailExtendedVirtual;
-    }
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool GetSystemTimes(out long idleTime, out long kernelTime, out long userTime);
@@ -133,9 +116,9 @@ public class PerformanceMonitorService : IDisposable
             }
 
             // 2. RAM Usage
-            var mem = new MEMORYSTATUSEX();
-            mem.dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX));
-            if (GlobalMemoryStatusEx(ref mem))
+            var mem = new NativeMethods.MEMORYSTATUSEX();
+            mem.dwLength = (uint)Marshal.SizeOf(typeof(NativeMethods.MEMORYSTATUSEX));
+            if (NativeMethods.GlobalMemoryStatusEx(ref mem))
             {
                 metrics.RamTotalGb = Math.Round((double)mem.ullTotalPhys / (1024 * 1024 * 1024), 2);
                 metrics.RamUsedGb = Math.Round((double)(mem.ullTotalPhys - mem.ullAvailPhys) / (1024 * 1024 * 1024), 2);

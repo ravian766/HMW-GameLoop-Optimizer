@@ -216,21 +216,28 @@ public static class BackupManager
 
     private static bool RestorePowerPlan(BackupEntry entry)
     {
-        if (string.IsNullOrEmpty(entry.PreviousValue)) return false;
+        if (string.IsNullOrWhiteSpace(entry.PreviousValue)) return false;
+
+        // Sanitize: Windows power plans are GUIDs (e.g. 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c)
+        if (!Guid.TryParse(entry.PreviousValue.Trim(), out var planGuid))
+        {
+            Logger.Error("BackupManager", $"Rejected power plan restore with invalid GUID format: '{entry.PreviousValue}'");
+            return false;
+        }
 
         try
         {
             var psi = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "powercfg",
-                Arguments = $"/setactive {entry.PreviousValue}",
+                Arguments = $"/setactive {planGuid:D}",
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
             using var p = System.Diagnostics.Process.Start(psi);
             p?.WaitForExit(3000);
             MarkReverted(entry.Id);
-            Logger.Success("BackupManager", $"Restored Power Plan to {entry.PreviousValue}");
+            Logger.Success("BackupManager", $"Restored Power Plan to {planGuid:D}");
             return true;
         }
         catch (Exception ex)

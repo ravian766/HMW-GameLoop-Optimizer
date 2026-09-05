@@ -1,5 +1,6 @@
 using System.Windows.Input;
 using GameLoopOptimizer.Core;
+using GameLoopOptimizer.Core.Navigation;
 using GameLoopOptimizer.Models;
 using GameLoopOptimizer.Monitoring;
 using GameLoopOptimizer.Optimizations;
@@ -20,6 +21,7 @@ public class MainViewModel : ViewModelBase
     public PerformanceMonitorService MonitorService { get; }
     public GameLoopWatchdogService WatchdogService { get; }
     public List<IOptimizationModule> Modules { get; }
+    public INavigationService Navigation { get; }
 
     public DashboardViewModel DashboardVM { get; }
     public OptimizerViewModel OptimizerVM { get; }
@@ -30,18 +32,12 @@ public class MainViewModel : ViewModelBase
     public BackupViewModel BackupVM { get; }
     public LogsViewModel LogsVM { get; }
 
-    private object _currentView;
-    public object CurrentView
-    {
-        get => _currentView;
-        set => SetProperty(ref _currentView, value);
-    }
+    public object CurrentView => Navigation?.CurrentView ?? DashboardVM;
 
-    private string _activeTab = "Dashboard";
     public string ActiveTab
     {
-        get => _activeTab;
-        set => SetProperty(ref _activeTab, value);
+        get => Navigation?.ActiveTab ?? "Dashboard";
+        set => Navigation?.NavigateTo(value);
     }
 
     private bool _isAdmin;
@@ -115,7 +111,7 @@ public class MainViewModel : ViewModelBase
     public ICommand DismissUpdateCommand { get; }
     public ICommand DownloadAndApplyUpdateCommand { get; }
 
-    public MainViewModel() : this(null, null, null, null)
+    public MainViewModel() : this(null, null, null, null, null)
     {
     }
 
@@ -123,7 +119,8 @@ public class MainViewModel : ViewModelBase
         IEventAggregator? eventAggregator = null,
         PerformanceMonitorService? monitorService = null,
         GameLoopWatchdogService? watchdogService = null,
-        IEnumerable<IOptimizationModule>? modules = null)
+        IEnumerable<IOptimizationModule>? modules = null,
+        INavigationService? navigationService = null)
     {
         IsAdmin = PermissionManager.IsAdministrator;
         EventAggregator = eventAggregator ?? Core.EventAggregator.Default;
@@ -135,47 +132,8 @@ public class MainViewModel : ViewModelBase
         WatchdogService = watchdogService ?? new GameLoopWatchdogService(() => _gameLoop);
         WatchdogService.Start();
 
-        // Initialize Optimization Modules
-        Modules = modules?.ToList() ?? new List<IOptimizationModule>
-        {
-            new WindowsGameModeModule(),
-            new MmcssGamingPriorityModule(),
-            new DisableGameDvrModule(),
-            new PowerPlanModule(),
-            new GameLoopResourceModule(),
-            new GameLoopGraphicsModule(),
-            new GameLoopPUBGConfigModule(),
-            new IfeoProcessPriorityModule(),
-            new AdbGpuAccelerationModule(),
-            new AdbAnimationLatencyModule(),
-            new AdbInputPollingModule(),
-            new Adb120FpsUnlockModule(),
-            new AdbDexCompilationModule(),
-            new AdbVmHeapTuningModule(),
-            new AdbLogcatSuppressModule(),
-            new AdbBackgroundDozeModule(),
-            new AdbNetworkDnsModule(),
-            new AdbAudioLatencyModule(),
-            new CpuAffinityModule(),
-            new GpuPreferenceModule(),
-            new GpuDriverProfileModule(),
-            new GpuScalingModule(),
-            new GpuTdrDelayModule(),
-            new DirectXShaderCacheModule(),
-            new OpenGLShaderCacheModule(),
-            new AudioLatencyModule(),
-            new AudioFootstepClarifierModule(),
-            new MemoryOptimizerModule(),
-            new StandbyListCleanerModule(),
-            new CleanupOptimizerModule(),
-            new TimerResolutionModule(),
-            new ProcessPriorityModule(),
-            new NetworkLatencyModule(),
-            new NetworkQoSModule(),
-            new NetworkDnsModule(),
-            new VisualEffectsModule(),
-            new BackgroundThrottleModule()
-        };
+        // Initialize Optimization Modules via unified registry
+        Modules = modules?.ToList() ?? OptimizationModuleRegistry.CreateAllModules();
 
         // Create child ViewModels
         DashboardVM = new DashboardViewModel(
@@ -214,7 +172,26 @@ public class MainViewModel : ViewModelBase
         BackupVM = new BackupViewModel();
         LogsVM = new LogsViewModel();
 
-        _currentView = DashboardVM;
+        // Initialize and configure decoupled Navigation Service
+        Navigation = navigationService ?? new NavigationService();
+        Navigation.RegisterView("Dashboard", () => DashboardVM);
+        Navigation.RegisterView("Optimizer", () => OptimizerVM);
+        Navigation.RegisterView("GameLoop", () => GameLoopVM);
+        Navigation.RegisterView("KeymapResolution", () => KeymapResolutionVM);
+        Navigation.RegisterView("Monitor", () => MonitorVM);
+        Navigation.RegisterView("GamingSession", () => GamingSessionVM);
+        Navigation.RegisterView("Backup", () => BackupVM);
+        Navigation.RegisterView("Logs", () => LogsVM);
+
+        Navigation.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(INavigationService.ActiveTab))
+                OnPropertyChanged(nameof(ActiveTab));
+            else if (e.PropertyName == nameof(INavigationService.CurrentView))
+                OnPropertyChanged(nameof(CurrentView));
+        };
+
+        Navigation.NavigateTo("Dashboard");
 
         // Wire decoupled events via EventAggregator
         EventAggregator.Subscribe<OptimizationsChangedMessage>(_ =>
@@ -242,19 +219,7 @@ public class MainViewModel : ViewModelBase
         {
             if (param is string tabName)
             {
-                ActiveTab = tabName;
-                CurrentView = tabName switch
-                {
-                    "Dashboard" => DashboardVM,
-                    "Optimizer" => OptimizerVM,
-                    "GameLoop" => GameLoopVM,
-                    "KeymapResolution" => KeymapResolutionVM,
-                    "Monitor" => MonitorVM,
-                    "GamingSession" => GamingSessionVM,
-                    "Backup" => BackupVM,
-                    "Logs" => LogsVM,
-                    _ => DashboardVM
-                };
+                Navigation.NavigateTo(tabName);
             }
         });
 
@@ -295,24 +260,48 @@ public class MainViewModel : ViewModelBase
             OnPropertyChanged(nameof(ThemeTooltip));
         };
 
-        // Initial Data Load
-        Task.Run(async () => await InitializeAsync());
+        // Initial Data Load (Safe execution with error trapping)
+        Task.Run(async () =>
+        {
+            try
+            {
+                await InitializeAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("MainViewModel", $"Async initialization error: {ex.Message}");
+            }
+        });
     }
 
     private async Task InitializeAsync()
     {
-        RefreshSystemData();
-        DashboardVM.RefreshDashboard();
-        GameLoopVM.RefreshData();
-        await OptimizerVM.AnalyzeAllAsync();
-        DashboardVM.RefreshDashboard();
-
-        // Silent background update check
-        _ = Task.Run(async () =>
+        try
         {
-            await Task.Delay(2500);
-            await CheckForUpdatesSilentlyAsync();
-        });
+            RefreshSystemData();
+            DashboardVM.RefreshDashboard();
+            GameLoopVM.RefreshData();
+            await OptimizerVM.AnalyzeAllAsync();
+            DashboardVM.RefreshDashboard();
+
+            // Silent background update check
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(2500);
+                    await CheckForUpdatesSilentlyAsync();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error("MainViewModel", $"Background update check error: {ex.Message}");
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("MainViewModel", $"InitializeAsync error: {ex.Message}");
+        }
     }
 
     public async Task CheckForUpdatesSilentlyAsync()
@@ -427,12 +416,38 @@ public class MainViewModel : ViewModelBase
         OptimizerVM.CurrentProfile = OptimizationProfile.MaximumPerformance;
         await OptimizerVM.OptimizeSelectedAsync();
 
-        StandbyListCleanerService.PurgeStandbyList();
-        Optimizations.TimerResolutionModule.SetHighPrecision(0.5);
+        // Apply specialized low-latency modules via module pipeline for scoring & rollback tracking
+        var standbyModule = Modules.OfType<StandbyListCleanerModule>().FirstOrDefault();
+        if (standbyModule != null)
+        {
+            await standbyModule.ApplyAsync(_hardware, _system, _gameLoop);
+        }
+        else
+        {
+            StandbyListCleanerService.PurgeStandbyList();
+        }
+
+        var timerModule = Modules.OfType<TimerResolutionModule>().FirstOrDefault();
+        if (timerModule != null)
+        {
+            await timerModule.ApplyAsync(_hardware, _system, _gameLoop);
+        }
+        else
+        {
+            Optimizations.TimerResolutionModule.SetHighPrecision(0.5);
+        }
 
         if (AdbManager.IsAdbAvailable(_gameLoop))
         {
-            await AdbManager.Unlock120FpsAsync(_gameLoop);
+            var adb120Module = Modules.OfType<Adb120FpsUnlockModule>().FirstOrDefault();
+            if (adb120Module != null)
+            {
+                await adb120Module.ApplyAsync(_hardware, _system, _gameLoop);
+            }
+            else
+            {
+                await AdbManager.Unlock120FpsAsync(_gameLoop);
+            }
         }
 
         RefreshSystemData();

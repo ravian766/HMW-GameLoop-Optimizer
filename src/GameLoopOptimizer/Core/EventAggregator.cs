@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 
 namespace GameLoopOptimizer.Core;
 
@@ -14,6 +15,8 @@ public class EventAggregator : IEventAggregator
     public static EventAggregator Default { get; } = new();
 
     private readonly ConcurrentDictionary<Type, List<WeakReference<Delegate>>> _subscribers = new();
+    private readonly ConditionalWeakTable<object, List<Delegate>> _livingDelegates = new();
+    private readonly List<Delegate> _staticDelegates = new();
     private readonly object _lock = new();
 
     public void Subscribe<TMessage>(Action<TMessage> handler)
@@ -25,6 +28,20 @@ public class EventAggregator : IEventAggregator
         {
             var list = _subscribers.GetOrAdd(messageType, _ => new List<WeakReference<Delegate>>());
             list.Add(new WeakReference<Delegate>(handler));
+
+            // Keep delegate alive as long as its target (e.g. ViewModel) is alive
+            if (handler.Target != null)
+            {
+                var targetList = _livingDelegates.GetOrCreateValue(handler.Target);
+                lock (targetList)
+                {
+                    targetList.Add(handler);
+                }
+            }
+            else
+            {
+                _staticDelegates.Add(handler);
+            }
         }
     }
 
@@ -38,6 +55,18 @@ public class EventAggregator : IEventAggregator
             if (_subscribers.TryGetValue(messageType, out var list))
             {
                 list.RemoveAll(wr => !wr.TryGetTarget(out var target) || target.Equals(handler));
+            }
+
+            if (handler.Target != null && _livingDelegates.TryGetValue(handler.Target, out var targetList))
+            {
+                lock (targetList)
+                {
+                    targetList.Remove(handler);
+                }
+            }
+            else
+            {
+                _staticDelegates.Remove(handler);
             }
         }
     }

@@ -75,24 +75,24 @@ public class InverseBooleanConverter : IValueConverter
 
 public class BooleanToStatusBrushConverter : IValueConverter
 {
-    private static readonly System.Windows.Media.SolidColorBrush GreenBrush = new(System.Windows.Media.Color.FromRgb(0x10, 0xB9, 0x81));
-    private static readonly System.Windows.Media.SolidColorBrush SlateBrush = new(System.Windows.Media.Color.FromRgb(0x64, 0x74, 0x8B));
-    private static readonly System.Windows.Media.SolidColorBrush RedBrush = new(System.Windows.Media.Color.FromRgb(0xEF, 0x44, 0x44));
+    private static readonly System.Windows.Media.SolidColorBrush FallbackGreen = new(System.Windows.Media.Color.FromRgb(0x10, 0xB9, 0x81));
+    private static readonly System.Windows.Media.SolidColorBrush FallbackSlate = new(System.Windows.Media.Color.FromRgb(0x64, 0x74, 0x8B));
+    private static readonly System.Windows.Media.SolidColorBrush FallbackRed = new(System.Windows.Media.Color.FromRgb(0xEF, 0x44, 0x44));
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         bool isTrue = value is bool b && b;
         if (isTrue)
         {
-            return GreenBrush;
+            return Application.Current?.TryFindResource("BrushAccentGreen") as System.Windows.Media.Brush ?? FallbackGreen;
         }
 
         if (parameter is string p && p.Equals("danger", StringComparison.OrdinalIgnoreCase))
         {
-            return RedBrush;
+            return Application.Current?.TryFindResource("BrushAccentRed") as System.Windows.Media.Brush ?? FallbackRed;
         }
 
-        return SlateBrush;
+        return Application.Current?.TryFindResource("BrushTextMuted") as System.Windows.Media.Brush ?? FallbackSlate;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
@@ -100,12 +100,15 @@ public class BooleanToStatusBrushConverter : IValueConverter
 
 public class BooleanToAdminBrushConverter : IValueConverter
 {
-    private static readonly System.Windows.Media.SolidColorBrush EmeraldBrush = new(System.Windows.Media.Color.FromRgb(0x10, 0xB9, 0x81));
-    private static readonly System.Windows.Media.SolidColorBrush MutedBrush = new(System.Windows.Media.Color.FromRgb(0x94, 0xA3, 0xB8));
+    private static readonly System.Windows.Media.SolidColorBrush FallbackEmerald = new(System.Windows.Media.Color.FromRgb(0x10, 0xB9, 0x81));
+    private static readonly System.Windows.Media.SolidColorBrush FallbackMuted = new(System.Windows.Media.Color.FromRgb(0x94, 0xA3, 0xB8));
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        return (value is bool b && b) ? EmeraldBrush : MutedBrush;
+        bool isTrue = value is bool b && b;
+        return isTrue
+            ? (Application.Current?.TryFindResource("BrushAccentGreen") as System.Windows.Media.Brush ?? FallbackEmerald)
+            : (Application.Current?.TryFindResource("BrushTextMuted") as System.Windows.Media.Brush ?? FallbackMuted);
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();

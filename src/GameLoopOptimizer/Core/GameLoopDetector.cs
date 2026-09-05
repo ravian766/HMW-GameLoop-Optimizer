@@ -25,24 +25,62 @@ public static class GameLoopDetector
         "TBSWebStore"
     };
 
-    public static async Task<GameLoopConfig> DetectGameLoopAsync()
+    private static readonly object _cacheLock = new();
+    private static GameLoopConfig? _cachedConfig;
+    private static DateTime _lastDetectionTime = DateTime.MinValue;
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(15);
+    private static string _lastLoggedSummary = string.Empty;
+
+    public static void InvalidateCache()
     {
-        return await Task.Run(() => DetectGameLoop());
+        lock (_cacheLock)
+        {
+            _cachedConfig = null;
+            _lastDetectionTime = DateTime.MinValue;
+        }
     }
 
-    public static GameLoopConfig DetectGameLoop()
+    public static async Task<GameLoopConfig> DetectGameLoopAsync(bool forceRefresh = false)
     {
-        var config = new GameLoopConfig();
+        return await Task.Run(() => DetectGameLoop(forceRefresh));
+    }
 
-        // 1. Detect from Registry
-        DetectFromRegistry(config);
+    public static GameLoopConfig DetectGameLoop(bool forceRefresh = false)
+    {
+        lock (_cacheLock)
+        {
+            var now = DateTime.UtcNow;
+            GameLoopConfig config;
 
-        // 2. Check running processes
-        DetectRunningProcesses(config);
+            if (!forceRefresh && _cachedConfig != null && (now - _lastDetectionTime) < CacheDuration)
+            {
+                config = _cachedConfig;
+                DetectRunningProcesses(config);
+            }
+            else
+            {
+                config = new GameLoopConfig();
 
-        Logger.Info("GameLoopDetector", $"GameLoop Installed: {config.IsInstalled}, Running: {config.IsRunning}, Renderer: {(config.ForceDirectX ? "DirectX+" : "OpenGL+")}, CPU: {config.VmCpuCount} cores, RAM: {config.VmMemorySizeInMb} MB, Res: {config.VmResWidth}x{config.VmResHeight}, ShaderCache: {config.LocalShaderCacheEnabled}, FPS Level: {config.PubgFpsLevel}");
+                // 1. Detect from Registry
+                DetectFromRegistry(config);
 
-        return config;
+                // 2. Check running processes
+                DetectRunningProcesses(config);
+
+                _cachedConfig = config;
+                _lastDetectionTime = now;
+            }
+
+            string summary = $"GameLoop Installed: {config.IsInstalled}, Running: {config.IsRunning}, Renderer: {(config.ForceDirectX ? "DirectX+" : "OpenGL+")}, CPU: {config.VmCpuCount} cores, RAM: {config.VmMemorySizeInMb} MB, Res: {config.VmResWidth}x{config.VmResHeight}, ShaderCache: {config.LocalShaderCacheEnabled}, FPS Level: {config.PubgFpsLevel}";
+
+            if (summary != _lastLoggedSummary)
+            {
+                _lastLoggedSummary = summary;
+                Logger.Info("GameLoopDetector", summary);
+            }
+
+            return config;
+        }
     }
 
     private static void DetectFromRegistry(GameLoopConfig config)

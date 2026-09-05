@@ -121,4 +121,26 @@ public class EnhancementsPhase2Tests
         int freed = await watchdog.ExecuteSmartPurgeAsync(bypassLoadCheck: true);
         Assert.True(freed >= 0);
     }
+
+    [Fact]
+    public void GameLoopDetector_CachingAndLogThrottling_PreventsDuplicateSpam()
+    {
+        GameLoopDetector.InvalidateCache();
+        int initialLogCount = Logger.GetAllLogs().Count(l => l.Module == "GameLoopDetector");
+
+        // First call generates at most 1 log entry
+        var c1 = GameLoopDetector.DetectGameLoop();
+        int countAfterFirst = Logger.GetAllLogs().Count(l => l.Module == "GameLoopDetector");
+
+        // Consecutive calls with identical state should NOT produce additional log entries
+        var c2 = GameLoopDetector.DetectGameLoop();
+        var c3 = GameLoopDetector.DetectGameLoop();
+        int countAfterRepeats = Logger.GetAllLogs().Count(l => l.Module == "GameLoopDetector");
+
+        Assert.Equal(countAfterFirst, countAfterRepeats);
+        Assert.NotNull(c1);
+        Assert.NotNull(c2);
+        Assert.NotNull(c3);
+    }
 }
+
