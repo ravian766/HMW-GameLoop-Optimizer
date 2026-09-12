@@ -101,6 +101,20 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _showUpdateModal, value);
     }
 
+    private OptimizationReport? _activeReport;
+    public OptimizationReport? ActiveReport
+    {
+        get => _activeReport;
+        set => SetProperty(ref _activeReport, value);
+    }
+
+    private bool _showReportModal;
+    public bool ShowReportModal
+    {
+        get => _showReportModal;
+        set => SetProperty(ref _showReportModal, value);
+    }
+
     public string CurrentVersionDisplay => $"v{UpdateManager.Instance.GetCurrentVersion().ToString(3)}";
 
     public ICommand NavigateCommand { get; }
@@ -110,6 +124,8 @@ public class MainViewModel : ViewModelBase
     public ICommand OpenUpdateModalCommand { get; }
     public ICommand DismissUpdateCommand { get; }
     public ICommand DownloadAndApplyUpdateCommand { get; }
+    public ICommand CloseReportModalCommand { get; }
+    public ICommand CopyReportSummaryCommand { get; }
 
     public MainViewModel() : this(null, null, null, null, null)
     {
@@ -148,7 +164,8 @@ public class MainViewModel : ViewModelBase
             Modules, 
             () => _hardware, 
             () => _system, 
-            () => _gameLoop);
+            () => _gameLoop,
+            () => MonitorService.LatestMetrics);
 
         GameLoopVM = new GameLoopViewModel(
             () => _hardware, 
@@ -251,6 +268,36 @@ public class MainViewModel : ViewModelBase
         DownloadAndApplyUpdateCommand = new RelayCommand(async () =>
         {
             await DownloadAndApplyUpdateAsync();
+        });
+
+        CloseReportModalCommand = new RelayCommand(() =>
+        {
+            ShowReportModal = false;
+        });
+
+        CopyReportSummaryCommand = new RelayCommand(() =>
+        {
+            if (ActiveReport != null)
+            {
+                try
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine($"GameLoop Optimizer Report - {ActiveReport.ProfileName} ({ActiveReport.Timestamp:yyyy-MM-dd HH:mm:ss})");
+                    sb.AppendLine(ActiveReport.SummaryText);
+                    if (ActiveReport.SnapshotComparison != null)
+                    {
+                        sb.AppendLine(ActiveReport.SnapshotComparison.SummaryText);
+                    }
+                    sb.AppendLine("Items:");
+                    foreach (var item in ActiveReport.Items)
+                    {
+                        sb.AppendLine($"  [{(item.Success ? "OK" : "FAIL")}] {item.Title}: {item.PreviousState} -> {item.NewState} ({item.Message})");
+                    }
+                    global::System.Windows.Clipboard.SetText(sb.ToString());
+                    Logger.Info("Report", "Copied optimization report to clipboard.");
+                }
+                catch { }
+            }
         });
 
         ThemeManager.Instance.ThemeChanged += (s, e) =>
@@ -405,16 +452,19 @@ public class MainViewModel : ViewModelBase
     public async Task QuickOptimizeAsync()
     {
         OptimizerVM.CurrentProfile = OptimizationProfile.Safe;
-        await OptimizerVM.OptimizeSelectedAsync();
+        var report = await OptimizerVM.OptimizeSelectedAsync();
         RefreshSystemData();
         DashboardVM.RefreshDashboard();
+
+        ActiveReport = report;
+        ShowReportModal = true;
     }
 
     public async Task ProEsportsOptimizeAsync()
     {
         Logger.Info("EsportsMode", "Engaging 1-Click Pro Esports Setup...");
-        OptimizerVM.CurrentProfile = OptimizationProfile.MaximumPerformance;
-        await OptimizerVM.OptimizeSelectedAsync();
+        OptimizerVM.CurrentProfile = OptimizationProfile.Competitive;
+        var report = await OptimizerVM.OptimizeSelectedAsync();
 
         // Apply specialized low-latency modules via module pipeline for scoring & rollback tracking
         var standbyModule = Modules.OfType<StandbyListCleanerModule>().FirstOrDefault();
@@ -453,5 +503,8 @@ public class MainViewModel : ViewModelBase
         RefreshSystemData();
         DashboardVM.RefreshDashboard();
         Logger.Success("EsportsMode", "1-Click Pro Esports Setup completed successfully!");
+
+        ActiveReport = report;
+        ShowReportModal = true;
     }
 }

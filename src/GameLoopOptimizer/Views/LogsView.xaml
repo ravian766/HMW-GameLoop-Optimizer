@@ -47,6 +47,14 @@
                             FontSize="11.5"
                             Margin="0,0,8,0" />
 
+                    <Button Content="💾 Export"
+                            Command="{Binding ExportLogsCommand}"
+                            Style="{StaticResource SecondaryButton}"
+                            Padding="14,8"
+                            FontSize="11.5"
+                            Margin="0,0,8,0"
+                            ToolTip="Export all filtered logs to a text or log file" />
+
                     <Button Content="🗑️ Clear"
                             Command="{Binding ClearLogsCommand}"
                             Style="{StaticResource DangerButton}"

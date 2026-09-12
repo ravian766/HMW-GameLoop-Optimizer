@@ -28,6 +28,7 @@ public class LogsViewModel : ViewModelBase
 
     public ICommand ClearLogsCommand { get; }
     public ICommand CopyLogsCommand { get; }
+    public ICommand ExportLogsCommand { get; }
 
     public LogsViewModel()
     {
@@ -48,6 +49,30 @@ public class LogsViewModel : ViewModelBase
                 Clipboard.SetText(text);
             }
             catch { }
+        });
+
+        ExportLogsCommand = new RelayCommand(() =>
+        {
+            try
+            {
+                var sfd = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "Export Optimization Logs",
+                    Filter = "Log files (*.log;*.txt)|*.log;*.txt|All files (*.*)|*.*",
+                    FileName = $"GameLoopOptimizer_Log_{DateTime.Now:yyyyMMdd_HHmmss}.txt"
+                };
+
+                if (sfd.ShowDialog() == true)
+                {
+                    var text = string.Join(Environment.NewLine, FilteredLogs.Select(l => l.Formatted));
+                    System.IO.File.WriteAllText(sfd.FileName, text);
+                    Logger.Success("Logs", $"Exported {FilteredLogs.Count} log lines to {sfd.FileName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Logs", $"Failed to export logs: {ex.Message}");
+            }
         });
 
         Logger.LogAdded += (s, entry) =>

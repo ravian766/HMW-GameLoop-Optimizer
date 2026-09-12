@@ -30,7 +30,8 @@ public class ActiveSavProfile
         4 => "Ultra (40 FPS)",
         5 => "Extreme (60 FPS)",
         6 => "90 FPS",
-        7 => "120 FPS",
+        7 => "120 FPS (Legacy)",
+        8 => "120 FPS (Ultra Extreme)",
         _ => $"{fps} Level"
     };
 
@@ -40,7 +41,8 @@ public class ActiveSavProfile
         2 => "Balanced (均衡)",
         3 => "HD (高清)",
         4 => "HDR (高清高动态)",
-        5 => "Ultra HD (超高清)",
+        5 => "Ultra HD (超高清 - Level 5)",
+        6 => "UHD / Ultra HDR (极致超高清 - Level 6)",
         _ => $"{q} Level"
     };
 
@@ -59,19 +61,31 @@ public class ActiveSavProfile
         new ActiveSavProfile
         {
             Name = "Esports 120 FPS Ultra-Low Latency",
-            Description = "Unlocks maximum 120 FPS frame rate with Smooth graphics and Classic rendering for lowest input lag and fastest reaction time.",
-            FpsLevel = 7,
-            LobbyFpsLevel = 7,
+            Description = "Unlocks maximum 120 FPS frame rate (FPS Level 8) with Smooth graphics and Classic rendering for lowest input lag and fastest reaction time.",
+            FpsLevel = 8,
+            LobbyFpsLevel = 8,
             BattleQuality = 1,
             LobbyQuality = 1,
             Style = 1,
-            GraphicFavor = 4, // 4 = Customize (crucial to prevent game from overriding)
+            GraphicFavor = 4,
+            IsCustom = false
+        },
+        new ActiveSavProfile
+        {
+            Name = "Ultra HDR / UHD 120 FPS",
+            Description = "Forces UHD / Ultra HDR (Quality Level 6) maximum graphics quality with 120 FPS target unlock (FPS Level 8) for flagship visuals and performance.",
+            FpsLevel = 8,
+            LobbyFpsLevel = 8,
+            BattleQuality = 6,
+            LobbyQuality = 6,
+            Style = 2,
+            GraphicFavor = 4,
             IsCustom = false
         },
         new ActiveSavProfile
         {
             Name = "Competitive 90 FPS Smooth",
-            Description = "Optimized 90 FPS frame ceiling with zero motion blur and soft shadows for smooth competitive ranked matches.",
+            Description = "Optimized 90 FPS frame ceiling (FPS Level 6) with zero motion blur and soft shadows for smooth competitive ranked matches.",
             FpsLevel = 6,
             LobbyFpsLevel = 6,
             BattleQuality = 1,
@@ -83,11 +97,11 @@ public class ActiveSavProfile
         new ActiveSavProfile
         {
             Name = "Streamer 120 FPS HDR",
-            Description = "Max 120 FPS with HDR graphics quality and vibrant dynamic range for content creation and high-end rigs.",
-            FpsLevel = 7,
-            LobbyFpsLevel = 7,
+            Description = "Max 120 FPS (FPS Level 8) with HDR graphics quality (Level 4) and vibrant dynamic range for content creation and high-end rigs.",
+            FpsLevel = 8,
+            LobbyFpsLevel = 8,
             BattleQuality = 4,
-            LobbyQuality = 3,
+            LobbyQuality = 4,
             Style = 2,
             GraphicFavor = 4,
             IsCustom = false
@@ -95,7 +109,7 @@ public class ActiveSavProfile
         new ActiveSavProfile
         {
             Name = "Balanced 90 FPS HD",
-            Description = "Sharp 90 FPS visual clarity with HD textures and balanced shadows for mid-range gaming systems.",
+            Description = "Sharp 90 FPS visual clarity with HD textures (Level 3) and balanced shadows for mid-range gaming systems.",
             FpsLevel = 6,
             LobbyFpsLevel = 6,
             BattleQuality = 3,
@@ -108,8 +122,8 @@ public class ActiveSavProfile
         {
             Name = "Custom In-Game Configuration",
             Description = "User-customized in-game parameters allowing precision manual control over battle/lobby frame rates, quality, and visual styles.",
-            FpsLevel = 7,
-            LobbyFpsLevel = 7,
+            FpsLevel = 8,
+            LobbyFpsLevel = 8,
             BattleQuality = 1,
             LobbyQuality = 1,
             Style = 1,

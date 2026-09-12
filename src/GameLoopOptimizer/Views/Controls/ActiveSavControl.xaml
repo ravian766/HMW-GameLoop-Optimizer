@@ -95,13 +95,16 @@
                     <StackPanel Grid.Column="0" Margin="0,0,6,0">
                         <TextBlock Text="Battle In-Game FPS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,4" />
                         <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ActiveSavFpsLevel}">
-                            <ComboBoxItem Content="60 FPS (Extreme)">
+                            <ComboBoxItem Content="60 FPS (Extreme - Level 5)">
                                 <ComboBoxItem.Tag><sys:Int32>5</sys:Int32></ComboBoxItem.Tag>
                             </ComboBoxItem>
-                            <ComboBoxItem Content="90 FPS (Extreme+)">
+                            <ComboBoxItem Content="90 FPS (Extreme+ - Level 6)">
                                 <ComboBoxItem.Tag><sys:Int32>6</sys:Int32></ComboBoxItem.Tag>
                             </ComboBoxItem>
-                            <ComboBoxItem Content="120 FPS (Ultra Extreme)">
+                            <ComboBoxItem Content="120 FPS (Ultra Extreme - Level 8)">
+                                <ComboBoxItem.Tag><sys:Int32>8</sys:Int32></ComboBoxItem.Tag>
+                            </ComboBoxItem>
+                            <ComboBoxItem Content="120 FPS (Legacy - Level 7)">
                                 <ComboBoxItem.Tag><sys:Int32>7</sys:Int32></ComboBoxItem.Tag>
                             </ComboBoxItem>
                         </ComboBox>
@@ -123,8 +126,11 @@
                             <ComboBoxItem Content="HDR">
                                 <ComboBoxItem.Tag><sys:Int32>4</sys:Int32></ComboBoxItem.Tag>
                             </ComboBoxItem>
-                            <ComboBoxItem Content="Ultra HD">
+                            <ComboBoxItem Content="Ultra HD (Level 5)">
                                 <ComboBoxItem.Tag><sys:Int32>5</sys:Int32></ComboBoxItem.Tag>
+                            </ComboBoxItem>
+                            <ComboBoxItem Content="UHD / Ultra HDR (Level 6)">
+                                <ComboBoxItem.Tag><sys:Int32>6</sys:Int32></ComboBoxItem.Tag>
                             </ComboBoxItem>
                         </ComboBox>
                     </StackPanel>
@@ -155,13 +161,16 @@
                     <StackPanel Grid.Column="3" Margin="6,0,0,0">
                         <TextBlock Text="Lobby FPS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,4" />
                         <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ActiveSavLobbyFpsLevel}">
-                            <ComboBoxItem Content="60 FPS">
+                            <ComboBoxItem Content="60 FPS (Level 5)">
                                 <ComboBoxItem.Tag><sys:Int32>5</sys:Int32></ComboBoxItem.Tag>
                             </ComboBoxItem>
-                            <ComboBoxItem Content="90 FPS">
+                            <ComboBoxItem Content="90 FPS (Level 6)">
                                 <ComboBoxItem.Tag><sys:Int32>6</sys:Int32></ComboBoxItem.Tag>
                             </ComboBoxItem>
-                            <ComboBoxItem Content="120 FPS">
+                            <ComboBoxItem Content="120 FPS (Level 8)">
+                                <ComboBoxItem.Tag><sys:Int32>8</sys:Int32></ComboBoxItem.Tag>
+                            </ComboBoxItem>
+                            <ComboBoxItem Content="120 FPS (Level 7)">
                                 <ComboBoxItem.Tag><sys:Int32>7</sys:Int32></ComboBoxItem.Tag>
                             </ComboBoxItem>
                         </ComboBox>

@@ -128,10 +128,13 @@ public class DashboardViewModel : ViewModelBase
 
         _monitor.MetricsUpdated += (s, m) =>
         {
-            CurrentCpu = m.CpuTotalPercent;
-            CurrentRam = m.RamPercent;
-            CurrentGpu = m.GpuPercent;
-            CurrentDiskMb = Math.Round(m.DiskReadMbSec + m.DiskWriteMbSec, 1);
+            global::System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
+            {
+                CurrentCpu = m.CpuTotalPercent;
+                CurrentRam = m.RamPercent;
+                CurrentGpu = m.GpuPercent;
+                CurrentDiskMb = Math.Round(m.DiskReadMbSec + m.DiskWriteMbSec, 1);
+            });
         };
 
         ScanSystemCommand = new AsyncRelayCommand(async () =>

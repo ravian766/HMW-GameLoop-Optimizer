@@ -1,0 +1,161 @@
+<UserControl x:Class="GameLoopOptimizer.Views.Controls.OptimizationReportModal"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="700">
+
+    <!-- Dimmed Frosted Backdrop Overlay -->
+    <Grid Background="#99000000">
+        <Border Width="640" MaxHeight="560"
+                Background="{DynamicResource BrushBgCard}"
+                BorderBrush="{DynamicResource BrushBorderLight}"
+                BorderThickness="1.5"
+                CornerRadius="16"
+                Padding="24"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Center">
+
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="36" Color="#00F2FE" Opacity="0.25" ShadowDepth="0" />
+            </Border.Effect>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- 1. Header / Title -->
+                <Grid Grid.Row="0" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Width="44" Height="44" CornerRadius="10"
+                            Background="{DynamicResource BrushAccentCyanGlow}"
+                            BorderBrush="{DynamicResource BrushAccentCyan}"
+                            BorderThickness="1" Margin="0,0,12,0">
+                        <TextBlock Text="⚡" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Optimization Execution Report" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" />
+                            <Border Background="{DynamicResource BrushAccentCyanGlow}" BorderBrush="{DynamicResource BrushAccentCyan}" BorderThickness="1" CornerRadius="6" Padding="6,2" Margin="10,0,0,0">
+                                <TextBlock Text="{Binding ActiveReport.ProfileName, FallbackValue='Profile'}" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="{Binding ActiveReport.SummaryText, FallbackValue='Audit record of applied system optimizations.'}"
+                                   FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+
+                    <!-- Close 'X' Button -->
+                    <Button Grid.Column="2" Content="✕"
+                            Command="{Binding CloseReportModalCommand}"
+                            Style="{StaticResource WindowControlButton}"
+                            VerticalAlignment="Top" HorizontalAlignment="Right" />
+                </Grid>
+
+                <!-- 2. Benchmark Comparison Strip -->
+                <Border Grid.Row="1" Background="{DynamicResource BrushBgDarkest}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,14">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Score Progression -->
+                        <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                            <TextBlock Text="SCORE PROGRESSION" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
+                                <TextBlock Text="{Binding ActiveReport.ScoreBefore, StringFormat='{}{0}'}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" />
+                                <TextBlock Text=" ➔ " FontSize="12" Foreground="{DynamicResource BrushAccentCyan}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding ActiveReport.ScoreAfter, StringFormat='{}{0}/100'}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- RAM Delta -->
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                            <TextBlock Text="RAM DELTA" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding ActiveReport.SnapshotComparison.RamDeltaGb, StringFormat='{}{0:F2} GB', FallbackValue='0.00 GB'}"
+                                       FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                        </StackPanel>
+
+                        <!-- Modules Applied -->
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                            <TextBlock Text="MODULES OPTIMIZED" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding ActiveReport.AppliedCount, StringFormat='{}{0} Applied', FallbackValue='0 Applied'}"
+                                       FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- 3. Scrollable List of Applied Modules -->
+                <Border Grid.Row="2" Background="{DynamicResource BrushBgDarkest}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,0,0,16" MinHeight="180" MaxHeight="240">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding ActiveReport.Items}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,0,0,6" Padding="8,6" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Status Icon -->
+                                            <TextBlock Grid.Column="0" Text="{Binding Success, Converter={StaticResource BooleanToStatusIconConverter}, FallbackValue='✓'}"
+                                                       FontSize="12" FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                       Foreground="{Binding Success, Converter={StaticResource BooleanToStatusBrushConverter}, FallbackValue='#00E676'}" />
+
+                                            <!-- Title & Details -->
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Title}" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" />
+                                                <TextBlock Text="{Binding Message}" FontSize="10" Foreground="{DynamicResource BrushTextSecondary}" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+
+                                            <!-- State Delta Pill -->
+                                            <Border Grid.Column="2" Background="{DynamicResource BrushBgDarkest}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding NewState}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" />
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- 4. Action Buttons Footer -->
+                <Grid Grid.Row="3">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="{Binding ActiveReport.Timestamp, StringFormat='{}Logged at {0:HH:mm:ss}'}"
+                               FontSize="11" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
+
+                    <Button Grid.Column="1" Content="📋 Copy Summary"
+                            Command="{Binding CopyReportSummaryCommand}"
+                            Style="{StaticResource SecondaryButton}"
+                            Padding="14,7" Margin="0,0,10,0" FontSize="11" />
+
+                    <Button Grid.Column="2" Content="Done"
+                            Command="{Binding CloseReportModalCommand}"
+                            Style="{StaticResource PrimaryButton}"
+                            Padding="20,7" FontSize="11" FontWeight="Bold" />
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

@@ -32,6 +32,10 @@ public class PerformanceMetrics
     public double PointOnePercentLowFps { get; set; }
     public double EstimatedFrametimeVarianceMs { get; set; }
     public double StutterIndexPercent { get; set; }
+
+    public bool IsFpsMeasurable { get; set; } = false;
+    public bool IsFpsEstimated { get; set; } = false;
+    public string FpsDisplayLabel => IsFpsMeasurable ? $"{Fps:F0}" : (IsFpsEstimated ? $"{Fps:F0} (Est)" : "--");
 }
 
 public class GamingSessionState

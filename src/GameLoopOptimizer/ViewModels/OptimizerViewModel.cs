@@ -11,7 +11,15 @@ public class OptimizerViewModel : ViewModelBase
     private readonly Func<HardwareInfo> _getHw;
     private readonly Func<SystemInfo> _getSys;
     private readonly Func<GameLoopConfig> _getGl;
+    private readonly Func<PerformanceMetrics>? _getMetrics;
     private readonly List<OptimizationCardViewModel> _allCards = new();
+
+    private OptimizationReport? _latestReport;
+    public OptimizationReport? LatestReport
+    {
+        get => _latestReport;
+        set => SetProperty(ref _latestReport, value);
+    }
 
     public ObservableCollection<OptimizationCardViewModel> VisibleCards { get; } = new();
 
@@ -67,11 +75,13 @@ public class OptimizerViewModel : ViewModelBase
         List<IOptimizationModule> modules, 
         Func<HardwareInfo> getHw, 
         Func<SystemInfo> getSys, 
-        Func<GameLoopConfig> getGl)
+        Func<GameLoopConfig> getGl,
+        Func<PerformanceMetrics>? getMetrics = null)
     {
         _getHw = getHw;
         _getSys = getSys;
         _getGl = getGl;
+        _getMetrics = getMetrics;
 
         foreach (var mod in modules)
         {
@@ -133,6 +143,20 @@ public class OptimizerViewModel : ViewModelBase
                 case OptimizationProfile.MaximumPerformance:
                     card.IsSelected = true;
                     break;
+                case OptimizationProfile.Competitive:
+                    // Prioritize low-latency, timer, CPU affinity, GPU scheduling, and power delivery
+                    card.IsSelected = card.Category == OptimizationCategory.WindowsConfig ||
+                                      card.Category == OptimizationCategory.PowerDelivery ||
+                                      card.Category == OptimizationCategory.GameLoopEngine ||
+                                      card.RiskLevel != RiskLevel.Advanced;
+                    break;
+                case OptimizationProfile.LowEndPC:
+                    // Safe optimizations only, focusing on RAM freeing, storage cleanup, and essential debloat
+                    card.IsSelected = card.RiskLevel == RiskLevel.Safe &&
+                                      (card.Category == OptimizationCategory.MemoryStorage ||
+                                       card.Category == OptimizationCategory.WindowsConfig ||
+                                       card.Category == OptimizationCategory.BackgroundProcess);
+                    break;
                 case OptimizationProfile.Custom:
                     // Keep user selection
                     break;
@@ -158,26 +182,70 @@ public class OptimizerViewModel : ViewModelBase
         }
     }
 
-    public async Task OptimizeSelectedAsync()
+    public async Task<OptimizationReport> OptimizeSelectedAsync()
     {
         IsOptimizing = true;
-        StatusMessage = "Applying optimizations...";
+        StatusMessage = "Applying system & GameLoop optimizations...";
         int successCount = 0;
+        int failCount = 0;
 
         var hw = _getHw();
         var sys = _getSys();
         var gl = _getGl();
 
+        var selectedCards = _allCards.Where(c => c.IsSelected).ToList();
+        var rec = RecommendationEngine.Calculate(hw);
+
+        var report = new OptimizationReport
+        {
+            Timestamp = DateTime.Now,
+            ProfileName = CurrentProfile.ToString(),
+            TotalConsidered = selectedCards.Count,
+            ScoreBefore = ScoringEngine.CalculateScore(hw, sys, gl, rec).TotalScore
+        };
+
+        var metricsBefore = _getMetrics?.Invoke() ?? new PerformanceMetrics();
+        var snapBefore = OptimizationSnapshot.Capture(
+            metricsBefore, sys, _allCards.Count(c => c.IsOptimized), _allCards.Count, "Pre-Optimization");
+
         try
         {
-            foreach (var card in _allCards.Where(c => c.IsSelected))
+            foreach (var card in selectedCards)
             {
                 card.IsBusy = true;
+                string prev = card.CurrentStateDisplay;
                 try
                 {
                     var res = await card.Module.ApplyAsync(hw, sys, gl);
                     if (res.Success) successCount++;
+                    else failCount++;
+
                     card.RefreshProperties();
+
+                    report.Items.Add(new OptimizationReportItem
+                    {
+                        ModuleId = card.Module.Id,
+                        Title = card.Title,
+                        Category = card.Category,
+                        Success = res.Success,
+                        Message = res.Message,
+                        PreviousState = prev,
+                        NewState = card.CurrentStateDisplay
+                    });
+                }
+                catch (Exception ex)
+                {
+                    failCount++;
+                    report.Items.Add(new OptimizationReportItem
+                    {
+                        ModuleId = card.Module.Id,
+                        Title = card.Title,
+                        Category = card.Category,
+                        Success = false,
+                        Message = ex.Message,
+                        PreviousState = prev,
+                        NewState = card.CurrentStateDisplay
+                    });
                 }
                 finally
                 {
@@ -185,8 +253,22 @@ public class OptimizerViewModel : ViewModelBase
                 }
             }
 
-            StatusMessage = $"Successfully optimized {successCount} modules.";
+            report.AppliedCount = successCount;
+            report.FailedCount = failCount;
+
+            var metricsAfter = _getMetrics?.Invoke() ?? new PerformanceMetrics();
+            var snapAfter = OptimizationSnapshot.Capture(
+                metricsAfter, sys, _allCards.Count(c => c.IsOptimized), _allCards.Count, "Post-Optimization");
+
+            report.SnapshotComparison = new SnapshotComparison(snapBefore, snapAfter);
+            report.ScoreAfter = ScoringEngine.CalculateScore(hw, sys, gl, rec).TotalScore;
+
+            LatestReport = report;
+            StatusMessage = report.SummaryText;
             OptimizationsChanged?.Invoke(this, EventArgs.Empty);
+
+            Logger.Success("OptimizationReport", report.SummaryText);
+            return report;
         }
         finally
         {

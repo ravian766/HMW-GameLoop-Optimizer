@@ -65,25 +65,25 @@ public partial class MiniOverlayWindow : Window
         }
         else
         {
-            TxtFps.Text = metrics.IsGameLoopActive ? "120" : "--";
+            TxtFps.Text = "--";
             TxtOnePercentLow.Text = "--";
-            TxtFps.Foreground = (Brush)FindResource("BrushTextPrimary");
+            TxtFps.Foreground = (Brush)FindResource("BrushTextMuted");
         }
 
         TxtCpu.Text = $"{metrics.CpuTotalPercent:F0}%";
         TxtRam.Text = $"{metrics.RamPercent:F0}%";
         TxtEmulator.Text = $"{metrics.GameLoopRamMb:F0} MB";
-        TxtVariance.Text = $"{metrics.EstimatedFrametimeVarianceMs:F1}ms";
+        TxtVariance.Text = metrics.EstimatedFrametimeVarianceMs > 0 ? $"{metrics.EstimatedFrametimeVarianceMs:F1}ms" : "--";
 
-        if (metrics.EstimatedFrametimeVarianceMs > 5.0 || metrics.CpuTotalPercent > 90)
+        if (metrics.CpuTotalPercent > 90 || metrics.RamPercent > 90)
         {
-            TxtRadar.Text = "⚠️ Jitter";
+            TxtRadar.Text = "⚠️ High Load";
             TxtRadar.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x52, 0x52));
             BadgeRadar.Background = new SolidColorBrush(Color.FromArgb(0x2B, 0xFF, 0x52, 0x52));
         }
-        else if (metrics.EstimatedFrametimeVarianceMs > 2.5 || metrics.CpuTotalPercent > 75)
+        else if (metrics.CpuTotalPercent > 75 || metrics.RamPercent > 80)
         {
-            TxtRadar.Text = "⚡ Mild Spike";
+            TxtRadar.Text = "⚡ Moderate";
             TxtRadar.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0xD7, 0x00));
             BadgeRadar.Background = new SolidColorBrush(Color.FromArgb(0x2B, 0xFF, 0xD7, 0x00));
         }

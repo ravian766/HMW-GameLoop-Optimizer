@@ -217,6 +217,10 @@
             <!-- ==================== AUTO-UPDATE MODAL OVERLAY ==================== -->
             <controls:UpdateNotificationModal Grid.Row="0" Grid.RowSpan="2"
                                               Visibility="{Binding ShowUpdateModal, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+            <!-- ==================== OPTIMIZATION REPORT MODAL OVERLAY ==================== -->
+            <controls:OptimizationReportModal Grid.Row="0" Grid.RowSpan="2"
+                                              Visibility="{Binding ShowReportModal, Converter={StaticResource BooleanToVisibilityConverter}}" />
         </Grid>
     </Border>
 </Window>

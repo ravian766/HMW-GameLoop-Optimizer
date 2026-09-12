@@ -41,7 +41,7 @@ public class ActiveSavViewModel : ViewModelBase
         }
     }
 
-    private int _activeSavFpsLevel = 7;
+    private int _activeSavFpsLevel = 8;
     public int ActiveSavFpsLevel
     {
         get => _activeSavFpsLevel;
@@ -67,7 +67,7 @@ public class ActiveSavViewModel : ViewModelBase
         }
     }
 
-    private int _activeSavLobbyFpsLevel = 7;
+    private int _activeSavLobbyFpsLevel = 8;
     public int ActiveSavLobbyFpsLevel
     {
         get => _activeSavLobbyFpsLevel;
@@ -169,7 +169,8 @@ public class ActiveSavViewModel : ViewModelBase
             ActiveSavStatusMessage = res.Message;
             if (res.Success)
             {
-                _eventAggregator.Publish(new StatusNotificationMessage($"Applied {profileToApply.Name} directly to In-Game Active.sav ({devProfile.DisplayName})!"));
+                gl.PubgRenderQuality = Math.Clamp(profileToApply.BattleQuality - 1, 0, 4);
+                _eventAggregator.Publish(new StatusNotificationMessage($"Applied {profileToApply.Name} ({ActiveSavProfile.GetQualityLabel(profileToApply.BattleQuality)}) directly to In-Game Active.sav ({devProfile.DisplayName})!"));
             }
         }
         finally

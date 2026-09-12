@@ -8,65 +8,6 @@ namespace GameLoopOptimizer.Core;
 
 public static class HardwareDetector
 {
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-    private struct MEMORYSTATUSEX
-    {
-        public uint dwLength;
-        public uint dwMemoryLoad;
-        public ulong ullTotalPhys;
-        public ulong ullAvailPhys;
-        public ulong ullTotalPageFile;
-        public ulong ullAvailPageFile;
-        public ulong ullTotalVirtual;
-        public ulong ullAvailVirtual;
-        public ulong ullAvailExtendedVirtual;
-    }
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
-
-    [DllImport("user32.dll")]
-    private static extern bool EnumDisplaySettings(string? lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct DEVMODE
-    {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string dmDeviceName;
-        public short dmSpecVersion;
-        public short dmDriverVersion;
-        public short dmSize;
-        public short dmDriverExtra;
-        public int dmFields;
-        public int dmPositionX;
-        public int dmPositionY;
-        public int dmDisplayOrientation;
-        public int dmDisplayFixedOutput;
-        public short dmColor;
-        public short dmDuplex;
-        public short dmYResolution;
-        public short dmTTOption;
-        public short dmCollate;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string dmFormName;
-        public short dmLogPixels;
-        public short dmBitsPerPel;
-        public int dmPelsWidth;
-        public int dmPelsHeight;
-        public int dmDisplayFlags;
-        public int dmDisplayFrequency;
-        public int dmICMMethod;
-        public int dmICMIntent;
-        public int dmMediaType;
-        public int dmDitherType;
-        public int dmReserved1;
-        public int dmReserved2;
-        public int dmPanningWidth;
-        public int dmPanningHeight;
-    }
-
-    private const int ENUM_CURRENT_SETTINGS = -1;
 
     public static async Task<HardwareInfo> DetectHardwareAsync()
     {
@@ -155,9 +96,9 @@ public static class HardwareDetector
     {
         try
         {
-            var memStatus = new MEMORYSTATUSEX();
-            memStatus.dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX));
-            if (GlobalMemoryStatusEx(ref memStatus))
+            var memStatus = new NativeMethods.MEMORYSTATUSEX();
+            memStatus.dwLength = (uint)Marshal.SizeOf(typeof(NativeMethods.MEMORYSTATUSEX));
+            if (NativeMethods.GlobalMemoryStatusEx(ref memStatus))
             {
                 info.TotalRamGb = Math.Round((double)memStatus.ullTotalPhys / (1024 * 1024 * 1024), 1);
             }
@@ -188,25 +129,6 @@ public static class HardwareDetector
         }
     }
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    private struct DISPLAY_DEVICE
-    {
-        [MarshalAs(UnmanagedType.U4)]
-        public int cb;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string DeviceName;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-        public string DeviceString;
-        [MarshalAs(UnmanagedType.U4)]
-        public int StateFlags;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-        public string DeviceID;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-        public string DeviceKey;
-    }
-
-    [DllImport("user32.dll", CharSet = CharSet.Ansi)]
-    private static extern bool EnumDisplayDevices(string? lpDevice, uint iDevNum, ref DISPLAY_DEVICE lpDisplayDevice, uint dwFlags);
 
     private static void ClassifyGpuVendor(HardwareInfo info, string name)
     {
@@ -229,9 +151,10 @@ public static class HardwareDetector
     {
         try
         {
-            var d = new DISPLAY_DEVICE();
+            var d = new NativeMethods.DISPLAY_DEVICE();
             d.cb = Marshal.SizeOf(d);
-            for (uint id = 0; EnumDisplayDevices(null, id, ref d, 0); id++)
+
+            for (uint id = 0; NativeMethods.EnumDisplayDevices(null, id, ref d, 0); id++)
             {
                 if ((d.StateFlags & 0x00000001) != 0 && !string.IsNullOrWhiteSpace(d.DeviceString))
                 {
@@ -392,9 +315,9 @@ public static class HardwareDetector
     {
         try
         {
-            var devMode = new DEVMODE();
-            devMode.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE));
-            if (EnumDisplaySettings(null, ENUM_CURRENT_SETTINGS, ref devMode))
+            var devMode = new NativeMethods.DEVMODE();
+            devMode.dmSize = (short)Marshal.SizeOf(typeof(NativeMethods.DEVMODE));
+            if (NativeMethods.EnumDisplaySettings(null, NativeMethods.ENUM_CURRENT_SETTINGS, ref devMode))
             {
                 info.ScreenWidth = devMode.dmPelsWidth;
                 info.ScreenHeight = devMode.dmPelsHeight;
@@ -421,13 +344,58 @@ public static class HardwareDetector
                 info.FreeDiskSpaceGb = Math.Round((double)drive.AvailableFreeSpace / (1024 * 1024 * 1024), 1);
             }
 
-            // Detect Drive Type
-            info.PrimaryDriveType = StorageType.Ssd; // Modern standard default
+            info.PrimaryDriveType = DetectPrimaryStorageType();
         }
         catch (Exception ex)
         {
             Logger.Warn("HardwareDetector", $"Storage query failed: {ex.Message}");
+            info.PrimaryDriveType = StorageType.Ssd;
         }
+    }
+
+    private static StorageType DetectPrimaryStorageType()
+    {
+        try
+        {
+            // Try MSFT_PhysicalDisk in Storage namespace (Windows 8+)
+            using var searcherStorage = new ManagementObjectSearcher(@"root\Microsoft\Windows\Storage", "SELECT MediaType, BusType FROM MSFT_PhysicalDisk");
+            foreach (var disk in searcherStorage.Get())
+            {
+                var busType = disk["BusType"] != null ? Convert.ToInt32(disk["BusType"]) : 0;
+                var mediaType = disk["MediaType"] != null ? Convert.ToInt32(disk["MediaType"]) : 0;
+
+                // BusType 17 = NVMe
+                if (busType == 17) return StorageType.Nvme;
+                // MediaType: 4 = SSD, 3 = HDD
+                if (mediaType == 4) return StorageType.Ssd;
+                if (mediaType == 3) return StorageType.Hdd;
+            }
+        }
+        catch { }
+
+        try
+        {
+            // Fallback: Win32_DiskDrive in root\CIMV2
+            using var searcherDisk = new ManagementObjectSearcher("SELECT Model, MediaType, InterfaceType FROM Win32_DiskDrive");
+            foreach (var disk in searcherDisk.Get())
+            {
+                var model = (disk["Model"]?.ToString() ?? "").ToUpperInvariant();
+                var mediaType = (disk["MediaType"]?.ToString() ?? "").ToUpperInvariant();
+                var iface = (disk["InterfaceType"]?.ToString() ?? "").ToUpperInvariant();
+
+                if (model.Contains("NVME") || model.Contains("NVM EXPRESS") || iface.Contains("NVME"))
+                    return StorageType.Nvme;
+
+                if (model.Contains("SSD") || mediaType.Contains("SSD") || mediaType.Contains("SOLID STATE"))
+                    return StorageType.Ssd;
+
+                if (mediaType.Contains("FIXED HARD DISK") || model.Contains("HDD"))
+                    return StorageType.Hdd;
+            }
+        }
+        catch { }
+
+        return StorageType.Ssd;
     }
 
     public static HardwareTier CalculateTier(HardwareInfo hw)

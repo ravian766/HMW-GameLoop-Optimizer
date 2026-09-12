@@ -139,6 +139,7 @@ public class KeymapResolutionViewModel : ViewModelBase
 
     public string[] VendorScalingGuide => DisplayScalingService.GetVendorStepByStepGuide(GpuVendor);
 
+    private readonly object _keymapProfilesLock = new();
     public ObservableCollection<KeymapBackupProfile> KeymapProfiles { get; } = new();
 
     // Sensitivity & Recoil Calibration
@@ -343,10 +344,13 @@ public class KeymapResolutionViewModel : ViewModelBase
     {
         void UpdateAction()
         {
-            KeymapProfiles.Clear();
-            foreach (var p in KeymapBackupManager.GetProfiles())
+            lock (_keymapProfilesLock)
             {
-                KeymapProfiles.Add(p);
+                KeymapProfiles.Clear();
+                foreach (var p in KeymapBackupManager.GetProfiles())
+                {
+                    KeymapProfiles.Add(p);
+                }
             }
         }
 

@@ -34,6 +34,8 @@ public enum OptimizationProfile
     Safe,
     Balanced,
     MaximumPerformance,
+    Competitive,
+    LowEndPC,
     Custom
 }
 

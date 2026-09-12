@@ -56,29 +56,15 @@ public static class ProcessManager
     /// These receive high CPU priority, maximum I/O priority, memory priority, and P-Core affinity.
     /// AppMarket.exe (the desktop launcher store) is intentionally excluded so it does not compete for resources.
     /// </summary>
-    public static readonly string[] EmulatorEngineProcessNames = new[]
-    {
-        "AndroidEmulator",
-        "AndroidEmulatorEn",
-        "AndroidEmulatorEx",
-        "aow_exe",
-        "TxEx"
-    };
+    public static readonly string[] EmulatorEngineProcessNames =
+        global::GameLoopOptimizer.Core.GameLoopProcessNames.GameEngines.Concat(new[] { "TxEx" }).Distinct().ToArray();
 
     /// <summary>
     /// All processes belonging to GameLoop installation including the desktop store launcher.
     /// Used for launch detection, process focusing, and full shutdown/restart.
     /// </summary>
-    public static readonly string[] AllGameLoopProcessNames = new[]
-    {
-        "AppMarket",
-        "AndroidEmulator",
-        "AndroidEmulatorEn",
-        "AndroidEmulatorEx",
-        "aow_exe",
-        "TxEx",
-        "TSettingCenter"
-    };
+    public static readonly string[] AllGameLoopProcessNames =
+        global::GameLoopOptimizer.Core.GameLoopProcessNames.AllProcesses.Concat(new[] { "TxEx", "TSettingCenter" }).Distinct().ToArray();
 
     public static readonly string[] GameLoopProcessNames = AllGameLoopProcessNames;
 

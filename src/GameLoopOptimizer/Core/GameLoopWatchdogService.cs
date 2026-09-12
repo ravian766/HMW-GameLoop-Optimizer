@@ -7,8 +7,6 @@ namespace GameLoopOptimizer.Core;
 
 public class GameLoopWatchdogService : IDisposable
 {
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool GetSystemTimes(out long idleTime, out long kernelTime, out long userTime);
 
     private readonly System.Timers.Timer _timer;
     private readonly Func<GameLoopConfig> _getGl;
@@ -29,7 +27,7 @@ public class GameLoopWatchdogService : IDisposable
     {
         try
         {
-            if (GetSystemTimes(out long idleTime, out long kernelTime, out long userTime))
+            if (NativeMethods.GetSystemTimes(out long idleTime, out long kernelTime, out long userTime))
             {
                 if (_lastIdleTime != 0)
                 {
@@ -364,7 +362,11 @@ public class GameLoopWatchdogService : IDisposable
                 return 0;
             }
 
+            double availMbBefore = NativeMethods.GetAvailableMemoryMb();
             int freed = ProcessManager.TrimWorkingSets();
+            double availMbAfter = NativeMethods.GetAvailableMemoryMb();
+            double actualDeltaMb = Math.Max(0, availMbAfter - availMbBefore);
+
             var gl = _getGl();
 
             // Only trim In-VM ADB cache when game is in standby/lobby or bypassLoadCheck is true (never mid-combat)
@@ -376,11 +378,13 @@ public class GameLoopWatchdogService : IDisposable
                 }
             }
 
-            double estimatedMb = freed * 14.5; // ~14.5MB average working set recovery per idle process
-            TotalMegabytesFreed += estimatedMb;
+            double reclaimedMb = actualDeltaMb > 0 ? Math.Round(actualDeltaMb, 1) : 0;
+            TotalMegabytesFreed += reclaimedMb;
             AutoPurgeCount++;
             LastPurgeTime = DateTime.Now;
-            LastPurgeMessage = $"Purge #{AutoPurgeCount}: Cleaned {freed} idle processes (~{estimatedMb:F0} MB freed) at {LastPurgeTime:HH:mm:ss}";
+            LastPurgeMessage = actualDeltaMb > 0
+                ? $"Purge #{AutoPurgeCount}: Trimmed {freed} idle processes ({actualDeltaMb:F1} MB physical RAM reclaimed) at {LastPurgeTime:HH:mm:ss}"
+                : $"Purge #{AutoPurgeCount}: Trimmed working sets of {freed} idle background processes at {LastPurgeTime:HH:mm:ss}";
 
             Logger.Success("AutoPurge", LastPurgeMessage);
             AutoPurgeExecuted?.Invoke(LastPurgeMessage);

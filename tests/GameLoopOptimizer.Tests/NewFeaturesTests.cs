@@ -33,7 +33,6 @@ public class NewFeaturesTests
             new PowerPlanModule(),
             new GameLoopResourceModule(),
             new GameLoopGraphicsModule(),
-            new GameLoopPUBGConfigModule(),
             new CpuAffinityModule(),
             new GpuPreferenceModule(),
             new AudioLatencyModule(),

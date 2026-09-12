@@ -15,15 +15,8 @@ public static class GameLoopDetector
         @"SOFTWARE\WOW6432Node\Tencent\TxGameAssistant"
     };
 
-    private static readonly string[] EmulatorProcessNames = new[]
-    {
-        "AppMarket",
-        "AndroidEmulator",
-        "AndroidEmulatorEn",
-        "AndroidEmulatorEx",
-        "aow_exe",
-        "TBSWebStore"
-    };
+    private static readonly string[] EmulatorProcessNames =
+        GameLoopProcessNames.AllProcesses.Concat(new[] { "TBSWebStore" }).Distinct().ToArray();
 
     private static readonly object _cacheLock = new();
     private static GameLoopConfig? _cachedConfig;

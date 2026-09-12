@@ -8,8 +8,6 @@ namespace GameLoopOptimizer.Monitoring;
 public class PerformanceMonitorService : IDisposable
 {
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool GetSystemTimes(out long idleTime, out long kernelTime, out long userTime);
 
     private readonly System.Timers.Timer _timer;
     private readonly List<PerformanceMetrics> _history = new();
@@ -34,6 +32,16 @@ public class PerformanceMonitorService : IDisposable
     }
 
     public PerformanceMetrics LatestMetrics { get; private set; } = new();
+
+    private DateTime _lastTempCheck = DateTime.MinValue;
+    private double? _cachedCpuTemp = null;
+
+    public void SetInterval(int milliseconds)
+    {
+        if (milliseconds < 100) milliseconds = 100;
+        _timer.Interval = milliseconds;
+        Logger.Info("PerformanceMonitor", $"Telemetry monitor interval updated to {milliseconds}ms.");
+    }
 
     public PerformanceMonitorService()
     {
@@ -69,10 +77,53 @@ public class PerformanceMonitorService : IDisposable
         }
         catch
         {
-            // Fallback
+            // Graceful fallback
         }
 
-        GetSystemTimes(out _prevIdleTime, out _prevKernelTime, out _prevUserTime);
+        NativeMethods.GetSystemTimes(out _prevIdleTime, out _prevKernelTime, out _prevUserTime);
+    }
+
+    private void DetectTemperatures(PerformanceMetrics metrics)
+    {
+        try
+        {
+            if ((DateTime.Now - _lastTempCheck).TotalSeconds > 3)
+            {
+                _lastTempCheck = DateTime.Now;
+                _cachedCpuTemp = QueryCpuTemperature();
+            }
+
+            metrics.CpuTemperatureC = _cachedCpuTemp;
+            metrics.GpuTemperatureC = null;
+        }
+        catch
+        {
+            metrics.CpuTemperatureC = null;
+            metrics.GpuTemperatureC = null;
+        }
+    }
+
+    private static double? QueryCpuTemperature()
+    {
+        try
+        {
+            using var searcher = new System.Management.ManagementObjectSearcher(@"root\WMI", "SELECT CurrentTemperature FROM MSAcpi_ThermalZoneTemperature");
+            foreach (var item in searcher.Get())
+            {
+                var val = item["CurrentTemperature"];
+                if (val != null)
+                {
+                    double kelvin10 = Convert.ToDouble(val);
+                    double celsius = (kelvin10 - 2732.0) / 10.0;
+                    if (celsius is >= 10.0 and <= 120.0)
+                    {
+                        return Math.Round(celsius, 1);
+                    }
+                }
+            }
+        }
+        catch { }
+        return null;
     }
 
     public void Start()
@@ -97,7 +148,7 @@ public class PerformanceMonitorService : IDisposable
             };
 
             // 1. CPU Usage
-            if (GetSystemTimes(out long idle, out long kernel, out long user))
+            if (NativeMethods.GetSystemTimes(out long idle, out long kernel, out long user))
             {
                 long usrDiff = user - _prevUserTime;
                 long kerDiff = kernel - _prevKernelTime;
@@ -180,43 +231,20 @@ public class PerformanceMonitorService : IDisposable
             }
             catch { }
 
-            // Estimated frame-time variance index & frame-time calculations
-            metrics.EstimatedFrametimeVarianceMs = Math.Round(Math.Max(0.5, (metrics.CpuTotalPercent / 25.0) + (metrics.DiskReadMbSec > 10 ? 2.5 : 0.4)), 2);
+            // Temperature monitoring (honest WMI thermal zone check; null if unavailable)
+            DetectTemperatures(metrics);
 
-            if (metrics.IsGameLoopActive)
-            {
-                double targetFps = 120.0;
-                if (metrics.CpuTotalPercent < 65 && metrics.EstimatedFrametimeVarianceMs < 2.0)
-                {
-                    metrics.Fps = targetFps;
-                }
-                else if (metrics.EstimatedFrametimeVarianceMs > 4.0 || metrics.CpuTotalPercent > 85)
-                {
-                    double drop = (metrics.EstimatedFrametimeVarianceMs * 4.5) + (metrics.CpuTotalPercent > 90 ? 15.0 : 5.0);
-                    metrics.Fps = Math.Max(60.0, Math.Round(targetFps - drop, 0));
-                }
-                else
-                {
-                    metrics.Fps = Math.Max(90.0, Math.Round(targetFps - (metrics.EstimatedFrametimeVarianceMs * 2.5), 0));
-                }
-
-                _frameTimeTracker.AddSample(metrics.Fps, metrics.EstimatedFrametimeVarianceMs);
-                var snap = _frameTimeTracker.GetSnapshot(metrics.Fps);
-
-                metrics.AvgFps = snap.AvgFps;
-                metrics.OnePercentLowFps = snap.OnePercentLowFps;
-                metrics.PointOnePercentLowFps = snap.PointOnePercentLowFps;
-                metrics.EstimatedFrametimeVarianceMs = snap.FrameTimeVarianceMs;
-                metrics.StutterIndexPercent = snap.StutterIndexPercent;
-            }
-            else
-            {
-                metrics.Fps = 0;
-                metrics.AvgFps = 0;
-                metrics.OnePercentLowFps = 0;
-                metrics.PointOnePercentLowFps = 0;
-                _frameTimeTracker.Reset();
-            }
+            // Technical Honesty: We do NOT fabricate synthetic FPS values or drops.
+            // Direct in-VM frame measurement without invasive hooks or anti-cheat compromise is not possible.
+            metrics.Fps = 0;
+            metrics.AvgFps = 0;
+            metrics.OnePercentLowFps = 0;
+            metrics.PointOnePercentLowFps = 0;
+            metrics.EstimatedFrametimeVarianceMs = 0;
+            metrics.StutterIndexPercent = 0;
+            metrics.IsFpsMeasurable = false;
+            metrics.IsFpsEstimated = false;
+            _frameTimeTracker.Reset();
 
             LatestMetrics = metrics;
 

@@ -39,6 +39,44 @@ public class PowerPlanModule : IOptimizationModule
                 var prevGuid = sys.ActivePowerPlanGuid;
                 var prevName = sys.ActivePowerPlanName;
 
+                // Try Ultimate Performance first, fallback to High Performance
+                string targetGuid = HighPerfGuid;
+                string targetName = "High Performance";
+
+                try
+                {
+                    var psiUltimate = new ProcessStartInfo
+                    {
+                        FileName = "powercfg",
+                        Arguments = $"/setactive {UltimatePerfGuid}",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    using var pUlt = Process.Start(psiUltimate);
+                    pUlt?.WaitForExit(3000);
+                    if (pUlt?.ExitCode == 0)
+                    {
+                        targetGuid = UltimatePerfGuid;
+                        targetName = "Ultimate Performance";
+                    }
+                }
+                catch { }
+
+                if (targetGuid == HighPerfGuid)
+                {
+                    var psiHigh = new ProcessStartInfo
+                    {
+                        FileName = "powercfg",
+                        Arguments = $"/setactive {HighPerfGuid}",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    using var pHigh = Process.Start(psiHigh);
+                    pHigh?.WaitForExit(3000);
+                }
+
                 // Record backup
                 BackupManager.RecordBackup(new BackupEntry
                 {
@@ -49,28 +87,16 @@ public class PowerPlanModule : IOptimizationModule
                     TargetPath = "powercfg",
                     ValueName = "ActiveScheme",
                     PreviousValue = prevGuid,
-                    NewValue = HighPerfGuid,
-                    Description = $"Switch from '{prevName}' to High Performance"
+                    NewValue = targetGuid,
+                    Description = $"Switch from '{prevName}' to {targetName}"
                 });
 
-                // Try Ultimate first, fallback to High Performance
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "powercfg",
-                    Arguments = $"/setactive {HighPerfGuid}",
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-                using var p = Process.Start(psi);
-                p?.WaitForExit(3000);
-
                 IsOptimized = true;
-                CurrentStateDisplay = "High Performance";
+                CurrentStateDisplay = targetName;
                 State = OptimizationState.Optimized;
 
-                Logger.Success(Title, "Switched power scheme to High Performance.");
-                return OptimizationResult.Ok(Id, "Switched power scheme to High Performance.", prevName, "High Performance");
+                Logger.Success(Title, $"Switched power scheme to {targetName}.");
+                return OptimizationResult.Ok(Id, $"Switched power scheme to {targetName}.", prevName, targetName);
             }
             catch (Exception ex)
             {

@@ -133,10 +133,12 @@ public class GameLoopViewModel : ViewModelBase
 
     public string CurrentGraphicsDisplayName => PubgRenderQuality switch
     {
-        1 => "流畅 Smooth",
-        2 => "平衡 Balanced",
-        3 => "高清 HD",
-        0 => "自动 Auto",
+        0 => "流畅 Smooth",
+        1 => "平衡 Balanced",
+        2 => "高清 HD",
+        3 => "HDR (高动态)",
+        4 => "超高清 Ultra HD",
+        5 => "UHD / Ultra HDR (极致超高清)",
         _ => $"Quality {PubgRenderQuality}"
     };
 
@@ -370,6 +372,7 @@ public class GameLoopViewModel : ViewModelBase
         set => SetProperty(ref _statusMessage, value);
     }
 
+    private readonly object _keymapProfilesLock = new();
     public ObservableCollection<KeymapBackupProfile> KeymapProfiles { get; } = new();
     public ObservableCollection<RegionPingResult> PingResults { get; } = new();
 
@@ -655,10 +658,13 @@ public class GameLoopViewModel : ViewModelBase
     {
         void UpdateAction()
         {
-            KeymapProfiles.Clear();
-            foreach (var p in KeymapBackupManager.GetProfiles())
+            lock (_keymapProfilesLock)
             {
-                KeymapProfiles.Add(p);
+                KeymapProfiles.Clear();
+                foreach (var p in KeymapBackupManager.GetProfiles())
+                {
+                    KeymapProfiles.Add(p);
+                }
             }
         }
 

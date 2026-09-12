@@ -49,6 +49,18 @@
                                      Command="{Binding SelectProfileCommand}"
                                      CommandParameter="{x:Static models:OptimizationProfile.MaximumPerformance}" />
 
+                        <RadioButton Content="⚡ Competitive"
+                                     Style="{StaticResource CategoryPill}"
+                                     IsChecked="{Binding CurrentProfile, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Competitive}"
+                                     Command="{Binding SelectProfileCommand}"
+                                     CommandParameter="{x:Static models:OptimizationProfile.Competitive}" />
+
+                        <RadioButton Content="🌱 Low-End PC"
+                                     Style="{StaticResource CategoryPill}"
+                                     IsChecked="{Binding CurrentProfile, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=LowEndPC}"
+                                     Command="{Binding SelectProfileCommand}"
+                                     CommandParameter="{x:Static models:OptimizationProfile.LowEndPC}" />
+
                         <RadioButton Content="Custom"
                                      Style="{StaticResource CategoryPill}"
                                      IsChecked="{Binding CurrentProfile, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Custom}"
