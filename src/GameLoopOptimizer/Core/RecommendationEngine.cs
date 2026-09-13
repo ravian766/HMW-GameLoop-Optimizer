@@ -21,6 +21,17 @@ public class HardwareRecommendations
     public int RecommendedRenderQuality { get; set; } // 0=Smooth, 1=Balanced, 2=HD, 3=HDR
     public string RecommendationSummary { get; set; } = string.Empty;
     public string TierLabel { get; set; } = string.Empty;
+
+    /// <summary>FPS level that matches the monitor's refresh rate (informational only).</summary>
+    public int MonitorMatchedFpsLevel { get; set; }
+
+    /// <summary>True if the recommended FPS exceeds the monitor's current refresh rate.</summary>
+    public bool MonitorLimitsRecommendation => MonitorMatchedFpsLevel > 0 && MonitorMatchedFpsLevel < RecommendedFpsLevel;
+
+    /// <summary>Informational note when the monitor can't fully display the recommended FPS.</summary>
+    public string MonitorNote => MonitorLimitsRecommendation
+        ? $"Note: Your monitor runs at {MonitorMatchedFpsLevel} Hz. {RecommendedFpsLevel} FPS is still fully configurable — the game renders at {RecommendedFpsLevel} FPS internally."
+        : string.Empty;
 }
 
 public static class RecommendationEngine
@@ -72,7 +83,10 @@ public static class RecommendationEngine
             rec.RecommendedResWidth = 1920;
             rec.RecommendedResHeight = 1080;
             rec.RecommendedDpi = 320;
-            rec.RecommendedFpsLevel = hw.RefreshRateHz >= 90 ? 120 : 90;
+            // Recommend based on HARDWARE capability, not monitor refresh rate.
+            // Monitor Hz is informational — it generates warnings, not overrides.
+            rec.RecommendedFpsLevel = 120;
+            rec.MonitorMatchedFpsLevel = hw.RefreshRateHz >= 90 ? 120 : hw.RefreshRateHz;
             rec.RecommendedRenderQuality = 2; // HD
             rec.TierLabel = "Mid-Range (Balanced High-FPS & Visual Clarity)";
         }
@@ -92,6 +106,7 @@ public static class RecommendationEngine
             }
 
             rec.RecommendedFpsLevel = 120;
+            rec.MonitorMatchedFpsLevel = Math.Min(120, hw.RefreshRateHz);
             rec.RecommendedRenderQuality = 2; // HD (preferred for lowest latency competitive play)
             rec.TierLabel = "High-End (Maximum 120 FPS Target & Low Input Lag)";
         }

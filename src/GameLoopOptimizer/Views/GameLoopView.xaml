@@ -164,6 +164,22 @@
                                     <CheckBox Content="Enable Local Shader Caching (Eliminates Stutters)" IsChecked="{Binding ShaderCacheEnabled}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
                                 </WrapPanel>
 
+                                <!-- Display Warning Banner (only visible when FPS > monitor Hz) -->
+                                <Border Background="#2A1F0F" BorderBrush="#CC8800" BorderThickness="1" CornerRadius="8"
+                                        Padding="12,8" Margin="0,0,0,14"
+                                        Visibility="{Binding HasDisplayWarning, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding DisplayWarningMessage}" FontSize="11.5" Foreground="#FFCC44" TextWrapping="Wrap" Margin="0,0,0,4" />
+                                        <TextBlock FontSize="10.5" Foreground="#AA8833" TextWrapping="Wrap">
+                                            <Run Text="This is informational only. Your FPS selection (" /><Run Text="{Binding FpsLevel, Mode=OneWay}" FontWeight="Bold" /><Run Text=" FPS) is applied to GameLoop without modification." />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Last Apply Status Summary -->
+                                <TextBlock Text="{Binding LastApplyStatusSummary}" FontSize="10.5" Foreground="{DynamicResource BrushAccentGreen}" TextWrapping="Wrap" Margin="0,0,0,10"
+                                           Visibility="{Binding LastApplyStatusSummary, Converter={StaticResource StringNotEmptyToVisibilityConverter}, FallbackValue=Collapsed}" />
+
                                 <!-- Actions Row -->
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -308,9 +324,12 @@
                     <controls:AdbStudioControl />
                 </TabItem>
 
-                <!-- ==================== TAB 3: ACTIVE.SAV & 120 FPS ==================== -->
-                <TabItem Header="🎯  UE4 Graphics &amp; Active.sav (120 FPS)" Style="{StaticResource SegmentedTabItem}">
-                    <controls:ActiveSavControl />
+                <!-- ==================== TAB 3: ACTIVE.SAV & 120 FPS (Temporarily Hidden & Disabled) ==================== -->
+                <TabItem Header="🎯  UE4 Graphics &amp; Active.sav (120 FPS)"
+                         Style="{StaticResource SegmentedTabItem}"
+                         Visibility="Collapsed"
+                         IsEnabled="False">
+                    <controls:ActiveSavControl IsEnabled="False" />
                 </TabItem>
 
             </TabControl>

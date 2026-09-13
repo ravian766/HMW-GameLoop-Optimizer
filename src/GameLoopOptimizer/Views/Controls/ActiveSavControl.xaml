@@ -6,8 +6,8 @@
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="980">
-    <!-- PUBG Mobile UE4 Active.sav Direct Patcher -->
-    <Border Style="{StaticResource GlassCard}">
+    <!-- PUBG Mobile UE4 Active.sav Direct Patcher (Temporarily Disabled) -->
+    <Border Style="{StaticResource GlassCard}" IsEnabled="False">
         <StackPanel>
             <Grid Margin="0,0,0,14">
                 <Grid.ColumnDefinitions>
@@ -126,11 +126,8 @@
                             <ComboBoxItem Content="HDR">
                                 <ComboBoxItem.Tag><sys:Int32>4</sys:Int32></ComboBoxItem.Tag>
                             </ComboBoxItem>
-                            <ComboBoxItem Content="Ultra HD (Level 5)">
+                            <ComboBoxItem Content="Ultra HD / UHD (Level 5 - Max)">
                                 <ComboBoxItem.Tag><sys:Int32>5</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="UHD / Ultra HDR (Level 6)">
-                                <ComboBoxItem.Tag><sys:Int32>6</sys:Int32></ComboBoxItem.Tag>
                             </ComboBoxItem>
                         </ComboBox>
                     </StackPanel>
@@ -179,7 +176,7 @@
             </Border>
 
             <!-- Sync Action Footer -->
-            <Grid>
+            <Grid Margin="0,0,0,12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
@@ -200,6 +197,18 @@
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis" />
             </Grid>
+
+            <!-- In-game UI Note Banner -->
+            <Border Background="{DynamicResource BrushBgCardSubtle}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10">
+                <TextBlock TextWrapping="Wrap" FontSize="11" LineHeight="16" Foreground="{DynamicResource BrushTextSecondary}">
+                    <Run Text="💡 In-Game UI Note: " FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" />
+                    <Run Text="Tencent's in-game settings UI only displays 90 FPS &amp; 120 FPS buttons when Graphics is set to " />
+                    <Run Text="Smooth" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" />
+                    <Run Text=". When you inject HDR or UHD with 120 FPS via this Optimizer, Unreal Engine runs at full 120 FPS HDR, but the in-game UI hides those buttons. " />
+                    <Run Text="⚠️ Never press 'OK/Save' inside the in-game Graphics menu" FontWeight="Bold" Foreground="{DynamicResource BrushAccentRed}" />
+                    <Run Text=", or PUBG Mobile will revert you back to 60 FPS!" />
+                </TextBlock>
+            </Border>
         </StackPanel>
     </Border>
 </UserControl>

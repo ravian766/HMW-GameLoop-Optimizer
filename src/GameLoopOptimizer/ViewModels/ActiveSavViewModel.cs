@@ -139,12 +139,19 @@ public class ActiveSavViewModel : ViewModelBase
             }
         });
 
-        SyncActiveSavCommand = new AsyncRelayCommand(SyncActiveSavAsync);
+        SyncActiveSavCommand = new AsyncRelayCommand(SyncActiveSavAsync, () => false);
         PullActiveSavCommand = new AsyncRelayCommand(PullActiveSavAsync);
-        RestoreActiveSavCommand = new AsyncRelayCommand(RestoreActiveSavAsync);
+        RestoreActiveSavCommand = new AsyncRelayCommand(RestoreActiveSavAsync, () => false);
     }
 
     public async Task SyncActiveSavAsync()
+    {
+        // Guard: UE4 Active.sav modification is disabled
+        ActiveSavStatusMessage = "UE4 Active.sav modification is currently disabled.";
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteSyncActiveSavInternalAsync()
     {
         IsSyncingActiveSav = true;
         ActiveSavStatusMessage = "Injecting UE4 in-game bytecode via ADB...";
@@ -169,7 +176,6 @@ public class ActiveSavViewModel : ViewModelBase
             ActiveSavStatusMessage = res.Message;
             if (res.Success)
             {
-                gl.PubgRenderQuality = Math.Clamp(profileToApply.BattleQuality - 1, 0, 4);
                 _eventAggregator.Publish(new StatusNotificationMessage($"Applied {profileToApply.Name} ({ActiveSavProfile.GetQualityLabel(profileToApply.BattleQuality)}) directly to In-Game Active.sav ({devProfile.DisplayName})!"));
             }
         }

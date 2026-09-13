@@ -315,6 +315,7 @@ public static class HardwareDetector
     {
         try
         {
+            // 1. Get current display mode
             var devMode = new NativeMethods.DEVMODE();
             devMode.dmSize = (short)Marshal.SizeOf(typeof(NativeMethods.DEVMODE));
             if (NativeMethods.EnumDisplaySettings(null, NativeMethods.ENUM_CURRENT_SETTINGS, ref devMode))
@@ -323,6 +324,34 @@ public static class HardwareDetector
                 info.ScreenHeight = devMode.dmPelsHeight;
                 info.RefreshRateHz = devMode.dmDisplayFrequency;
             }
+
+            // 2. Enumerate all supported display modes to discover all refresh rates
+            var supportedRates = new HashSet<int>();
+            int maxRate = info.RefreshRateHz;
+            var modeEnum = new NativeMethods.DEVMODE();
+            modeEnum.dmSize = (short)Marshal.SizeOf(typeof(NativeMethods.DEVMODE));
+
+            for (int modeIndex = 0; NativeMethods.EnumDisplaySettings(null, modeIndex, ref modeEnum); modeIndex++)
+            {
+                int rate = modeEnum.dmDisplayFrequency;
+                if (rate > 0)
+                {
+                    supportedRates.Add(rate);
+                    if (rate > maxRate)
+                    {
+                        maxRate = rate;
+                    }
+                }
+                modeEnum.dmSize = (short)Marshal.SizeOf(typeof(NativeMethods.DEVMODE));
+            }
+
+            info.MaxRefreshRateHz = maxRate;
+            info.SupportedRefreshRates = supportedRates.OrderBy(r => r).ToList();
+
+            Logger.Info("HardwareDetector",
+                $"Display: {info.ScreenWidth}x{info.ScreenHeight} @ {info.RefreshRateHz} Hz (current), " +
+                $"Max: {info.MaxRefreshRateHz} Hz, " +
+                $"Supported rates: [{string.Join(", ", info.SupportedRefreshRates.Select(r => $"{r} Hz"))}]");
         }
         catch (Exception ex)
         {

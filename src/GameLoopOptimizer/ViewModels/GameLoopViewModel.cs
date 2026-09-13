@@ -4,6 +4,7 @@ using System.Windows.Input;
 using GameLoopOptimizer.Core;
 using GameLoopOptimizer.Models;
 using Microsoft.Win32;
+using RegistryHive = Microsoft.Win32.Registry;
 
 namespace GameLoopOptimizer.ViewModels;
 
@@ -372,6 +373,36 @@ public class GameLoopViewModel : ViewModelBase
         set => SetProperty(ref _statusMessage, value);
     }
 
+    // ── Display Awareness Properties ──────────────────────────────────────
+    // These inform the user about monitor limitations WITHOUT overriding their selection.
+
+    /// <summary>Current monitor refresh rate in Hz (informational only).</summary>
+    public int MonitorRefreshRateHz => Hardware.RefreshRateHz;
+
+    /// <summary>True when the selected FPS exceeds the monitor's current refresh rate.</summary>
+    public bool HasDisplayWarning => FpsLevel > MonitorRefreshRateHz;
+
+    /// <summary>User-facing warning about display limitation. Empty when no warning.</summary>
+    public string DisplayWarningMessage => HasDisplayWarning
+        ? $"⚠ Monitor refresh rate: {MonitorRefreshRateHz} Hz. {FpsLevel} FPS is configured and applied, but may not be fully visible on this display."
+        : string.Empty;
+
+    private SettingsApplicationReport? _lastApplyReport;
+    /// <summary>Detailed per-setting report from the last Apply operation.</summary>
+    public SettingsApplicationReport? LastApplyReport
+    {
+        get => _lastApplyReport;
+        set => SetProperty(ref _lastApplyReport, value);
+    }
+
+    private string _lastApplyStatusSummary = string.Empty;
+    /// <summary>One-line summary of the last apply operation's per-setting results.</summary>
+    public string LastApplyStatusSummary
+    {
+        get => _lastApplyStatusSummary;
+        set => SetProperty(ref _lastApplyStatusSummary, value);
+    }
+
     private readonly object _keymapProfilesLock = new();
     public ObservableCollection<KeymapBackupProfile> KeymapProfiles { get; } = new();
     public ObservableCollection<RegionPingResult> PingResults { get; } = new();
@@ -737,7 +768,9 @@ public class GameLoopViewModel : ViewModelBase
                 gl.VmResWidth = ResWidth;
                 gl.VmResHeight = ResHeight;
 
-                SaveSettingsToRegistry(gl);
+                var report = SaveSettingsToRegistry(gl);
+                LastApplyReport = report;
+                LastApplyStatusSummary = report.SummaryText;
                 GameLoopDetector.InvalidateCache();
 
                 if (SelectedDeviceProfile != null)
@@ -747,7 +780,15 @@ public class GameLoopViewModel : ViewModelBase
 
                 Logger.Success("GameLoopStudio", $"Saved config to GameLoop & TGB: {CpuCores}C / {RamMb}MB / {FpsLevel}FPS / Quality {PubgRenderQuality} / {SelectedDeviceProfile?.DisplayName}");
             }
-            StatusMessage = "Settings saved & synchronized to In-VM Android subsystem! Restart GameLoop for complete engine reload.";
+
+            // Notify UI of display warning state changes
+            OnPropertyChanged(nameof(HasDisplayWarning));
+            OnPropertyChanged(nameof(DisplayWarningMessage));
+            OnPropertyChanged(nameof(MonitorRefreshRateHz));
+
+            StatusMessage = HasDisplayWarning
+                ? $"Settings applied! ⚠ Monitor: {MonitorRefreshRateHz} Hz — {FpsLevel} FPS configured but display limited. Restart GameLoop for reload."
+                : "Settings saved & synchronized to In-VM Android subsystem! Restart GameLoop for complete engine reload.";
         }
         catch (Exception ex)
         {
@@ -756,27 +797,60 @@ public class GameLoopViewModel : ViewModelBase
         }
     }
 
-    private void SaveSettingsToRegistry(GameLoopConfig gl)
+    /// <summary>
+    /// Applies user-selected settings to the GameLoop/TGB Windows registry.
+    /// Follows the Apply → Verify → Report pipeline.
+    /// 
+    /// CRITICAL: The user's FPS selection is NEVER clamped or downgraded.
+    /// Monitor refresh rate is informational — it generates warnings, not overrides.
+    /// </summary>
+    private SettingsApplicationReport SaveSettingsToRegistry(GameLoopConfig gl)
     {
+        var report = new SettingsApplicationReport
+        {
+            MonitorRefreshRateHz = Hardware.RefreshRateHz,
+            MonitorMaxRefreshRateHz = Hardware.MaxRefreshRateHz,
+            RequestedFps = FpsLevel,
+            RequestedGraphicsQuality = PubgRenderQuality
+        };
+
         var targetPaths = new[]
         {
             @"Software\Tencent\MobileGamePC",
             @"Software\Tencent\TxGameAssistant"
         };
 
-        int registryFps = FpsLevel >= 90 ? 90 : FpsLevel;
+        // User's exact selection — NO clamping, NO downgrade.
+        int registryFps = FpsLevel;
         int registryContentScale = PubgContentScale > 0 ? PubgContentScale : 2;
         int registryRenderQuality = PubgRenderQuality;
 
         var profile = SelectedDeviceProfile ?? DeviceProfiles.First();
 
+        // Log the combination note (informational, never blocking)
+        string comboNote = PubgGraphicsCompatibility.GetCombinationNote(registryRenderQuality, registryFps);
+        if (!string.IsNullOrEmpty(comboNote))
+        {
+            Logger.Info("GameLoopStudio", $"[Combo] {comboNote}");
+        }
+
+        var packages = new[]
+        {
+            "com.tencent.ig",
+            "com.pubg.krmobile",
+            "com.pubg.imobile",
+            "com.vng.pubgmobile"
+        };
+
         foreach (var path in targetPaths)
         {
+            // ── HKCU Write + Verify ──
             try
             {
                 using var key = Registry.CurrentUser.CreateSubKey(path);
                 if (key != null)
                 {
+                    // Engine allocation settings
                     key.SetValue("VMCpuCount", CpuCores, RegistryValueKind.DWord);
                     key.SetValue("VMMemorySizeInMB", RamMb, RegistryValueKind.DWord);
                     key.SetValue("VMResWidth", ResWidth, RegistryValueKind.DWord);
@@ -791,29 +865,39 @@ public class GameLoopViewModel : ViewModelBase
                     key.SetValue("SetGraphicsCard", 1, RegistryValueKind.DWord);
                     key.SetValue("GraphicsCardEnabled", 1, RegistryValueKind.DWord);
 
-                    key.SetValue("com.tencent.ig_FPSLevel", registryFps, RegistryValueKind.DWord);
-                    key.SetValue("com.tencent.ig_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
-                    key.SetValue("com.tencent.ig_ContentScale", registryContentScale, RegistryValueKind.DWord);
+                    // Per-package PUBG settings (FPS, Quality, Scale)
+                    foreach (var pkg in packages)
+                    {
+                        key.SetValue($"{pkg}_FPSLevel", registryFps, RegistryValueKind.DWord);
+                        key.SetValue($"{pkg}_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
+                        key.SetValue($"{pkg}_ContentScale", registryContentScale, RegistryValueKind.DWord);
+                    }
 
-                    key.SetValue("com.pubg.krmobile_FPSLevel", registryFps, RegistryValueKind.DWord);
-                    key.SetValue("com.pubg.krmobile_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
-                    key.SetValue("com.pubg.krmobile_ContentScale", registryContentScale, RegistryValueKind.DWord);
-
-                    key.SetValue("com.pubg.imobile_FPSLevel", registryFps, RegistryValueKind.DWord);
-                    key.SetValue("com.pubg.imobile_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
-                    key.SetValue("com.pubg.imobile_ContentScale", registryContentScale, RegistryValueKind.DWord);
-
-                    key.SetValue("com.vng.pubgmobile_FPSLevel", registryFps, RegistryValueKind.DWord);
-                    key.SetValue("com.vng.pubgmobile_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
-                    key.SetValue("com.vng.pubgmobile_ContentScale", registryContentScale, RegistryValueKind.DWord);
-
+                    // Device profile
                     key.SetValue("VMPhoneDevice", profile.DevicePhoneString, RegistryValueKind.String);
                     key.SetValue("VMDeviceManufacturer", profile.Manufacturer, RegistryValueKind.String);
                     key.SetValue("VMDeviceModel", profile.Model, RegistryValueKind.String);
+
+                    // ── READBACK VERIFICATION ──
+                    VerifyAndLog(report, key, $"HKCU\\{path}", "com.tencent.ig_FPSLevel", registryFps, "FPS");
+                    VerifyAndLog(report, key, $"HKCU\\{path}", "com.tencent.ig_RenderQuality", registryRenderQuality, "Graphics");
+                    VerifyAndLog(report, key, $"HKCU\\{path}", "com.tencent.ig_ContentScale", registryContentScale, "ContentScale");
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.Error("GameLoopStudio", $"Failed to write HKCU\\{path}: {ex.Message}");
+                report.Results.Add(new SettingApplicationResult
+                {
+                    SettingName = "Registry (HKCU)",
+                    RequestedValue = $"{registryFps} FPS",
+                    Status = SettingStatus.WriteFailed,
+                    RegistryPath = $"HKCU\\{path}",
+                    DisplayWarning = ex.Message
+                });
+            }
 
+            // ── HKLM Write (best-effort, may require admin) ──
             try
             {
                 using var hklmKey = Registry.LocalMachine.CreateSubKey($@"SOFTWARE\WOW6432Node\{path}");
@@ -827,16 +911,72 @@ public class GameLoopViewModel : ViewModelBase
                     hklmKey.SetValue("ForceDirectX", ForceDirectX ? 1 : 0, RegistryValueKind.DWord);
                     hklmKey.SetValue("LocalShaderCacheEnabled", ShaderCacheEnabled ? 1 : 0, RegistryValueKind.DWord);
                     hklmKey.SetValue("ShaderCacheEnabled", ShaderCacheEnabled ? 1 : 0, RegistryValueKind.DWord);
-                    hklmKey.SetValue("com.tencent.ig_FPSLevel", registryFps, RegistryValueKind.DWord);
-                    hklmKey.SetValue("com.tencent.ig_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
-                    hklmKey.SetValue("com.tencent.ig_ContentScale", registryContentScale, RegistryValueKind.DWord);
+
+                    foreach (var pkg in packages)
+                    {
+                        hklmKey.SetValue($"{pkg}_FPSLevel", registryFps, RegistryValueKind.DWord);
+                        hklmKey.SetValue($"{pkg}_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
+                        hklmKey.SetValue($"{pkg}_ContentScale", registryContentScale, RegistryValueKind.DWord);
+                    }
+
                     hklmKey.SetValue("VMPhoneDevice", profile.DevicePhoneString, RegistryValueKind.String);
                     hklmKey.SetValue("VMDeviceManufacturer", profile.Manufacturer, RegistryValueKind.String);
                     hklmKey.SetValue("VMDeviceModel", profile.Model, RegistryValueKind.String);
                 }
             }
-            catch { }
+            catch { /* HKLM write is best-effort — may lack admin privileges */ }
         }
+
+        return report;
+    }
+
+    /// <summary>
+    /// Reads back a registry value immediately after write and logs/reports the result.
+    /// Adds display warnings when FPS exceeds monitor Hz, but NEVER changes the written value.
+    /// </summary>
+    private void VerifyAndLog(
+        SettingsApplicationReport report,
+        RegistryKey key,
+        string registryPath,
+        string valueName,
+        int expectedValue,
+        string settingName)
+    {
+        var readbackObj = key.GetValue(valueName);
+        int readback = readbackObj is int i ? i : (readbackObj != null && int.TryParse(readbackObj.ToString(), out int p) ? p : -1);
+
+        bool isFpsSetting = settingName == "FPS";
+        bool verifyOk = readback == expectedValue;
+        bool hasDisplayWarning = isFpsSetting && expectedValue > Hardware.RefreshRateHz;
+
+        var result = new SettingApplicationResult
+        {
+            SettingName = settingName,
+            RequestedValue = expectedValue.ToString(),
+            WrittenValue = expectedValue.ToString(),
+            ReadbackValue = readback.ToString(),
+            RegistryPath = registryPath,
+            RegistryKey = valueName
+        };
+
+        if (!verifyOk)
+        {
+            result.Status = SettingStatus.VerificationFailed;
+            Logger.Warn("GameLoopStudio", $"[{settingName}] VERIFICATION FAILED: Wrote {expectedValue} but read back {readback} at {registryPath}\\{valueName}");
+        }
+        else if (hasDisplayWarning)
+        {
+            result.Status = SettingStatus.AppliedWithDisplayWarning;
+            result.DisplayWarning = $"Monitor refresh rate: {Hardware.RefreshRateHz} Hz. {expectedValue} FPS is configured but may not be fully visible.";
+            Logger.Success("GameLoopStudio", $"[{settingName}] Verified: {readback} written to {registryPath} (Display warning: monitor is {Hardware.RefreshRateHz} Hz)");
+        }
+        else
+        {
+            result.Status = SettingStatus.Applied;
+            Logger.Success("GameLoopStudio", $"[{settingName}] Verified: {readback} written to {registryPath}");
+        }
+
+        report.Results.Add(result);
     }
 
     private async Task ApplyRecommendedSettingsAsync()

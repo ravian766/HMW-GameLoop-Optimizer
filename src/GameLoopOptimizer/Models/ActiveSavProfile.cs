@@ -41,8 +41,8 @@ public class ActiveSavProfile
         2 => "Balanced (均衡)",
         3 => "HD (高清)",
         4 => "HDR (高清高动态)",
-        5 => "Ultra HD (超高清 - Level 5)",
-        6 => "UHD / Ultra HDR (极致超高清 - Level 6)",
+        5 => "Ultra HD / UHD (超高清 - Level 5)",
+        >= 6 => "Ultra HD / UHD (超高清)",
         _ => $"{q} Level"
     };
 
@@ -73,11 +73,11 @@ public class ActiveSavProfile
         new ActiveSavProfile
         {
             Name = "Ultra HDR / UHD 120 FPS",
-            Description = "Forces UHD / Ultra HDR (Quality Level 6) maximum graphics quality with 120 FPS target unlock (FPS Level 8) for flagship visuals and performance.",
+            Description = "Forces Ultra HD / UHD maximum graphics quality (Level 5) with 120 FPS target unlock (FPS Level 8) for flagship visuals and performance.",
             FpsLevel = 8,
             LobbyFpsLevel = 8,
-            BattleQuality = 6,
-            LobbyQuality = 6,
+            BattleQuality = 5,
+            LobbyQuality = 5,
             Style = 2,
             GraphicFavor = 4,
             IsCustom = false

@@ -28,5 +28,11 @@ public class HardwareInfo
     public int ScreenHeight { get; set; } = 1080;
     public int RefreshRateHz { get; set; } = 60;
 
+    /// <summary>Maximum refresh rate supported by the primary monitor across all display modes.</summary>
+    public int MaxRefreshRateHz { get; set; } = 60;
+
+    /// <summary>All distinct refresh rates supported by the primary monitor.</summary>
+    public List<int> SupportedRefreshRates { get; set; } = new();
+
     public HardwareTier CalculatedTier { get; set; } = HardwareTier.MidRange;
 }

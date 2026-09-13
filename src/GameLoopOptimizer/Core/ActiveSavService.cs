@@ -43,7 +43,10 @@ public static class ActiveSavService
         // PUBG 4.x keys
         "UserSetGraphicsQuality",
         "ShadowLevel",
-        "AntiAliasingLevel"
+        "AntiAliasingLevel",
+        // Graphic Favor quality targets
+        "GFBestQBattle",
+        "GFBestQLobby"
     };
 
     // --- Visual style keys (legacy + PUBG 4.x) ---
@@ -549,8 +552,8 @@ public static class ActiveSavService
             var devProfile = deviceProfile ?? DeviceProfile.Profiles.FirstOrDefault(p => p.MaxSupportedFps >= 120) ?? DeviceProfile.Profiles.First();
             await AdbManager.SpoofDeviceProfileAsync(devProfile, gl);
 
-            // 5b. Synchronize GameLoop Windows Registry keys to prevent emulator from forcing HD (quality 2) on boot
-            SyncGameLoopWindowsRegistry(profile, gl);
+            // Per user directive: Do NOT touch GameLoop Windows Registry when applying in-game settings.
+            // The user configures GameLoop emulator settings manually in GameLoop's own settings center.
 
             // 6. Relaunch PUBG Mobile cleanly
             Logger.Info("ActiveSavService", $"Relaunching {pkg} with patched graphics...");
@@ -696,8 +699,8 @@ public static class ActiveSavService
             var lines = await File.ReadAllLinesAsync(localIni);
             var updatedLines = new List<string>();
 
-            // In UE4 CVars: 0=Smooth, 1=Balanced, 2=HD, 3=HDR, 4=Ultra HD, 5=UHD
-            int cvarQuality = Math.Clamp(profile.BattleQuality - 1, 0, 5);
+            // In UE4 CVars: 0=Smooth, 1=Balanced, 2=HD, 3=HDR, 4=Ultra HD / UHD
+            int cvarQuality = Math.Clamp(profile.BattleQuality - 1, 0, 4);
             int targetStyle = profile.Style;
 
             // In UE4 CVars: r.UserHDRSetting is 0 for SDR (Smooth/Balanced/HD), 1 for HDR, 2 for Ultra HD / UHD
@@ -1001,7 +1004,7 @@ public static class ActiveSavService
     {
         try
         {
-            int cvarQuality = Math.Clamp(profile.BattleQuality - 1, 0, 5);
+            int cvarQuality = Math.Clamp(profile.BattleQuality - 1, 0, 4);
             int targetMaxFps = profile.FpsLevel switch
             {
                 >= 7 => 120,
@@ -1010,8 +1013,12 @@ public static class ActiveSavService
                 4 => 40,
                 _ => 30
             };
-            int registryFps = targetMaxFps >= 90 ? 90 : targetMaxFps;
+            // CRITICAL: User's FPS selection is NEVER clamped.
+            // Previously this line capped >=90 to 90, silently downgrading 120→90.
+            int registryFps = targetMaxFps;
             int scale = profile.BattleQuality <= 1 ? 1 : 2;
+
+            Logger.Info("ActiveSavService", $"[FPS] Syncing registry: Profile FPS Level={profile.FpsLevel}, Target FPS={targetMaxFps}, Registry FPS={registryFps} (NO clamp)");
 
             var targetPaths = new[]
             {
@@ -1038,6 +1045,14 @@ public static class ActiveSavService
                         key.SetValue($"{pkg}_FPSLevel", registryFps, Microsoft.Win32.RegistryValueKind.DWord);
                         key.SetValue($"{pkg}_ContentScale", scale, Microsoft.Win32.RegistryValueKind.DWord);
                     }
+
+                    // Readback verification for primary package
+                    var readbackFps = key.GetValue("com.tencent.ig_FPSLevel");
+                    int verifiedFps = readbackFps is int i ? i : -1;
+                    if (verifiedFps == registryFps)
+                        Logger.Success("ActiveSavService", $"[FPS] Readback verified: {verifiedFps} at HKCU\\{path}");
+                    else
+                        Logger.Warn("ActiveSavService", $"[FPS] Readback MISMATCH: Wrote {registryFps} but read {verifiedFps} at HKCU\\{path}");
                 }
             }
 
