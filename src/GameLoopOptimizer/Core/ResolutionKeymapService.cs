@@ -167,14 +167,38 @@ public static class ResolutionKeymapService
                 var inner = match.Groups["inner"].Value;
                 var closeTag = match.Groups[3].Value;
 
-                // Calibrate Point_X and Point_Y inside this PUBG block
-                var pointPattern = new Regex(@"Point_X=""(?<x>[0-9\.]+)""\s+Point_Y=""(?<y>[0-9\.]+)""", RegexOptions.IgnoreCase);
+                // Detect HUD mode from block tag if present (Mode="1" / "2" = Vehicle, Mode="3" = Swim)
+                var blockMode = HudCalibrationMode.GeneralOnFoot;
+                var modeMatch = Regex.Match(openTag, @"Mode=""(?<mode>\d+)""", RegexOptions.IgnoreCase);
+                if (modeMatch.Success && int.TryParse(modeMatch.Groups["mode"].Value, out int parsedMode))
+                {
+                    blockMode = parsedMode switch
+                    {
+                        1 or 2 => HudCalibrationMode.VehicleDriving,
+                        3 => HudCalibrationMode.SwimmingAndParachute,
+                        _ => HudCalibrationMode.GeneralOnFoot
+                    };
+                }
+
+                // Calibrate Point_X and Point_Y inside this PUBG block, respecting HUD mode
+                var pointPattern = new Regex(@"(?:Mode=""(?<keyMode>\d+)""[^>]*)?Point_X=""(?<x>[0-9\.]+)""\s+Point_Y=""(?<y>[0-9\.]+)""", RegexOptions.IgnoreCase);
                 var calibratedInner = pointPattern.Replace(inner, m =>
                 {
                     if (double.TryParse(m.Groups["x"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double ox) &&
                         double.TryParse(m.Groups["y"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double oy))
                     {
-                        var (nx, ny) = CalibrateCoordinate(ox, oy, targetWidth, targetHeight);
+                        var mode = blockMode;
+                        if (m.Groups["keyMode"].Success && int.TryParse(m.Groups["keyMode"].Value, out int km))
+                        {
+                            mode = km switch
+                            {
+                                1 or 2 => HudCalibrationMode.VehicleDriving,
+                                3 => HudCalibrationMode.SwimmingAndParachute,
+                                _ => mode
+                            };
+                        }
+
+                        var (nx, ny) = CalibrateCoordinateForHudMode(ox, oy, targetWidth, targetHeight, mode);
                         count++;
                         return $"Point_X=\"{nx.ToString("F6", CultureInfo.InvariantCulture)}\" Point_Y=\"{ny.ToString("F6", CultureInfo.InvariantCulture)}\"";
                     }

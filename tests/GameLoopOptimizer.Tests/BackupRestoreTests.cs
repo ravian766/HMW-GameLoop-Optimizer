@@ -4,6 +4,7 @@ using Xunit;
 
 namespace GameLoopOptimizer.Tests;
 
+[Collection("BackupTests")]
 public class BackupRestoreTests
 {
     [Fact]

@@ -40,7 +40,10 @@ public partial class App : Application
         services.AddTransient<GamingSessionViewModel>();
         services.AddTransient<BackupViewModel>();
         services.AddTransient<LogsViewModel>();
-        services.AddTransient<AdbStudioViewModel>();
+        services.AddTransient(sp => new AdbStudioViewModel(
+            () => GameLoopDetector.DetectGameLoop(),
+            sp.GetRequiredService<IAdbManager>(),
+            sp.GetRequiredService<IEventAggregator>()));
         services.AddTransient<ActiveSavViewModel>();
         services.AddTransient<AimSensitivityViewModel>();
 

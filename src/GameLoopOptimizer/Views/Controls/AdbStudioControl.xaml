@@ -268,6 +268,28 @@
                              Padding="10"
                              Margin="0,0,0,10" />
 
+                    <!-- Quick Command Preset Chips -->
+                    <ItemsControl ItemsSource="{Binding CommandPresets}" Margin="0,0,0,8">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding}"
+                                        Command="{Binding DataContext.RunPresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Padding="8,3"
+                                        FontSize="10"
+                                        Margin="0,0,6,4"
+                                        Cursor="Hand"
+                                        ToolTip="Click to run this preset command immediately" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -279,7 +301,13 @@
                                  FontSize="12"
                                  Padding="10,7"
                                  Margin="0,0,10,0"
-                                 VerticalAlignment="Center" />
+                                 VerticalAlignment="Center"
+                                 ToolTip="Type shell command or use Up/Down arrow keys for command history">
+                            <TextBox.InputBindings>
+                                <KeyBinding Key="Up" Command="{Binding HistoryUpCommand}" />
+                                <KeyBinding Key="Down" Command="{Binding HistoryDownCommand}" />
+                            </TextBox.InputBindings>
+                        </TextBox>
                         <Button Grid.Column="1"
                                 Content="▶ Execute Shell"
                                 Command="{Binding ExecuteCustomAdbShellCommand}"

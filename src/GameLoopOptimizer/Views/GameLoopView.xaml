@@ -321,7 +321,7 @@
 
                 <!-- ==================== TAB 2: ANDROID VM & ADB STUDIO ==================== -->
                 <TabItem Header="🤖  Android VM &amp; ADB Studio" Style="{StaticResource SegmentedTabItem}">
-                    <controls:AdbStudioControl />
+                    <controls:AdbStudioControl DataContext="{Binding AdbStudio}" />
                 </TabItem>
 
                 <!-- ==================== TAB 3: ACTIVE.SAV & 120 FPS (Temporarily Hidden & Disabled) ==================== -->

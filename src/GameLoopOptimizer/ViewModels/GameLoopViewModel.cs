@@ -506,7 +506,7 @@ public class GameLoopViewModel : ViewModelBase
 
     public event EventHandler? SettingsSaved;
 
-    public GameLoopViewModel(Func<HardwareInfo> getHw, Func<GameLoopConfig> getGl, IEventAggregator? eventAggregator = null)
+    public GameLoopViewModel(Func<HardwareInfo> getHw, Func<GameLoopConfig> getGl, IEventAggregator? eventAggregator = null, IAdbManager? adbManager = null)
     {
         _getHw = getHw;
         _getGl = getGl;
@@ -514,7 +514,7 @@ public class GameLoopViewModel : ViewModelBase
         _selectedDeviceProfile = DeviceProfiles.First();
 
         // Initialize sub-viewmodels
-        AdbStudio = new AdbStudioViewModel(getGl, _eventAggregator);
+        AdbStudio = new AdbStudioViewModel(getGl, adbManager, _eventAggregator);
         ActiveSav = new ActiveSavViewModel(getGl, () => SelectedDeviceProfile, _eventAggregator);
         AimSens = new AimSensitivityViewModel(() => ResHeight, _eventAggregator);
 

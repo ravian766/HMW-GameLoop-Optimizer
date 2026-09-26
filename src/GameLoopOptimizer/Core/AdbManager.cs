@@ -137,7 +137,7 @@ public static class AdbManager
             return "ADB executable not found";
         }
 
-        return await Task.Run(() =>
+        return await Task.Run(async () =>
         {
             try
             {
@@ -154,14 +154,20 @@ public static class AdbManager
                 };
 
                 proc.Start();
-                string output = proc.StandardOutput.ReadToEnd();
-                string err = proc.StandardError.ReadToEnd();
 
-                if (!proc.WaitForExit(timeoutMs))
+                var outTask = proc.StandardOutput.ReadToEndAsync();
+                var errTask = proc.StandardError.ReadToEndAsync();
+                var waitTask = proc.WaitForExitAsync();
+
+                var completed = await Task.WhenAny(Task.WhenAll(outTask, errTask, waitTask), Task.Delay(timeoutMs));
+                if (completed != Task.WhenAll(outTask, errTask, waitTask))
                 {
                     try { proc.Kill(); } catch { }
                     return "Command timed out";
                 }
+
+                string output = await outTask;
+                string err = await errTask;
 
                 if (!string.IsNullOrWhiteSpace(err) && string.IsNullOrWhiteSpace(output))
                 {
@@ -231,18 +237,35 @@ public static class AdbManager
         return list;
     }
 
-    public static async Task<List<int>> DiscoverListeningEmulatorPortsAsync()
+    public static async Task<List<int>> DiscoverListeningEmulatorPortsAsync(GameLoopConfig? config = null)
     {
         var ports = new HashSet<int>(KnownGameLoopPorts);
+        
+        // Fast direct VBox NAT port discovery
+        TryAddVboxForwardedPorts(ports, config);
+
         await Task.Run(() =>
         {
             try
             {
                 var procNames = new[] { "AndroidEmulator", "AndroidEmulatorEn", "aow_exe", "AppMarket" };
-                var pids = Process.GetProcesses()
-                    .Where(p => procNames.Any(name => p.ProcessName.Equals(name, StringComparison.OrdinalIgnoreCase)))
-                    .Select(p => p.Id)
-                    .ToHashSet();
+                var pids = new HashSet<int>();
+                var allProcs = Process.GetProcesses();
+                foreach (var p in allProcs)
+                {
+                    try
+                    {
+                        if (procNames.Any(name => p.ProcessName.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            pids.Add(p.Id);
+                        }
+                    }
+                    catch { }
+                    finally
+                    {
+                        p.Dispose();
+                    }
+                }
 
                 if (pids.Count == 0) return;
 
@@ -280,6 +303,40 @@ public static class AdbManager
         return ports.ToList();
     }
 
+    private static void TryAddVboxForwardedPorts(HashSet<int> ports, GameLoopConfig? config)
+    {
+        try
+        {
+            var candidateVboxFiles = new List<string>();
+            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (!string.IsNullOrEmpty(userProfile))
+            {
+                candidateVboxFiles.Add(Path.Combine(userProfile, ".GameLoop", "AndroidEmulator.vbox"));
+                candidateVboxFiles.Add(Path.Combine(userProfile, "VirtualBox VMs", "AndroidEmulator", "AndroidEmulator.vbox"));
+            }
+
+            if (config != null && !string.IsNullOrEmpty(config.InstallPath))
+            {
+                candidateVboxFiles.Add(Path.Combine(config.InstallPath, "vms", "AndroidEmulator", "AndroidEmulator.vbox"));
+            }
+
+            foreach (var vboxPath in candidateVboxFiles)
+            {
+                if (File.Exists(vboxPath))
+                {
+                    string xml = File.ReadAllText(vboxPath);
+                    var match = Regex.Match(xml, @"name=""adb""\s+proto=""1""\s+hostport=""(\d+)""", RegexOptions.IgnoreCase);
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out int port))
+                    {
+                        ports.Add(port);
+                        Logger.Info("AdbManager", $"Discovered ADB port {port} from VirtualBox configuration: {vboxPath}");
+                    }
+                }
+            }
+        }
+        catch { }
+    }
+
     public static async Task<bool> AutoConnectGameLoopAsync(GameLoopConfig? config = null)
     {
         // 1. Check existing connected devices
@@ -293,7 +350,7 @@ public static class AdbManager
         }
 
         // 2. Discover active & known ports dynamically
-        var candidatePorts = await DiscoverListeningEmulatorPortsAsync();
+        var candidatePorts = await DiscoverListeningEmulatorPortsAsync(config);
 
         foreach (var port in candidatePorts)
         {

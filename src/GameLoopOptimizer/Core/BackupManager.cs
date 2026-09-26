@@ -40,6 +40,16 @@ public static class BackupManager
         }
     }
 
+    public static IReadOnlyList<BackupEntry> GetAllForModule(string moduleId)
+    {
+        lock (_lock)
+        {
+            return _entries.Where(e => e.ModuleId == moduleId && !e.IsReverted)
+                           .OrderByDescending(e => e.Timestamp)
+                           .ToList();
+        }
+    }
+
     public static void RecordBackup(BackupEntry entry)
     {
         lock (_lock)
@@ -129,12 +139,40 @@ public static class BackupManager
             {
                 return RestorePowerPlan(entry);
             }
+            else if (entry.TargetType == "AdbProp")
+            {
+                return RestoreAdbProp(entry);
+            }
 
             return false;
         }
         catch (Exception ex)
         {
             Logger.Error("BackupManager", $"Failed to restore entry {entry.Id}: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool RestoreAdbProp(BackupEntry entry)
+    {
+        if (string.IsNullOrWhiteSpace(entry.TargetPath)) return false;
+
+        try
+        {
+            string valToRestore = entry.PreviousValue ?? string.Empty;
+            var task = AdbManager.SetPropAsync(entry.TargetPath, valToRestore);
+            bool ok = task.GetAwaiter().GetResult();
+            if (ok)
+            {
+                MarkReverted(entry.Id);
+                Logger.Success("BackupManager", $"Restored AdbProp '{entry.TargetPath}' to '{valToRestore}'");
+                return true;
+            }
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("BackupManager", $"Failed to restore AdbProp {entry.TargetPath}: {ex.Message}");
             return false;
         }
     }

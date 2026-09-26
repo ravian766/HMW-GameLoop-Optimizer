@@ -10,6 +10,7 @@ namespace GameLoopOptimizer.ViewModels;
 public class AdbStudioViewModel : ViewModelBase
 {
     private readonly Func<GameLoopConfig> _getGl;
+    private readonly IAdbManager _adb;
     private readonly IEventAggregator _eventAggregator;
 
     private bool _isAdbAvailable;
@@ -210,10 +211,29 @@ public class AdbStudioViewModel : ViewModelBase
     public ICommand ExecuteCustomAdbShellCommand { get; }
     public ICommand ClearConsoleOutputCommand { get; }
     public ICommand RefreshTelemetryCommand { get; }
+    public ICommand SetInVmResolutionCommand { get; }
+    public ICommand ResetInVmResolutionCommand { get; }
+    public ICommand HistoryUpCommand { get; }
+    public ICommand HistoryDownCommand { get; }
+    public ICommand RunPresetCommand { get; }
 
-    public AdbStudioViewModel(Func<GameLoopConfig> getGl, IEventAggregator? eventAggregator = null)
+    private readonly List<string> _commandHistory = new();
+    private int _historyIndex = -1;
+
+    public ObservableCollection<string> CommandPresets { get; } = new()
+    {
+        "wm size",
+        "wm density",
+        "getprop ro.product.model",
+        "getprop debug.sf.fps",
+        "dumpsys gfxinfo",
+        "top -m 5 -n 1"
+    };
+
+    public AdbStudioViewModel(Func<GameLoopConfig> getGl, IAdbManager? adbManager = null, IEventAggregator? eventAggregator = null)
     {
         _getGl = getGl;
+        _adb = adbManager ?? DefaultAdbManager.Instance;
         _eventAggregator = eventAggregator ?? EventAggregator.Default;
 
         ConnectAdbCommand = new AsyncRelayCommand(async () =>
@@ -222,7 +242,7 @@ public class AdbStudioViewModel : ViewModelBase
             AdbStatusText = "Connecting to GameLoop Android VM via ADB...";
             try
             {
-                bool connected = await AdbManager.AutoConnectGameLoopAsync(_getGl());
+                bool connected = await _adb.AutoConnectGameLoopAsync(_getGl());
                 await RefreshAdbStatusAsync();
                 StatusMessage = connected 
                     ? $"ADB Connected successfully to {AdbDeviceName}!" 
@@ -241,7 +261,7 @@ public class AdbStudioViewModel : ViewModelBase
             StatusMessage = $"Connecting to ADB target {CustomAdbPortText}...";
             try
             {
-                bool connected = await AdbManager.ConnectCustomDeviceAsync(CustomAdbPortText, _getGl());
+                bool connected = await _adb.ConnectCustomDeviceAsync(CustomAdbPortText, _getGl());
                 await RefreshAdbStatusAsync();
                 StatusMessage = connected 
                     ? $"Connected to ADB target {CustomAdbPortText}!" 
@@ -260,7 +280,7 @@ public class AdbStudioViewModel : ViewModelBase
             StatusMessage = $"Launching {SelectedGamePackage?.DisplayName ?? targetPkg} in Android VM...";
             try
             {
-                bool ok = await AdbManager.LaunchGamePackageAsync(targetPkg, _getGl());
+                bool ok = await _adb.LaunchGamePackageAsync(targetPkg, _getGl());
                 StatusMessage = ok 
                     ? $"Launched {SelectedGamePackage?.DisplayName ?? targetPkg} successfully!" 
                     : $"Failed to launch {targetPkg}. Ensure GameLoop is running.";
@@ -279,7 +299,7 @@ public class AdbStudioViewModel : ViewModelBase
             StatusMessage = $"Force-stopping {SelectedGamePackage?.DisplayName ?? targetPkg}...";
             try
             {
-                bool ok = await AdbManager.ForceStopGamePackageAsync(targetPkg, _getGl());
+                bool ok = await _adb.ForceStopGamePackageAsync(targetPkg, _getGl());
                 StatusMessage = ok 
                     ? $"Terminated {SelectedGamePackage?.DisplayName ?? targetPkg} process in VM." 
                     : $"Failed to stop {targetPkg}.";
@@ -298,7 +318,7 @@ public class AdbStudioViewModel : ViewModelBase
             StatusMessage = $"Clearing app data for {SelectedGamePackage?.DisplayName ?? targetPkg}...";
             try
             {
-                bool ok = await AdbManager.ClearGameDataAsync(targetPkg, _getGl());
+                bool ok = await _adb.ClearGameDataAsync(targetPkg, _getGl());
                 StatusMessage = ok 
                     ? $"Cleared app data for {SelectedGamePackage?.DisplayName ?? targetPkg}!" 
                     : $"Failed to clear app data for {targetPkg}.";
@@ -316,7 +336,7 @@ public class AdbStudioViewModel : ViewModelBase
             StatusMessage = "Trimming Android VM caches and shader logs...";
             try
             {
-                bool ok = await AdbManager.TrimAppCacheAsync(_getGl(), SelectedGamePackage?.PackageName);
+                bool ok = await _adb.TrimAppCacheAsync(_getGl(), SelectedGamePackage?.PackageName);
                 StatusMessage = ok ? "Android VM caches and tombstones purged!" : "Cache trim failed.";
                 await RefreshTelemetryAsync();
             }
@@ -332,7 +352,7 @@ public class AdbStudioViewModel : ViewModelBase
             StatusMessage = "Restarting ADB daemon subsystem...";
             try
             {
-                bool ok = await AdbManager.RestartAdbServerAsync(_getGl());
+                bool ok = await _adb.RestartAdbServerAsync(_getGl());
                 await RefreshAdbStatusAsync();
                 StatusMessage = ok ? "ADB server restarted and reconnected!" : "ADB restart finished.";
             }
@@ -350,7 +370,7 @@ public class AdbStudioViewModel : ViewModelBase
             StatusMessage = $"Pre-compiling {SelectedGamePackage?.DisplayName ?? targetPkg} via Dex2Oat AOT...";
             try
             {
-                var res = await AdbManager.CompilePackageSpeedAsync(targetPkg, _getGl());
+                var res = await _adb.CompilePackageSpeedAsync(targetPkg, _getGl());
                 AdbCompilationStatus = res;
                 StatusMessage = $"AOT compilation result: {res}";
                 Logger.Success("AdbStudioVM", $"Dex2Oat result for {targetPkg}: {res}");
@@ -367,7 +387,7 @@ public class AdbStudioViewModel : ViewModelBase
             IsAdbBusy = true;
             try
             {
-                await AdbManager.SetPointerLocationOverlayAsync(IsPointerLocationEnabled, _getGl());
+                await _adb.SetPointerLocationOverlayAsync(IsPointerLocationEnabled, _getGl());
                 StatusMessage = $"In-VM touch and pointer overlay {(IsPointerLocationEnabled ? "Enabled" : "Disabled")}.";
             }
             finally
@@ -383,7 +403,7 @@ public class AdbStudioViewModel : ViewModelBase
             try
             {
                 string shotPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), $"GameLoop_Capture_{DateTime.Now:yyyyMMdd_HHmmss}.png");
-                bool ok = await AdbManager.CaptureScreenAsync(shotPath, _getGl());
+                bool ok = await _adb.CaptureScreenAsync(shotPath, _getGl());
                 StatusMessage = ok ? $"Screenshot saved to Pictures: {Path.GetFileName(shotPath)}" : "Screenshot capture failed.";
             }
             finally
@@ -396,12 +416,13 @@ public class AdbStudioViewModel : ViewModelBase
         {
             if (string.IsNullOrWhiteSpace(InteractiveAdbCommand)) return;
             string cmd = InteractiveAdbCommand.Trim();
+            PushCommandHistory(cmd);
             InteractiveAdbOutput += $"\n$ {cmd}\n";
             InteractiveAdbCommand = string.Empty;
             IsAdbBusy = true;
             try
             {
-                string result = await AdbManager.ExecuteShellCommandAsync(cmd, null, 10000, _getGl());
+                string result = await _adb.ExecuteShellCommandAsync(cmd, null, 10000, _getGl());
                 InteractiveAdbOutput += string.IsNullOrWhiteSpace(result) ? "[Command executed successfully with no output]\n" : $"{result}\n";
             }
             catch (Exception ex)
@@ -411,6 +432,40 @@ public class AdbStudioViewModel : ViewModelBase
             finally
             {
                 IsAdbBusy = false;
+            }
+        });
+
+        HistoryUpCommand = new RelayCommand(() =>
+        {
+            if (_commandHistory.Count == 0) return;
+            if (_historyIndex == -1) _historyIndex = _commandHistory.Count - 1;
+            else if (_historyIndex > 0) _historyIndex--;
+            InteractiveAdbCommand = _commandHistory[_historyIndex];
+        });
+
+        HistoryDownCommand = new RelayCommand(() =>
+        {
+            if (_commandHistory.Count == 0 || _historyIndex == -1) return;
+            if (_historyIndex < _commandHistory.Count - 1)
+            {
+                _historyIndex++;
+                InteractiveAdbCommand = _commandHistory[_historyIndex];
+            }
+            else
+            {
+                _historyIndex = -1;
+                InteractiveAdbCommand = string.Empty;
+            }
+        });
+
+        RunPresetCommand = new RelayCommand(param =>
+        {
+            if (param is string preset && !string.IsNullOrWhiteSpace(preset))
+            {
+                string targetPkg = SelectedGamePackage?.PackageName ?? "com.tencent.ig";
+                if (preset == "dumpsys gfxinfo") preset = $"dumpsys gfxinfo {targetPkg}";
+                InteractiveAdbCommand = preset;
+                ExecuteCustomAdbShellCommand.Execute(null);
             }
         });
 
@@ -436,7 +491,7 @@ public class AdbStudioViewModel : ViewModelBase
                 StatusMessage = $"Sideloading APK {Path.GetFileName(apk)} into GameLoop VM...";
                 try
                 {
-                    var res = await AdbManager.InstallApkAsync(apk, _getGl());
+                    var res = await _adb.InstallApkAsync(apk, _getGl());
                     StatusMessage = res;
                     await RefreshAdbStatusAsync();
                 }
@@ -447,14 +502,58 @@ public class AdbStudioViewModel : ViewModelBase
             }
         });
 
+        SetInVmResolutionCommand = new AsyncRelayCommand(async () =>
+        {
+            var gl = _getGl();
+            int w = gl.VmResWidth > 0 ? gl.VmResWidth : 1920;
+            int h = gl.VmResHeight > 0 ? gl.VmResHeight : 1080;
+            int dpi = gl.VmDpi > 0 ? gl.VmDpi : 320;
+            IsAdbBusy = true;
+            StatusMessage = $"Overriding in-VM resolution to {w}x{h} @ {dpi} DPI...";
+            try
+            {
+                bool ok = await _adb.SetInVmResolutionAsync(w, h, dpi, gl);
+                StatusMessage = ok ? $"In-VM resolution scaled to {w}x{h}!" : "Failed to override in-VM resolution.";
+                await RefreshTelemetryAsync();
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        ResetInVmResolutionCommand = new AsyncRelayCommand(async () =>
+        {
+            IsAdbBusy = true;
+            StatusMessage = "Resetting in-VM display viewport size...";
+            try
+            {
+                bool ok = await _adb.ResetInVmResolutionAsync(_getGl());
+                StatusMessage = ok ? "In-VM display viewport reset to default!" : "Failed to reset in-VM resolution.";
+                await RefreshTelemetryAsync();
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
         ApplyAllAdbOptimizationsCommand = new AsyncRelayCommand(ApplyAllAdbOptimizationsAsync);
         RestoreStockVmSettingsCommand = new AsyncRelayCommand(RestoreStockVmSettingsAsync);
+    }
+
+    public void PushCommandHistory(string cmd)
+    {
+        if (string.IsNullOrWhiteSpace(cmd)) return;
+        _commandHistory.Remove(cmd);
+        _commandHistory.Add(cmd);
+        _historyIndex = -1;
     }
 
     public async Task RefreshAdbStatusAsync()
     {
         var gl = _getGl();
-        IsAdbAvailable = AdbManager.IsAdbAvailable(gl);
+        IsAdbAvailable = _adb.IsAvailable(gl);
 
         if (!IsAdbAvailable)
         {
@@ -464,7 +563,7 @@ public class AdbStudioViewModel : ViewModelBase
             return;
         }
 
-        var devices = await AdbManager.GetConnectedDevicesAsync(gl);
+        var devices = await _adb.GetConnectedDevicesAsync(gl);
         var active = devices.FirstOrDefault(d => d.State.Equals("device", StringComparison.OrdinalIgnoreCase));
 
         if (active != null)
@@ -476,7 +575,7 @@ public class AdbStudioViewModel : ViewModelBase
         }
         else
         {
-            bool connected = await AdbManager.AutoConnectGameLoopAsync(gl);
+            bool connected = await _adb.AutoConnectGameLoopAsync(gl);
             if (connected)
             {
                 IsAdbConnected = true;
@@ -493,7 +592,7 @@ public class AdbStudioViewModel : ViewModelBase
 
         if (IsAdbConnected)
         {
-            var pkgs = await AdbManager.GetInstalledGamePackagesAsync(gl);
+            var pkgs = await _adb.GetInstalledGamePackagesAsync(gl);
             void UpdatePkgsAction()
             {
                 InstalledGamePackages.Clear();
@@ -636,21 +735,21 @@ public class AdbStudioViewModel : ViewModelBase
             if (batchCmds.Count > 0)
             {
                 // 1. Batch execute all commands in one ADB process call
-                await AdbManager.ExecuteBatchShellCommandAsync(batchCmds, null, 12000, gl);
+                await _adb.ExecuteBatchShellCommandAsync(batchCmds, null, 12000, gl);
 
                 // 2. VM Reboot Persistence via local.prop
                 var propLines = batchCmds.Where(c => c.StartsWith("setprop")).Select(c => c.Replace("setprop ", "").Replace(" ", "=")).ToList();
                 if (propLines.Count > 0)
                 {
                     string propFileContent = string.Join("\\n", propLines);
-                    await AdbManager.ExecuteShellCommandAsync($"echo -e \"{propFileContent}\" > /data/local.prop", null, 4000, gl);
-                    await AdbManager.ExecuteShellCommandAsync("chmod 644 /data/local.prop", null, 4000, gl);
+                    await _adb.ExecuteShellCommandAsync($"echo -e \"{propFileContent}\" > /data/local.prop", null, 4000, gl);
+                    await _adb.ExecuteShellCommandAsync("chmod 644 /data/local.prop", null, 4000, gl);
                 }
 
                 // 3. Apply surfaceflinger graphics tweaks instantly
                 if (AdbGpuAcceleration || Adb120FpsUnlock)
                 {
-                    await AdbManager.ExecuteShellCommandAsync("setprop ctl.restart surfaceflinger", null, 4000, gl);
+                    await _adb.ExecuteShellCommandAsync("setprop ctl.restart surfaceflinger", null, 4000, gl);
                 }
             }
 
@@ -677,7 +776,7 @@ public class AdbStudioViewModel : ViewModelBase
         try
         {
             var gl = _getGl();
-            await AdbManager.ExecuteShellCommandAsync("rm -f /data/local.prop", null, 4000, gl);
+            await _adb.ExecuteShellCommandAsync("rm -f /data/local.prop", null, 4000, gl);
 
             var resetCmds = new List<string>
             {
@@ -692,8 +791,8 @@ public class AdbStudioViewModel : ViewModelBase
                 "setprop net.dns2 \"\""
             };
 
-            await AdbManager.ExecuteBatchShellCommandAsync(resetCmds, null, 8000, gl);
-            await AdbManager.ExecuteShellCommandAsync("setprop ctl.restart surfaceflinger", null, 4000, gl);
+            await _adb.ExecuteBatchShellCommandAsync(resetCmds, null, 8000, gl);
+            await _adb.ExecuteShellCommandAsync("setprop ctl.restart surfaceflinger", null, 4000, gl);
 
             StatusMessage = "Android VM restored to stock settings successfully!";
             Logger.Success("AdbStudioVM", "Restored stock VM settings via ADB.");

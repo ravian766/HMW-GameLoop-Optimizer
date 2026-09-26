@@ -115,13 +115,33 @@ public class GpuPreferenceModule : IOptimizationModule
 
     public Task<OptimizationResult> RollbackAsync(BackupEntry? backup)
     {
-        var target = backup ?? BackupManager.GetLatestForModule(Id);
-        if (target != null && BackupManager.RestoreEntry(target))
+        if (backup != null)
+        {
+            if (BackupManager.RestoreEntry(backup))
+            {
+                IsOptimized = VerifyAsync().GetAwaiter().GetResult();
+                CurrentStateDisplay = IsOptimized ? "Partial" : "Restored to Default";
+                State = IsOptimized ? OptimizationState.Recommended : OptimizationState.NotOptimized;
+                return Task.FromResult(OptimizationResult.Ok(Id, $"Restored {backup.Title}."));
+            }
+        }
+
+        var targets = BackupManager.GetAllForModule(Id);
+        int restoredCount = 0;
+        foreach (var entry in targets)
+        {
+            if (BackupManager.RestoreEntry(entry))
+            {
+                restoredCount++;
+            }
+        }
+
+        if (restoredCount > 0)
         {
             IsOptimized = false;
             CurrentStateDisplay = "Restored to Default";
             State = OptimizationState.NotOptimized;
-            return Task.FromResult(OptimizationResult.Ok(Id, "Restored Windows GPU preference to defaults."));
+            return Task.FromResult(OptimizationResult.Ok(Id, $"Restored {restoredCount} Windows GPU preference executables to defaults."));
         }
 
         try
@@ -133,7 +153,8 @@ public class GpuPreferenceModule : IOptimizationModule
                 {
                     if (name.Contains("TxGameAssistant", StringComparison.OrdinalIgnoreCase) ||
                         name.Contains("AppMarket", StringComparison.OrdinalIgnoreCase) ||
-                        name.Contains("AndroidEmulator", StringComparison.OrdinalIgnoreCase))
+                        name.Contains("AndroidEmulator", StringComparison.OrdinalIgnoreCase) ||
+                        name.Contains("aow_exe", StringComparison.OrdinalIgnoreCase))
                     {
                         key.DeleteValue(name, false);
                     }
@@ -156,7 +177,10 @@ public class GpuPreferenceModule : IOptimizationModule
         using var key = Registry.CurrentUser.OpenSubKey(UserGpuPrefPath);
         if (key != null)
         {
-            return Task.FromResult(key.GetValueNames().Any(n => n.Contains("AppMarket", StringComparison.OrdinalIgnoreCase) || n.Contains("AndroidEmulator", StringComparison.OrdinalIgnoreCase)));
+            return Task.FromResult(key.GetValueNames().Any(n => 
+                n.Contains("AppMarket", StringComparison.OrdinalIgnoreCase) || 
+                n.Contains("AndroidEmulator", StringComparison.OrdinalIgnoreCase) ||
+                n.Contains("aow_exe", StringComparison.OrdinalIgnoreCase)));
         }
         return Task.FromResult(false);
     }

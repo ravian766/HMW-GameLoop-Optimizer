@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using GameLoopOptimizer.Models;
@@ -38,6 +39,8 @@ public class AdbTelemetrySnapshot
 
 public static class AdbTelemetryService
 {
+    private static readonly ConcurrentDictionary<string, (long FrameCount, DateTime Timestamp)> _lastFrameSamples = new();
+
     public static async Task<AdbTelemetrySnapshot> FetchTelemetryAsync(string? targetPackage = null, GameLoopConfig? config = null)
     {
         var snapshot = new AdbTelemetrySnapshot
@@ -82,7 +85,7 @@ public static class AdbTelemetryService
 
         // 3. Fetch SurfaceFlinger / FPS Estimate
         var gfxinfoOut = await AdbManager.ExecuteShellCommandAsync($"dumpsys gfxinfo {snapshot.TargetPackage} framestats", null, 3000, config);
-        snapshot.EstimatedFps = ParseFpsEstimate(gfxinfoOut);
+        snapshot.EstimatedFps = ParseFpsEstimate(gfxinfoOut, snapshot.TargetPackage, snapshot.Timestamp);
 
         snapshot.IsConnected = true;
         return snapshot;
@@ -148,6 +151,7 @@ public static class AdbTelemetryService
     public static AdbMemoryMetrics ParseMemoryMetrics(string dumpsysMeminfoOutput)
     {
         var mem = new AdbMemoryMetrics();
+
         if (string.IsNullOrWhiteSpace(dumpsysMeminfoOutput) || dumpsysMeminfoOutput.Contains("No process found", StringComparison.OrdinalIgnoreCase))
         {
             return mem;
@@ -184,7 +188,7 @@ public static class AdbTelemetryService
         return mem;
     }
 
-    public static double ParseFpsEstimate(string dumpsysGfxinfoOutput)
+    public static double ParseFpsEstimate(string dumpsysGfxinfoOutput, string? targetPackage = null, DateTime? sampleTimestamp = null)
     {
         if (string.IsNullOrWhiteSpace(dumpsysGfxinfoOutput))
         {
@@ -193,12 +197,45 @@ public static class AdbTelemetryService
 
         // Parse Total frames rendered: 120
         var match = Regex.Match(dumpsysGfxinfoOutput, @"Total frames rendered:\s*(\d+)", RegexOptions.IgnoreCase);
-        if (match.Success && int.TryParse(match.Groups[1].Value, out int frames))
+        if (!match.Success || !long.TryParse(match.Groups[1].Value, out long frames))
         {
-            // Sample rate normalization or direct count indicator
-            return Math.Min(120.0, Math.Max(0.0, frames % 121));
+            return 0;
         }
 
-        return 0;
+        var now = sampleTimestamp ?? DateTime.UtcNow;
+
+        if (!string.IsNullOrEmpty(targetPackage))
+        {
+            if (_lastFrameSamples.TryGetValue(targetPackage, out var prev))
+            {
+                var elapsedSec = (now - prev.Timestamp).TotalSeconds;
+                if (elapsedSec >= 0.25 && elapsedSec <= 10.0)
+                {
+                    long deltaFrames = frames - prev.FrameCount;
+                    if (deltaFrames >= 0)
+                    {
+                        double fps = deltaFrames / elapsedSec;
+                        _lastFrameSamples[targetPackage] = (frames, now);
+                        return Math.Round(Math.Clamp(fps, 0.0, 144.0), 1);
+                    }
+                }
+            }
+            _lastFrameSamples[targetPackage] = (frames, now);
+        }
+
+        // Single-shot or benchmark sample without consecutive history
+        return Math.Min(120.0, Math.Max(0.0, (double)frames));
+    }
+
+    public static void ResetFpsTracking(string? targetPackage = null)
+    {
+        if (string.IsNullOrEmpty(targetPackage))
+        {
+            _lastFrameSamples.Clear();
+        }
+        else
+        {
+            _lastFrameSamples.TryRemove(targetPackage, out _);
+        }
     }
 }
