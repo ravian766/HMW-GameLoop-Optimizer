@@ -105,6 +105,18 @@ public partial class MainWindow : Window
                 }
             });
         };
+        _hotkeyManager.ResSwitchHotkeyPressed += () =>
+        {
+            Task.Run(async () =>
+            {
+                var gl = _viewModel.GameLoop;
+                var res = await ResolutionKeymapService.ToggleStretchedResolutionAsync(gl, 1440, 1080);
+                Dispatcher.Invoke(() =>
+                {
+                    _overlayWindow?.SetGameTitle(res.Success ? (gl.VmResWidth == 1440 ? "Stretched 1440x1080" : "Native 1080p") : "Res Switch Failed");
+                });
+            });
+        };
 
         _viewModel.MonitorService.MetricsUpdated += (s, metrics) =>
         {

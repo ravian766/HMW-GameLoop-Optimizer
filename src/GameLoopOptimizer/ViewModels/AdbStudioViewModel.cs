@@ -216,6 +216,7 @@ public class AdbStudioViewModel : ViewModelBase
     public ICommand HistoryUpCommand { get; }
     public ICommand HistoryDownCommand { get; }
     public ICommand RunPresetCommand { get; }
+    public ICommand AutoHealStuckEmulatorCommand { get; }
 
     private readonly List<string> _commandHistory = new();
     private int _historyIndex = -1;
@@ -540,6 +541,22 @@ public class AdbStudioViewModel : ViewModelBase
 
         ApplyAllAdbOptimizationsCommand = new AsyncRelayCommand(ApplyAllAdbOptimizationsAsync);
         RestoreStockVmSettingsCommand = new AsyncRelayCommand(RestoreStockVmSettingsAsync);
+
+        AutoHealStuckEmulatorCommand = new AsyncRelayCommand(async () =>
+        {
+            IsAdbBusy = true;
+            StatusMessage = "Running GameLoop 98% Stuck / Crash Auto-Doctor...";
+            try
+            {
+                var report = await EmulatorDiagnosticService.AutoHealStuckEmulatorAsync(_getGl());
+                StatusMessage = report.SummaryMessage;
+                await RefreshAdbStatusAsync();
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
     }
 
     public void PushCommandHistory(string cmd)

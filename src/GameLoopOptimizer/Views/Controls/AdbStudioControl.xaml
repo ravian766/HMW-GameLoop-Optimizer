@@ -45,6 +45,13 @@
                             Padding="14,7"
                             FontSize="11"
                             Margin="0,0,6,0" />
+                    <Button Content="🩺 98% Doctor"
+                            Command="{Binding AutoHealStuckEmulatorCommand}"
+                            Style="{StaticResource PrimaryButton}"
+                            Padding="11,7"
+                            FontSize="11"
+                            Margin="0,0,6,0"
+                            ToolTip="Purge dead VirtualBox COM locks, zombie processes, stuck shaders, and reset ADB" />
                     <Button Content="📸 Screen"
                             Command="{Binding CaptureInVmScreenshotCommand}"
                             Style="{StaticResource SecondaryButton}"

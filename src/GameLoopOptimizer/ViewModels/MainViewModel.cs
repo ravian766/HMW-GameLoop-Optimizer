@@ -141,12 +141,13 @@ public class MainViewModel : ViewModelBase
         IsAdmin = PermissionManager.IsAdministrator;
         EventAggregator = eventAggregator ?? Core.EventAggregator.Default;
 
-        // Initialize Telemetry Monitor & Watchdog
-        MonitorService = monitorService ?? new PerformanceMonitorService();
-        MonitorService.Start();
-
+        // Initialize Telemetry Monitor & Watchdog with In-VM Telemetry Bridge
         WatchdogService = watchdogService ?? new GameLoopWatchdogService(() => _gameLoop);
         WatchdogService.Start();
+
+        MonitorService = monitorService ?? new PerformanceMonitorService(() => _gameLoop, () => WatchdogService.DetectedGamePackage);
+        MonitorService.ConfigureAdbTelemetry(() => _gameLoop, () => WatchdogService.DetectedGamePackage);
+        MonitorService.Start();
 
         // Initialize Optimization Modules via unified registry
         Modules = modules?.ToList() ?? OptimizationModuleRegistry.CreateAllModules();

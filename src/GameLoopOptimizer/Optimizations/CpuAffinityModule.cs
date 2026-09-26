@@ -32,8 +32,8 @@ public class CpuAffinityModule : IOptimizationModule
             return Task.FromResult(State);
         }
 
-        long optimalMask = ProcessManager.CalculateOptimalAffinityMask(hw.LogicalProcessors, hw.PhysicalCores);
-        RecommendedStateDisplay = $"Threads 0–{Math.Min(7, hw.LogicalProcessors - 1)} (Mask: 0x{optimalMask:X})";
+        long optimalMask = ProcessManager.CalculateOptimalAffinityMask(hw.LogicalProcessors, hw.PhysicalCores, hw.CpuName);
+        RecommendedStateDisplay = $"Threads 0–{Math.Min(15, hw.LogicalProcessors - 1)} (Mask: 0x{optimalMask:X})";
 
         IsOptimized = _isAffinityApplied;
         CurrentStateDisplay = _isAffinityApplied ? "Pinned to Performance Cores" : $"{hw.LogicalProcessors} Logical Cores (Unpinned)";
@@ -44,7 +44,7 @@ public class CpuAffinityModule : IOptimizationModule
 
     public Task<OptimizationResult> ApplyAsync(HardwareInfo hw, SystemInfo sys, GameLoopConfig gl)
     {
-        long optimalMask = ProcessManager.CalculateOptimalAffinityMask(hw.LogicalProcessors, hw.PhysicalCores);
+        long optimalMask = ProcessManager.CalculateOptimalAffinityMask(hw.LogicalProcessors, hw.PhysicalCores, hw.CpuName);
         bool applied = ProcessManager.SetGameLoopAffinity(optimalMask);
         _isAffinityApplied = true;
 

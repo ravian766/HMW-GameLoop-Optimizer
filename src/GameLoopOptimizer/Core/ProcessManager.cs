@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using GameLoopOptimizer.Models;
 
 namespace GameLoopOptimizer.Core;
@@ -353,7 +354,7 @@ public static class ProcessManager
         });
     }
 
-    public static long CalculateOptimalAffinityMask(int logicalProcessors, int physicalCores)
+    public static long CalculateOptimalAffinityMask(int logicalProcessors, int physicalCores, string? cpuName = null)
     {
         if (logicalProcessors <= 4)
         {
@@ -361,10 +362,51 @@ public static class ProcessManager
             return (1L << logicalProcessors) - 1;
         }
 
-        // On hybrid or high thread count CPUs, bind to first 4-8 threads (P-Cores / primary CCD)
+        string cpu = cpuName ?? string.Empty;
+
+        // 1. AMD 3D V-Cache dual-CCD processors (Ryzen 9 7900X3D, 7950X3D, 9900X3D, 9950X3D)
+        // Bind exclusively to CCD0 which possesses the massive 3D V-Cache stack.
+        if (cpu.Contains("7900X3D", StringComparison.OrdinalIgnoreCase) || cpu.Contains("9900X3D", StringComparison.OrdinalIgnoreCase))
+        {
+            return (1L << 12) - 1; // 6 cores on CCD0 = 12 threads (0x0FFF)
+        }
+        if (cpu.Contains("7950X3D", StringComparison.OrdinalIgnoreCase) || cpu.Contains("9950X3D", StringComparison.OrdinalIgnoreCase))
+        {
+            return (1L << 16) - 1; // 8 cores on CCD0 = 16 threads (0xFFFF)
+        }
+
+        // 2. Intel Hybrid Architecture (12th, 13th, 14th Gen, Core Ultra)
+        // P-cores reside on the lowest logical processor IDs.
+        bool isIntelHybrid = cpu.Contains("Intel", StringComparison.OrdinalIgnoreCase) && 
+            (cpu.Contains("12th", StringComparison.OrdinalIgnoreCase) || 
+             cpu.Contains("13th", StringComparison.OrdinalIgnoreCase) || 
+             cpu.Contains("14th", StringComparison.OrdinalIgnoreCase) ||
+             cpu.Contains("Ultra", StringComparison.OrdinalIgnoreCase) ||
+             Regex.IsMatch(cpu, @"i[579]-1[234]\d{3}", RegexOptions.IgnoreCase));
+
+        if (isIntelHybrid)
+        {
+            // Check i5 FIRST because i5-13600K/14600K has 14 cores (6P+8E) and 20 threads
+            if (cpu.Contains("i5", StringComparison.OrdinalIgnoreCase))
+            {
+                return (1L << 12) - 1; // 6 P-Cores with HT = 12 threads (0x0FFF)
+            }
+            // i7 (e.g. 12700K 8P+4E=20T, 13700K/14700K 8P+8E=24T): 8 P-Cores with HT = 16 threads (0xFFFF)
+            if (cpu.Contains("i7", StringComparison.OrdinalIgnoreCase))
+            {
+                return (1L << 16) - 1;
+            }
+            // i9 (e.g. 12900K 8P+8E=24T, 13900K/14900K 8P+16E=32T): 8 P-Cores with HT = 16 threads (0xFFFF)
+            if (cpu.Contains("i9", StringComparison.OrdinalIgnoreCase) || logicalProcessors >= 20)
+            {
+                return (1L << 16) - 1;
+            }
+        }
+
+        // 3. Fallback for standard CPUs without hybrid naming:
+        // Bind to first 8 threads (0xFF = 255) to maintain full backwards compatibility with standard architecture
         int targetThreads = Math.Min(8, logicalProcessors);
-        if (logicalProcessors >= 16) targetThreads = 8;
-        else if (logicalProcessors >= 8) targetThreads = 8;
+        if (logicalProcessors >= 8) targetThreads = 8;
         else if (logicalProcessors >= 6) targetThreads = 6;
 
         return (1L << targetThreads) - 1;

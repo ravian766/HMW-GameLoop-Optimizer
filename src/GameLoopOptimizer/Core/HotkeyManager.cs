@@ -16,6 +16,7 @@ public class HotkeyManager : IDisposable
     public const int HOTKEY_TIMER_ID = 9003;     // Ctrl + Shift + T (0.5ms Timer)
     public const int HOTKEY_FPS_ID = 9004;       // Ctrl + Shift + F (120 FPS Unlock)
     public const int HOTKEY_CLICKTHRU_ID = 9005; // Ctrl + Shift + K (Overlay Click-Through Lock)
+    public const int HOTKEY_RES_SWITCH_ID = 9006; // Ctrl + Shift + R (Toggle Stretched / Native Res)
 
     private IntPtr _hwnd;
     private HwndSource? _source;
@@ -25,6 +26,7 @@ public class HotkeyManager : IDisposable
     public event Action? TimerHotkeyPressed;
     public event Action? FpsHotkeyPressed;
     public event Action? ClickThruHotkeyPressed;
+    public event Action? ResSwitchHotkeyPressed;
 
     public void Register(Window window)
     {
@@ -47,14 +49,15 @@ public class HotkeyManager : IDisposable
         _source = HwndSource.FromHwnd(_hwnd);
         _source?.AddHook(HwndHook);
 
-        // VK_O = 0x4F, VK_M = 0x4D, VK_T = 0x54, VK_F = 0x46, VK_K = 0x4B
+        // VK_O = 0x4F, VK_M = 0x4D, VK_T = 0x54, VK_F = 0x46, VK_K = 0x4B, VK_R = 0x52
         RegisterHotKey(_hwnd, HOTKEY_OVERLAY_ID, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x4F);
         RegisterHotKey(_hwnd, HOTKEY_TRIM_ID, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x4D);
         RegisterHotKey(_hwnd, HOTKEY_TIMER_ID, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x54);
         RegisterHotKey(_hwnd, HOTKEY_FPS_ID, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x46);
         RegisterHotKey(_hwnd, HOTKEY_CLICKTHRU_ID, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x4B);
+        RegisterHotKey(_hwnd, HOTKEY_RES_SWITCH_ID, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x52);
 
-        Logger.Info("HotkeyManager", "Global hotkeys active: Ctrl+Shift+O (HUD Overlay), Ctrl+Shift+K (Overlay Click-Through Lock), Ctrl+Shift+M (Trim RAM), Ctrl+Shift+T (0.5ms Timer), Ctrl+Shift+F (120 FPS Re-Inject).");
+        Logger.Info("HotkeyManager", "Global hotkeys active: Ctrl+Shift+O (HUD Overlay), Ctrl+Shift+K (Overlay Click-Through Lock), Ctrl+Shift+M (Trim RAM), Ctrl+Shift+T (0.5ms Timer), Ctrl+Shift+F (120 FPS Re-Inject), Ctrl+Shift+R (Stretched/Native Res Toggle).");
     }
 
     private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -87,6 +90,11 @@ public class HotkeyManager : IDisposable
                 ClickThruHotkeyPressed?.Invoke();
                 handled = true;
             }
+            else if (id == HOTKEY_RES_SWITCH_ID)
+            {
+                ResSwitchHotkeyPressed?.Invoke();
+                handled = true;
+            }
         }
 
         return IntPtr.Zero;
@@ -101,6 +109,7 @@ public class HotkeyManager : IDisposable
             UnregisterHotKey(_hwnd, HOTKEY_TIMER_ID);
             UnregisterHotKey(_hwnd, HOTKEY_FPS_ID);
             UnregisterHotKey(_hwnd, HOTKEY_CLICKTHRU_ID);
+            UnregisterHotKey(_hwnd, HOTKEY_RES_SWITCH_ID);
         }
         _source?.RemoveHook(HwndHook);
     }

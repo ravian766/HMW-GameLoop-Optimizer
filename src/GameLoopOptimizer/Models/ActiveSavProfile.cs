@@ -120,6 +120,18 @@ public class ActiveSavProfile
         },
         new ActiveSavProfile
         {
+            Name = "Anti-Stutter Potato Mode (Max Frame Pacing)",
+            Description = "Stripped-down visual overhead with lowest texture complexity, uncapped 120 FPS in battle and 60 FPS in lobby for maximum frame stability on entry-level PCs.",
+            FpsLevel = 8,
+            LobbyFpsLevel = 5,
+            BattleQuality = 1,
+            LobbyQuality = 1,
+            Style = 1,
+            GraphicFavor = 4,
+            IsCustom = false
+        },
+        new ActiveSavProfile
+        {
             Name = "Custom In-Game Configuration",
             Description = "User-customized in-game parameters allowing precision manual control over battle/lobby frame rates, quality, and visual styles.",
             FpsLevel = 8,

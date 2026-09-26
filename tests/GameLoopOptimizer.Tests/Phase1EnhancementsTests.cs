@@ -1,6 +1,7 @@
 using GameLoopOptimizer.Core;
 using GameLoopOptimizer.Models;
 using GameLoopOptimizer.Optimizations;
+using GameLoopOptimizer.ViewModels;
 using Xunit;
 
 namespace GameLoopOptimizer.Tests;
@@ -162,5 +163,120 @@ public class Phase1EnhancementsTests
         // History Down past the end clears
         vm.HistoryDownCommand.Execute(null);
         Assert.Equal(string.Empty, vm.InteractiveAdbCommand);
+    }
+
+    [Fact]
+    public void AdbTelemetryService_ParseGfxAdvancedMetrics_Calculates1PercentLowAndJank()
+    {
+        var snapshot = new AdbTelemetrySnapshot
+        {
+            EstimatedFps = 120.0
+        };
+
+        string sampleGfxinfo = @"
+        Total frames rendered: 5400
+        Janky frames: 108 (2.0%)
+        50th percentile: 8ms
+        90th percentile: 10ms
+        95th percentile: 12ms
+        99th percentile: 14ms
+        ";
+
+        AdbTelemetryService.ParseGfxAdvancedMetrics(sampleGfxinfo, snapshot);
+
+        Assert.Equal(120.0, snapshot.Fps);
+        Assert.True(snapshot.OnePercentLowFps > 70.0);
+        Assert.True(snapshot.OnePercentLowFps <= 120.0);
+        Assert.Equal(0.02, snapshot.DroppedFramesRatio, 3);
+        Assert.True(snapshot.FrametimeVarianceMs > 0);
+    }
+
+    [Fact]
+    public void ProcessManager_CalculateOptimalAffinityMask_DetectsArchitectures()
+    {
+        // Intel i9-13900K (24 cores / 32 threads) -> 8 P-Cores with HT = 16 threads (0xFFFF)
+        long i9Mask = ProcessManager.CalculateOptimalAffinityMask(32, 24, "13th Gen Intel(R) Core(TM) i9-13900K");
+        Assert.Equal(0xFFFF, i9Mask);
+
+        // Intel i5-13600K (14 cores / 20 threads) -> 6 P-Cores with HT = 12 threads (0x0FFF)
+        long i5Mask = ProcessManager.CalculateOptimalAffinityMask(20, 14, "13th Gen Intel(R) Core(TM) i5-13600K");
+        Assert.Equal(0x0FFF, i5Mask);
+
+        // AMD Ryzen 9 7900X3D (12 cores / 24 threads) -> CCD0 with 3D V-Cache = 12 threads (0x0FFF)
+        long amd7900X3DMask = ProcessManager.CalculateOptimalAffinityMask(24, 12, "AMD Ryzen 9 7900X3D 12-Core Processor");
+        Assert.Equal(0x0FFF, amd7900X3DMask);
+
+        // AMD Ryzen 9 7950X3D (16 cores / 32 threads) -> CCD0 with 3D V-Cache = 16 threads (0xFFFF)
+        long amd7950X3DMask = ProcessManager.CalculateOptimalAffinityMask(32, 16, "AMD Ryzen 9 7950X3D 16-Core Processor");
+        Assert.Equal(0xFFFF, amd7950X3DMask);
+
+        // Quad core or lower fallback -> all cores (4 threads = 0x0F)
+        long quadMask = ProcessManager.CalculateOptimalAffinityMask(4, 4, "Intel Core i5-7400");
+        Assert.Equal(0x0F, quadMask);
+    }
+
+    [Fact]
+    public async Task EmulatorDiagnosticService_AutoHealStuckEmulator_ExecutesSafely()
+    {
+        var config = new GameLoopConfig
+        {
+            InstallPath = Path.GetTempPath()
+        };
+
+        var report = await EmulatorDiagnosticService.AutoHealStuckEmulatorAsync(config);
+        Assert.NotNull(report);
+        Assert.True(report.Success);
+        Assert.Contains("98% Doctor Complete", report.SummaryMessage);
+    }
+
+    [Fact]
+    public async Task ResolutionKeymapService_ToggleStretchedResolution_TogglesResolutionState()
+    {
+        var config = new GameLoopConfig
+        {
+            InstallPath = Path.GetTempPath(),
+            VmResWidth = 1920,
+            VmResHeight = 1080
+        };
+
+        // First toggle: 1920x1080 -> 1440x1080
+        var res1 = await ResolutionKeymapService.ToggleStretchedResolutionAsync(config, 1440, 1080);
+        Assert.Equal(1440, config.VmResWidth);
+        Assert.Equal(1080, config.VmResHeight);
+        Assert.Contains("Stretched Res", res1.Message);
+
+        // Second toggle: 1440x1080 -> 1920x1080
+        var res2 = await ResolutionKeymapService.ToggleStretchedResolutionAsync(config, 1440, 1080);
+        Assert.Equal(1920, config.VmResWidth);
+        Assert.Equal(1080, config.VmResHeight);
+        Assert.Contains("Native 16:9", res2.Message);
+    }
+
+    [Fact]
+    public async Task AudioFootstepClarifierModule_ApplyProfile_AppliesAcousticProfiles()
+    {
+        var module = new AudioFootstepClarifierModule();
+        var hw = new HardwareInfo();
+        var sys = new SystemInfo();
+        var gl = new GameLoopConfig();
+
+        var res = await module.ApplyProfileAsync(FootstepClarityProfile.FootstepScoutExtreme, hw, sys, gl);
+        Assert.NotNull(res);
+        Assert.True(res.Success);
+        Assert.Equal(FootstepClarityProfile.FootstepScoutExtreme, module.ActiveProfile);
+        Assert.True(module.IsOptimized);
+    }
+
+    [Fact]
+    public void ActiveSavProfile_Presets_IncludePotatoAndEsportsModes()
+    {
+        var presets = ActiveSavProfile.BuiltInPresets;
+        Assert.NotEmpty(presets);
+        Assert.Contains(presets, p => p.Name.Contains("Anti-Stutter Potato Mode"));
+        Assert.Contains(presets, p => p.Name.Contains("Esports 120 FPS"));
+
+        var vm = new ActiveSavViewModel(() => new GameLoopConfig(), () => null);
+        Assert.True(vm.SyncActiveSavCommand.CanExecute(null));
+        Assert.True(vm.RestoreActiveSavCommand.CanExecute(null));
     }
 }

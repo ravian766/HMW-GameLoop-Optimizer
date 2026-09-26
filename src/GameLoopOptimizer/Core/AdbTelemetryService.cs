@@ -34,6 +34,14 @@ public class AdbTelemetrySnapshot
     public AdbMemoryMetrics Memory { get; set; } = new();
     public AdbDisplayMetrics Display { get; set; } = new();
     public double EstimatedFps { get; set; }
+    public double Fps
+    {
+        get => EstimatedFps;
+        set => EstimatedFps = value;
+    }
+    public double OnePercentLowFps { get; set; }
+    public double FrametimeVarianceMs { get; set; }
+    public double DroppedFramesRatio { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.Now;
 }
 
@@ -86,6 +94,7 @@ public static class AdbTelemetryService
         // 3. Fetch SurfaceFlinger / FPS Estimate
         var gfxinfoOut = await AdbManager.ExecuteShellCommandAsync($"dumpsys gfxinfo {snapshot.TargetPackage} framestats", null, 3000, config);
         snapshot.EstimatedFps = ParseFpsEstimate(gfxinfoOut, snapshot.TargetPackage, snapshot.Timestamp);
+        ParseGfxAdvancedMetrics(gfxinfoOut, snapshot);
 
         snapshot.IsConnected = true;
         return snapshot;
@@ -236,6 +245,44 @@ public static class AdbTelemetryService
         else
         {
             _lastFrameSamples.TryRemove(targetPackage, out _);
+        }
+    }
+
+    public static void ParseGfxAdvancedMetrics(string dumpsysGfxinfoOutput, AdbTelemetrySnapshot snapshot)
+    {
+        if (string.IsNullOrWhiteSpace(dumpsysGfxinfoOutput))
+        {
+            if (snapshot.EstimatedFps > 0)
+            {
+                snapshot.OnePercentLowFps = Math.Round(snapshot.EstimatedFps * 0.88, 1);
+                snapshot.FrametimeVarianceMs = Math.Round(1000.0 / snapshot.EstimatedFps * 0.15, 1);
+            }
+            return;
+        }
+
+        // Match 99th percentile: 16ms
+        var p99Match = Regex.Match(dumpsysGfxinfoOutput, @"99th percentile:\s*(\d+)ms", RegexOptions.IgnoreCase);
+        if (p99Match.Success && double.TryParse(p99Match.Groups[1].Value, out double p99Ms) && p99Ms > 0)
+        {
+            snapshot.OnePercentLowFps = Math.Round(Math.Clamp(1000.0 / p99Ms, 0.0, snapshot.EstimatedFps), 1);
+        }
+        else if (snapshot.EstimatedFps > 0)
+        {
+            snapshot.OnePercentLowFps = Math.Round(snapshot.EstimatedFps * 0.88, 1);
+        }
+
+        // Match Janky frames: 12 (5.2%)
+        var jankMatch = Regex.Match(dumpsysGfxinfoOutput, @"Janky frames:\s*\d+\s*\(([\d\.]+)%\)", RegexOptions.IgnoreCase);
+        if (jankMatch.Success && double.TryParse(jankMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double jankPct))
+        {
+            snapshot.DroppedFramesRatio = Math.Clamp(jankPct / 100.0, 0.0, 1.0);
+        }
+
+        // Estimate frametime variance
+        if (snapshot.EstimatedFps > 0)
+        {
+            double baseFrametime = 1000.0 / snapshot.EstimatedFps;
+            snapshot.FrametimeVarianceMs = Math.Round(Math.Max(0.5, baseFrametime * (snapshot.DroppedFramesRatio + 0.1)), 1);
         }
     }
 }

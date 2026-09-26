@@ -3,27 +3,27 @@
 
     <!-- ==================== BACKGROUNDS (Sleek Slate Glass & Modern Light Canvas) ==================== -->
     <Color x:Key="BgDarkest">#E2E8F0</Color>
-    <Color x:Key="BgSidebar">#F1F5F9</Color>
-    <Color x:Key="BgMain">#F8FAFC</Color>
+    <Color x:Key="BgSidebar">#F8FAFC</Color>
+    <Color x:Key="BgMain">#FFFFFF</Color>
     <Color x:Key="BgCard">#FFFFFF</Color>
-    <Color x:Key="BgCardHover">#F1F5F9</Color>
-    <Color x:Key="BgCardActive">#E2E8F0</Color>
-    <Color x:Key="BgInput">#F1F5F9</Color>
+    <Color x:Key="BgCardHover">#FFF7ED</Color>
+    <Color x:Key="BgCardActive">#FFEDD5</Color>
+    <Color x:Key="BgInput">#F8FAFC</Color>
     <Color x:Key="BgPopup">#FFFFFF</Color>
-    <Color x:Key="BgGlassFrosted">#E2E8F0</Color>
+    <Color x:Key="BgGlassFrosted">#F1F5F9</Color>
 
-    <!-- ==================== ACCENT PALETTE (Vibrant High-Contrast Light) ==================== -->
-    <!-- Crisp Sky / Ion Cyan -->
-    <Color x:Key="AccentCyan">#0284C7</Color>
-    <Color x:Key="AccentCyanBright">#0369A1</Color>
-    <Color x:Key="AccentCyanDeep">#075985</Color>
-    <Color x:Key="AccentCyanGlow">#200284C7</Color>
+    <!-- ==================== ACCENT PALETTE (Vibrant Sunset Orange & Crisp Amber) ==================== -->
+    <!-- Crisp High-Octane Sunset Orange -->
+    <Color x:Key="AccentCyan">#EA580C</Color>
+    <Color x:Key="AccentCyanBright">#C2410C</Color>
+    <Color x:Key="AccentCyanDeep">#9A3412</Color>
+    <Color x:Key="AccentCyanGlow">#25EA580C</Color>
 
-    <!-- Ultraviolet & Plasma Violet -->
-    <Color x:Key="AccentViolet">#7C3AED</Color>
-    <Color x:Key="AccentVioletDeep">#6D28D9</Color>
+    <!-- Solar Amber & Flame -->
+    <Color x:Key="AccentViolet">#D97706</Color>
+    <Color x:Key="AccentVioletDeep">#B45309</Color>
     <Color x:Key="AccentMagenta">#E11D48</Color>
-    <Color x:Key="AccentPink">#DB2777</Color>
+    <Color x:Key="AccentPink">#BE123C</Color>
 
     <!-- Quantum Emerald -->
     <Color x:Key="AccentGreen">#059669</Color>
@@ -42,8 +42,8 @@
     <!-- ==================== BORDER & STROKE SYSTEM ==================== -->
     <Color x:Key="BorderLight">#CBD5E1</Color>
     <Color x:Key="BorderSubtle">#E2E8F0</Color>
-    <Color x:Key="BorderGlowCyan">#400284C7</Color>
-    <Color x:Key="BorderCardTopHighlight">#200284C7</Color>
+    <Color x:Key="BorderGlowCyan">#40EA580C</Color>
+    <Color x:Key="BorderCardTopHighlight">#30FB923C</Color>
     <Color x:Key="BorderFrostedTop">#15000000</Color>
 
     <!-- ==================== TEXT HIERARCHY (Razor-Sharp Slate) ==================== -->
@@ -81,81 +81,70 @@
     <SolidColorBrush x:Key="BrushTextSecondary" Color="{StaticResource TextSecondary}" />
     <SolidColorBrush x:Key="BrushTextMuted" Color="{StaticResource TextMuted}" />
 
-    <!-- ==================== PREMIUM GRADIENTS ==================== -->
-    <!-- Slate Light Window Backdrop Mesh -->
+    <!-- ==================== PREMIUM GRADIENTS (Warm Sunset Light) ==================== -->
     <RadialGradientBrush x:Key="BrushWindowBackdropGradient" Center="0.5,0.0" GradientOrigin="0.5,0.0" RadiusX="1.0" RadiusY="1.0">
-        <GradientStop Color="#FFFFFF" Offset="0" />
-        <GradientStop Color="#F8FAFC" Offset="0.5" />
-        <GradientStop Color="#EDF2F7" Offset="1" />
+        <GradientStop Color="#FFF7ED" Offset="0" />
+        <GradientStop Color="#F8FAFC" Offset="0.6" />
+        <GradientStop Color="#F1F5F9" Offset="1" />
     </RadialGradientBrush>
 
-    <!-- Sidebar Mesh Gradient -->
     <LinearGradientBrush x:Key="BrushSidebarGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#F8FAFC" Offset="0" />
-        <GradientStop Color="#F1F5F9" Offset="1" />
+        <GradientStop Color="#FFFFFF" Offset="0" />
+        <GradientStop Color="#F8FAFC" Offset="1" />
     </LinearGradientBrush>
 
-    <!-- Hero Sky / Cyan Gradient -->
     <LinearGradientBrush x:Key="BrushCyanGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#0284C7" Offset="0" />
-        <GradientStop Color="#0369A1" Offset="0.5" />
-        <GradientStop Color="#075985" Offset="1" />
+        <GradientStop Color="#FB923C" Offset="0" />
+        <GradientStop Color="#EA580C" Offset="0.6" />
+        <GradientStop Color="#C2410C" Offset="1" />
     </LinearGradientBrush>
 
-    <!-- Ultraviolet Plasma Gradient -->
     <LinearGradientBrush x:Key="BrushVioletGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#8B5CF6" Offset="0" />
-        <GradientStop Color="#7C3AED" Offset="0.5" />
-        <GradientStop Color="#6D28D9" Offset="1" />
+        <GradientStop Color="#F59E0B" Offset="0" />
+        <GradientStop Color="#D97706" Offset="0.6" />
+        <GradientStop Color="#B45309" Offset="1" />
     </LinearGradientBrush>
 
-    <!-- Quantum Emerald Gradient -->
     <LinearGradientBrush x:Key="BrushGreenGradient" StartPoint="0,0" EndPoint="1,1">
         <GradientStop Color="#10B981" Offset="0" />
         <GradientStop Color="#059669" Offset="0.6" />
         <GradientStop Color="#047857" Offset="1" />
     </LinearGradientBrush>
 
-    <!-- Solar Amber Glow Gradient -->
     <LinearGradientBrush x:Key="BrushAmberGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#F59E0B" Offset="0" />
-        <GradientStop Color="#D97706" Offset="0.7" />
-        <GradientStop Color="#B45309" Offset="1" />
+        <GradientStop Color="#FBBF24" Offset="0" />
+        <GradientStop Color="#F59E0B" Offset="0.7" />
+        <GradientStop Color="#D97706" Offset="1" />
     </LinearGradientBrush>
 
-    <!-- Cyber Ruby Alert Gradient -->
     <LinearGradientBrush x:Key="BrushRubyGradient" StartPoint="0,0" EndPoint="1,1">
         <GradientStop Color="#F43F5E" Offset="0" />
         <GradientStop Color="#E11D48" Offset="0.6" />
         <GradientStop Color="#BE123C" Offset="1" />
     </LinearGradientBrush>
 
-    <!-- Light Card Surface Gradient -->
     <LinearGradientBrush x:Key="BrushCardGradient" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#FFFFFF" Offset="0" />
-        <GradientStop Color="#FFFFFF" Offset="0.6" />
-        <GradientStop Color="#F8FAFC" Offset="1" />
+        <GradientStop Color="#FAFAFA" Offset="0.5" />
+        <GradientStop Color="#F5F5F7" Offset="1" />
     </LinearGradientBrush>
 
-    <!-- Hero Score Cockpit Gradient -->
     <LinearGradientBrush x:Key="BrushScoreGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#0284C7" Offset="0" />
-        <GradientStop Color="#6366F1" Offset="0.5" />
-        <GradientStop Color="#8B5CF6" Offset="1" />
+        <GradientStop Color="#FB923C" Offset="0" />
+        <GradientStop Color="#EA580C" Offset="0.6" />
+        <GradientStop Color="#DC2626" Offset="1" />
     </LinearGradientBrush>
 
-    <!-- Active Segment Tab Pill -->
     <LinearGradientBrush x:Key="BrushNavActiveGradient" StartPoint="0,0" EndPoint="1,0">
-        <GradientStop Color="#250284C7" Offset="0" />
-        <GradientStop Color="#080284C7" Offset="0.8" />
+        <GradientStop Color="#25EA580C" Offset="0" />
+        <GradientStop Color="#08EA580C" Offset="0.8" />
         <GradientStop Color="#00000000" Offset="1" />
     </LinearGradientBrush>
 
-    <!-- Card Top Highlight Stroke -->
     <LinearGradientBrush x:Key="BrushCardTopHighlight" StartPoint="0,0" EndPoint="1,0">
-        <GradientStop Color="#000284C7" Offset="0" />
-        <GradientStop Color="#300284C7" Offset="0.5" />
-        <GradientStop Color="#000284C7" Offset="1" />
+        <GradientStop Color="#00FB923C" Offset="0" />
+        <GradientStop Color="#40FB923C" Offset="0.5" />
+        <GradientStop Color="#00FB923C" Offset="1" />
     </LinearGradientBrush>
 
 </ResourceDictionary>

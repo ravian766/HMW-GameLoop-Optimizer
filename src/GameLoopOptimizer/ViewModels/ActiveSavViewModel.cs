@@ -139,16 +139,14 @@ public class ActiveSavViewModel : ViewModelBase
             }
         });
 
-        SyncActiveSavCommand = new AsyncRelayCommand(SyncActiveSavAsync, () => false);
+        SyncActiveSavCommand = new AsyncRelayCommand(SyncActiveSavAsync);
         PullActiveSavCommand = new AsyncRelayCommand(PullActiveSavAsync);
-        RestoreActiveSavCommand = new AsyncRelayCommand(RestoreActiveSavAsync, () => false);
+        RestoreActiveSavCommand = new AsyncRelayCommand(RestoreActiveSavAsync);
     }
 
     public async Task SyncActiveSavAsync()
     {
-        // Guard: UE4 Active.sav modification is disabled
-        ActiveSavStatusMessage = "UE4 Active.sav modification is currently disabled.";
-        await Task.CompletedTask;
+        await ExecuteSyncActiveSavInternalAsync();
     }
 
     private async Task ExecuteSyncActiveSavInternalAsync()

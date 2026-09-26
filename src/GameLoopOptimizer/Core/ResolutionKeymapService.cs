@@ -344,6 +344,50 @@ public static class ResolutionKeymapService
         return await DeployResolutionKeymapAsync(1920, 1080, config);
     }
 
+    /// <summary>
+    /// Instantly toggles between Native 16:9 (1920x1080) and Stretched Resolution (e.g. 1440x1080),
+    /// updating GameLoop resolution registry keys and deploying calibrated keymaps.
+    /// </summary>
+    public static async Task<KeymapCalibrationResult> ToggleStretchedResolutionAsync(GameLoopConfig config, int stretchedWidth = 1440, int stretchedHeight = 1080)
+    {
+        bool isCurrentlyStretched = (config.VmResWidth == stretchedWidth && config.VmResHeight == stretchedHeight);
+        int targetW = isCurrentlyStretched ? 1920 : stretchedWidth;
+        int targetH = isCurrentlyStretched ? 1080 : stretchedHeight;
+
+        try
+        {
+            var regPaths = new[]
+            {
+                @"Software\Tencent\MobileGamePC\UI",
+                @"Software\Tencent\TxGameAssistant\UI",
+                @"Software\Tencent\MobileGamePC",
+                @"Software\Tencent\TxGameAssistant"
+            };
+
+            foreach (var rp in regPaths)
+            {
+                using var key = Registry.CurrentUser.CreateSubKey(rp);
+                if (key != null)
+                {
+                    key.SetValue("VMResWidth", targetW, RegistryValueKind.DWord);
+                    key.SetValue("VMResHeight", targetH, RegistryValueKind.DWord);
+                }
+            }
+
+            config.VmResWidth = targetW;
+            config.VmResHeight = targetH;
+        }
+        catch { }
+
+        var result = await DeployResolutionKeymapAsync(targetW, targetH, config);
+        result.Message = isCurrentlyStretched
+            ? $"Toggled to Native 16:9 ({targetW}x{targetH}). Keymaps synchronized!"
+            : $"Toggled to Stretched Res ({targetW}x{targetH}). Keymaps synchronized!";
+
+        Logger.Success("ResolutionKeymap", result.Message);
+        return result;
+    }
+
     private static async Task<string> GetStockBaseXmlAsync(GameLoopConfig config)
     {
         var stockCandidates = new List<string>

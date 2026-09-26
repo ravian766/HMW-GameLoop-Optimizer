@@ -284,4 +284,126 @@ public static class EmulatorDiagnosticService
             return false;
         }
     }
+
+    public static async Task<AutoHealReport> AutoHealStuckEmulatorAsync(GameLoopConfig config, HardwareInfo? hw = null)
+    {
+        var report = new AutoHealReport();
+        return await Task.Run(async () =>
+        {
+            try
+            {
+                Logger.Info("DiagnosticService", "Initiating GameLoop 98% Stuck / Crash Doctor deep recovery...");
+
+                // 1. Terminate all zombie emulator & virtualization worker processes
+                var procNames = new[] { "aow_exe", "AndroidEmulator", "AndroidEmulatorEn", "AndroidEmulatorEx", "AppMarket", "QMEmulatorService", "TBSWebStore" };
+                foreach (var name in procNames)
+                {
+                    try
+                    {
+                        var procs = System.Diagnostics.Process.GetProcessesByName(name);
+                        foreach (var p in procs)
+                        {
+                            try
+                            {
+                                p.Kill();
+                                p.WaitForExit(1500);
+                                report.ZombieProcessesTerminated++;
+                            }
+                            catch { }
+                            finally { p.Dispose(); }
+                        }
+                    }
+                    catch { }
+                }
+
+                // 2. Search & remove stuck COM locks, mutex files, and .vbox-tmp / .vbox-prev locks
+                var lockSearchDirs = new List<string>();
+                string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+                lockSearchDirs.Add(Path.Combine(userProfile, ".TxGameAssistant"));
+                lockSearchDirs.Add(Path.Combine(userProfile, ".VirtualBox"));
+                lockSearchDirs.Add(Path.Combine(localAppData, "Tencent"));
+                if (!string.IsNullOrEmpty(config.InstallPath))
+                {
+                    lockSearchDirs.Add(Path.Combine(config.InstallPath, "ui"));
+                    lockSearchDirs.Add(Path.Combine(config.InstallPath, "vms"));
+                }
+
+                foreach (var dir in lockSearchDirs)
+                {
+                    if (Directory.Exists(dir))
+                    {
+                        try
+                        {
+                            var files = Directory.EnumerateFiles(dir, "*.*", SearchOption.AllDirectories)
+                                .Where(f => f.EndsWith(".lock", StringComparison.OrdinalIgnoreCase) ||
+                                            f.EndsWith(".vbox-tmp", StringComparison.OrdinalIgnoreCase) ||
+                                            f.EndsWith(".vbox-prev", StringComparison.OrdinalIgnoreCase) ||
+                                            Path.GetFileName(f).Equals(".vbox-lock", StringComparison.OrdinalIgnoreCase));
+
+                            foreach (var file in files)
+                            {
+                                try
+                                {
+                                    File.Delete(file);
+                                    report.StaleLocksRemoved++;
+                                }
+                                catch { }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                // 3. Purge corrupted shader cache blobs
+                try
+                {
+                    var res = await ShaderCacheCleaner.PurgeShaderCacheAsync(config);
+                    report.ShadersPurged = res.FilesDeleted;
+                }
+                catch { }
+
+                // 4. Flush DNS cache to resolve CDN connection handshake hangs
+                try
+                {
+                    report.DnsCacheFlushed = await DnsOptimizerService.FlushDnsCacheAsync();
+                }
+                catch { }
+
+                // 5. Restart ADB daemon to clear socket deadlocks
+                if (AdbManager.IsAdbAvailable(config))
+                {
+                    try
+                    {
+                        report.AdbResetSuccess = await AdbManager.RestartAdbServerAsync(config);
+                    }
+                    catch { }
+                }
+
+                report.Success = true;
+                report.SummaryMessage = $"98% Doctor Complete: Terminated {report.ZombieProcessesTerminated} zombie processes, removed {report.StaleLocksRemoved} stale VM lock files, purged {report.ShadersPurged} shaders, and refreshed DNS/ADB subsystem.";
+                Logger.Success("DiagnosticService", report.SummaryMessage);
+                return report;
+            }
+            catch (Exception ex)
+            {
+                report.Success = false;
+                report.SummaryMessage = $"Auto-heal failed: {ex.Message}";
+                Logger.Error("DiagnosticService", report.SummaryMessage);
+                return report;
+            }
+        });
+    }
+}
+
+public class AutoHealReport
+{
+    public bool Success { get; set; }
+    public int ZombieProcessesTerminated { get; set; }
+    public int StaleLocksRemoved { get; set; }
+    public int ShadersPurged { get; set; }
+    public bool DnsCacheFlushed { get; set; }
+    public bool AdbResetSuccess { get; set; }
+    public string SummaryMessage { get; set; } = string.Empty;
 }

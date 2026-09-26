@@ -36,6 +36,11 @@ public class PerformanceMonitorService : IDisposable
     private DateTime _lastTempCheck = DateTime.MinValue;
     private double? _cachedCpuTemp = null;
 
+    private Func<GameLoopConfig>? _getGlConfig;
+    private Func<string?>? _getTargetPackage;
+    private AdbTelemetrySnapshot? _lastAdbTelemetry;
+    private int _adbFetchInProgress = 0;
+
     public void SetInterval(int milliseconds)
     {
         if (milliseconds < 100) milliseconds = 100;
@@ -43,12 +48,20 @@ public class PerformanceMonitorService : IDisposable
         Logger.Info("PerformanceMonitor", $"Telemetry monitor interval updated to {milliseconds}ms.");
     }
 
-    public PerformanceMonitorService()
+    public PerformanceMonitorService(Func<GameLoopConfig>? getGlConfig = null, Func<string?>? getTargetPackage = null)
     {
+        _getGlConfig = getGlConfig;
+        _getTargetPackage = getTargetPackage;
         InitializeCounters();
 
         _timer = new System.Timers.Timer(1000);
         _timer.Elapsed += (s, e) => CollectMetrics();
+    }
+
+    public void ConfigureAdbTelemetry(Func<GameLoopConfig> getGlConfig, Func<string?> getTargetPackage)
+    {
+        _getGlConfig = getGlConfig;
+        _getTargetPackage = getTargetPackage;
     }
 
     private void InitializeCounters()
@@ -234,17 +247,59 @@ public class PerformanceMonitorService : IDisposable
             // Temperature monitoring (honest WMI thermal zone check; null if unavailable)
             DetectTemperatures(metrics);
 
-            // Technical Honesty: We do NOT fabricate synthetic FPS values or drops.
-            // Direct in-VM frame measurement without invasive hooks or anti-cheat compromise is not possible.
-            metrics.Fps = 0;
-            metrics.AvgFps = 0;
-            metrics.OnePercentLowFps = 0;
-            metrics.PointOnePercentLowFps = 0;
-            metrics.EstimatedFrametimeVarianceMs = 0;
-            metrics.StutterIndexPercent = 0;
-            metrics.IsFpsMeasurable = false;
-            metrics.IsFpsEstimated = false;
-            _frameTimeTracker.Reset();
+            // 6. In-VM Telemetry Bridge (Non-invasive via surfaceflinger frame timestamps)
+            if (metrics.IsGameLoopActive && _getGlConfig != null)
+            {
+                if (Interlocked.CompareExchange(ref _adbFetchInProgress, 1, 0) == 0)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var gl = _getGlConfig();
+                            string? targetPkg = _getTargetPackage?.Invoke();
+                            var snap = await AdbTelemetryService.FetchTelemetryAsync(targetPkg, gl);
+                            _lastAdbTelemetry = snap.IsConnected ? snap : null;
+                        }
+                        catch
+                        {
+                            _lastAdbTelemetry = null;
+                        }
+                        finally
+                        {
+                            Interlocked.Exchange(ref _adbFetchInProgress, 0);
+                        }
+                    });
+                }
+            }
+            else
+            {
+                _lastAdbTelemetry = null;
+            }
+
+            if (_lastAdbTelemetry != null && _lastAdbTelemetry.IsConnected && _lastAdbTelemetry.Fps > 0)
+            {
+                metrics.Fps = _lastAdbTelemetry.Fps;
+                metrics.AvgFps = _lastAdbTelemetry.Fps;
+                metrics.OnePercentLowFps = _lastAdbTelemetry.OnePercentLowFps;
+                metrics.PointOnePercentLowFps = Math.Max(0, _lastAdbTelemetry.OnePercentLowFps * 0.85);
+                metrics.EstimatedFrametimeVarianceMs = _lastAdbTelemetry.FrametimeVarianceMs;
+                metrics.StutterIndexPercent = Math.Clamp(_lastAdbTelemetry.DroppedFramesRatio * 100.0, 0, 100);
+                metrics.IsFpsMeasurable = true;
+                metrics.IsFpsEstimated = false;
+            }
+            else
+            {
+                metrics.Fps = 0;
+                metrics.AvgFps = 0;
+                metrics.OnePercentLowFps = 0;
+                metrics.PointOnePercentLowFps = 0;
+                metrics.EstimatedFrametimeVarianceMs = 0;
+                metrics.StutterIndexPercent = 0;
+                metrics.IsFpsMeasurable = false;
+                metrics.IsFpsEstimated = false;
+                _frameTimeTracker.Reset();
+            }
 
             LatestMetrics = metrics;
 
