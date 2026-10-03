@@ -587,6 +587,229 @@
                     </StackPanel>
                 </TabItem>
 
+                <!-- ==================== TAB 4: DIAGNOSTICS & VIEWPORT INSPECTOR ==================== -->
+                <TabItem Header="🔍  Diagnostics &amp; Viewport" Style="{StaticResource SegmentedTabItem}">
+                    <StackPanel>
+                        <!-- Live GameLoop Window & Viewport Diagnostics Card -->
+                        <Border Style="{StaticResource GlassCard}" Margin="0,0,0,18">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                            <TextBlock Text="🖥️ Live GameLoop Window &amp; Viewport Diagnostics" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                                            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentCyan}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding WindowDiagnostics.Dpi.ToString()}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="Authoritative Win32 client area coordinates, DPI scaling factors, and multi-monitor offsets." FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" />
+                                    </StackPanel>
+
+                                    <Button Grid.Column="1"
+                                            Content="🔄 Refresh Diagnostics"
+                                            Command="{Binding RefreshDiagnosticsCommand}"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Padding="14,8"
+                                            FontSize="11.5"
+                                            VerticalAlignment="Center" />
+                                </Grid>
+
+                                <!-- Diagnostic Grid (4 Columns) -->
+                                <Grid Margin="0,0,0,14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Col 1: Process & Window -->
+                                    <Border Grid.Column="0" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,6,0">
+                                        <StackPanel>
+                                            <TextBlock Text="EMULATOR PROCESS" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                            <TextBlock Text="{Binding WindowDiagnostics.ProcessName, TargetNullValue='Not Detected'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,3,0,1" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding WindowDiagnostics.ProcessId, StringFormat='PID: {0}'}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                                            <Separator Background="{DynamicResource BrushBorderSubtle}" Margin="0,6,0,6" />
+                                            <TextBlock Text="WINDOW RECT" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                            <TextBlock FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}">
+                                                <TextBlock.Text>
+                                                    <MultiBinding StringFormat="{}{0}x{1} at ({2},{3})">
+                                                        <Binding Path="WindowDiagnostics.WindowWidth" />
+                                                        <Binding Path="WindowDiagnostics.WindowHeight" />
+                                                        <Binding Path="WindowDiagnostics.WindowX" />
+                                                        <Binding Path="WindowDiagnostics.WindowY" />
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Col 2: Client Viewport -->
+                                    <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="3,0,3,0">
+                                        <StackPanel>
+                                            <TextBlock Text="CLIENT VIEWPORT (RENDER)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                            <TextBlock FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" Margin="0,3,0,1">
+                                                <TextBlock.Text>
+                                                    <MultiBinding StringFormat="{}{0} x {1} px">
+                                                        <Binding Path="WindowDiagnostics.ClientWidth" />
+                                                        <Binding Path="WindowDiagnostics.ClientHeight" />
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                            <TextBlock FontSize="10" Foreground="{DynamicResource BrushTextMuted}">
+                                                <TextBlock.Text>
+                                                    <MultiBinding StringFormat="Origin: ({0}, {1}) px">
+                                                        <Binding Path="WindowDiagnostics.ClientOriginX" />
+                                                        <Binding Path="WindowDiagnostics.ClientOriginY" />
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                            <Separator Background="{DynamicResource BrushBorderSubtle}" Margin="0,6,0,6" />
+                                            <TextBlock Text="FRAME CHROME" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                            <TextBlock FontSize="11" Foreground="{DynamicResource BrushTextSecondary}">
+                                                <TextBlock.Text>
+                                                    <MultiBinding StringFormat="Titlebar: {0}px | Border: {1}px">
+                                                        <Binding Path="WindowDiagnostics.TitleBarHeight" />
+                                                        <Binding Path="WindowDiagnostics.BorderWidth" />
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Col 3: Monitor & DPI -->
+                                    <Border Grid.Column="2" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="3,0,3,0">
+                                        <StackPanel>
+                                            <TextBlock Text="MONITOR &amp; SCALING" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                            <TextBlock FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentViolet}" Margin="0,3,0,1">
+                                                <TextBlock.Text>
+                                                    <MultiBinding StringFormat="{}{0}x{1} ({2}%)">
+                                                        <Binding Path="WindowDiagnostics.MonitorWidth" />
+                                                        <Binding Path="WindowDiagnostics.MonitorHeight" />
+                                                        <Binding Path="WindowDiagnostics.Dpi.ScalePercentage" />
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding WindowDiagnostics.Dpi.DpiValue, StringFormat='Raw DPI: {0}'}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                                            <Separator Background="{DynamicResource BrushBorderSubtle}" Margin="0,6,0,6" />
+                                            <TextBlock Text="VIEWPORT BARS" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                            <TextBlock FontSize="11" Foreground="{DynamicResource BrushTextSecondary}">
+                                                <TextBlock.Text>
+                                                    <MultiBinding StringFormat="Letterbox: {0} | Pillarbox: {1}">
+                                                        <Binding Path="ViewportDiagnostics.HasLetterbox" />
+                                                        <Binding Path="ViewportDiagnostics.HasPillarbox" />
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Col 4: GameLoop Config -->
+                                    <Border Grid.Column="3" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="6,0,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="GAMELOOP ARCHITECTURE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                            <TextBlock Text="{Binding EnvironmentDiagnostics.Architecture}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" Margin="0,3,0,1" />
+                                            <TextBlock Text="{Binding EnvironmentDiagnostics.Version, StringFormat='Engine Ver: {0}'}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" TextTrimming="CharacterEllipsis" />
+                                            <Separator Background="{DynamicResource BrushBorderSubtle}" Margin="0,6,0,6" />
+                                            <TextBlock Text="KEYMAP STORAGE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                            <TextBlock Text="{Binding EnvironmentDiagnostics.KeymapStorageStatusText}" FontSize="11" Foreground="{DynamicResource BrushAccentGreen}" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Keymapping Profile Selector -->
+                        <Border Style="{StaticResource GlassCard}" Margin="0,0,0,18">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="🎮 Active Keymapping Profile" FontSize="14.5" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" />
+                                        <TextBlock Text="Select profile to view transformed touch anchors and physical desktop coordinates." FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                    <ComboBox Grid.Column="1"
+                                              ItemsSource="{Binding AvailableProfiles}"
+                                              SelectedItem="{Binding SelectedProfile}"
+                                              DisplayMemberPath="Name"
+                                              Width="260"
+                                              VerticalAlignment="Center" />
+                                </Grid>
+
+                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,8">
+                                    <TextBlock Text="{Binding SelectedProfile.Description, TargetNullValue='Select a profile above to inspect control coordinates.'}" FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" />
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Real-Time Control Coordinate Inspector Table -->
+                        <Border Style="{StaticResource GlassCard}">
+                            <StackPanel>
+                                <TextBlock Text="🎯 Real-Time Control Coordinate Transformation Matrix" FontSize="14.5" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,4" />
+                                <TextBlock Text="Live transformation from 1920x1080 Reference → Normalized [0.0-1.0] → GameLoop Client Viewport → Windows Screen Coordinates." FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,12" />
+
+                                <!-- Table Header -->
+                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="140" />
+                                            <ColumnDefinition Width="100" />
+                                            <ColumnDefinition Width="140" />
+                                            <ColumnDefinition Width="140" />
+                                            <ColumnDefinition Width="140" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="ACTION &amp; KEY" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                        <TextBlock Grid.Column="1" Text="HUD ANCHOR" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                        <TextBlock Grid.Column="2" Text="16:9 REFERENCE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                        <TextBlock Grid.Column="3" Text="NORMALIZED (NX, NY)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                                        <TextBlock Grid.Column="4" Text="CLIENT VIEWPORT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
+                                        <TextBlock Grid.Column="5" Text="PHYSICAL DESKTOP" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentViolet}" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Table Rows -->
+                                <ScrollViewer Height="240" VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding KeyDiagnostics}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,7" Margin="0,0,0,4">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="140" />
+                                                            <ColumnDefinition Width="100" />
+                                                            <ColumnDefinition Width="140" />
+                                                            <ColumnDefinition Width="140" />
+                                                            <ColumnDefinition Width="140" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                            <TextBlock Text="{Binding Action}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,6,0" />
+                                                            <TextBlock Text="{Binding Key, StringFormat='[{0}]'}" FontSize="10.5" Foreground="{DynamicResource BrushAccentCyan}" />
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Anchor}" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                        <TextBlock Grid.Column="2" Text="{Binding ReferencePos}" FontSize="11" Foreground="{DynamicResource BrushTextMuted}" />
+                                                        <TextBlock Grid.Column="3" Text="{Binding NormalizedPos}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" />
+                                                        <TextBlock Grid.Column="4" Text="{Binding ClientPixelPos}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentGreen}" />
+                                                        <TextBlock Grid.Column="5" Text="{Binding ScreenPixelPos}" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </TabItem>
+
             </TabControl>
 
         </StackPanel>

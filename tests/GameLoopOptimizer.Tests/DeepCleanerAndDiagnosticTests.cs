@@ -89,8 +89,8 @@ public class DeepCleanerAndDiagnosticTests
         var config = new GameLoopConfig();
         var hw = new HardwareInfo { GpuVendor = GpuVendor.Nvidia };
 
-        // Act
-        bool result = await EmulatorDiagnosticService.AutoFixIssuesAsync(config, hw);
+        // Act - Pass resetAdb: false to guarantee unit tests never drop live ADB or kill emulator sessions
+        bool result = await EmulatorDiagnosticService.AutoFixIssuesAsync(config, hw, resetAdb: false);
 
         // Assert
         Assert.True(result);

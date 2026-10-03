@@ -4,8 +4,11 @@ public enum RiskLevel
 {
     Safe,
     Low,
-    Moderate,
-    Advanced
+    Medium,
+    Moderate = Medium,
+    High,
+    Advanced = High,
+    NotRecommended
 }
 
 public enum OptimizationCategory
@@ -15,7 +18,8 @@ public enum OptimizationCategory
     GameLoopEngine,
     GraphicsQuality,
     MemoryStorage,
-    BackgroundProcess
+    BackgroundProcess,
+    NetworkInput
 }
 
 public enum OptimizationState
@@ -34,8 +38,14 @@ public enum OptimizationProfile
     Safe,
     Balanced,
     MaximumPerformance,
+    MaximumFps = MaximumPerformance,
     Competitive,
+    CompetitiveFps = Competitive,
+    StableFps,
     LowEndPC,
+    MidRangePC,
+    HighEndPC,
+    LaptopBattery,
     Custom
 }
 
@@ -68,3 +78,41 @@ public enum GraphicsRenderer
     DirectXPlus,
     OpenGLPlus
 }
+
+public enum BottleneckType
+{
+    None,
+    CpuBottleneck,
+    GpuBottleneck,
+    RamBottleneck,
+    VramBottleneck,
+    ThermalBottleneck,
+    StorageBottleneck,
+    BackgroundProcessBottleneck,
+    EmulatorOverheadBottleneck,
+    Unknown
+}
+
+public enum GameLoopCompatibilityTier
+{
+    Supported,
+    PartiallySupported,
+    Unknown
+}
+
+public enum PowerSourceState
+{
+    AcPower,
+    Battery,
+    Unknown
+}
+
+public enum ProcessSafetyCategory
+{
+    SafeToClose,
+    UserApplication,
+    SystemProcess,
+    CriticalProcess,
+    Unknown
+}
+

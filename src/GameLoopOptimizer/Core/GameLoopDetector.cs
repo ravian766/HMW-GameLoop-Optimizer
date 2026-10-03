@@ -60,11 +60,20 @@ public static class GameLoopDetector
                 // 2. Check running processes
                 DetectRunningProcesses(config);
 
+                // 3. Compatibility & Architecture Assessment
+                GameLoopCompatibilityManager.EvaluateCompatibility(config);
+
+                // 4. PUBG Mobile Profile Detection
+                PUBGDetectionService.DetectPubgProfile(config);
+
+                config.IsAdbAvailable = AdbManager.IsAdbAvailable(config);
+
                 _cachedConfig = config;
                 _lastDetectionTime = now;
             }
 
-            string summary = $"GameLoop Installed: {config.IsInstalled}, Running: {config.IsRunning}, Renderer: {(config.ForceDirectX ? "DirectX+" : "OpenGL+")}, CPU: {config.VmCpuCount} cores, RAM: {config.VmMemorySizeInMb} MB, Res: {config.VmResWidth}x{config.VmResHeight}, ShaderCache: {config.LocalShaderCacheEnabled}, FPS Level: {config.PubgFpsLevel}";
+            string summary = $"GameLoop Installed: {config.IsInstalled}, Running: {config.IsRunning}, Compat: {config.CompatibilityTier}, Renderer: {(config.ForceDirectX ? "DirectX+" : "OpenGL+")}, CPU: {config.VmCpuCount} cores, RAM: {config.VmMemorySizeInMb} MB, Res: {config.VmResWidth}x{config.VmResHeight}, ShaderCache: {config.LocalShaderCacheEnabled}, FPS Level: {config.PubgFpsLevel}";
+
 
             if (summary != _lastLoggedSummary)
             {
@@ -168,6 +177,7 @@ public static class GameLoopDetector
     {
         config.RunningProcessIds.Clear();
         config.IsRunning = false;
+        config.EmulatorProcessName = string.Empty;
 
         foreach (var name in EmulatorProcessNames)
         {
@@ -178,6 +188,10 @@ public static class GameLoopDetector
                 {
                     config.RunningProcessIds.Add(p.Id);
                     config.IsRunning = true;
+                    if (string.IsNullOrEmpty(config.EmulatorProcessName))
+                    {
+                        config.EmulatorProcessName = name;
+                    }
                 }
             }
             catch
@@ -185,7 +199,21 @@ public static class GameLoopDetector
                 // Ignore process access errors
             }
         }
+
+        if (config.IsRunning)
+        {
+            try
+            {
+                var winInfo = WindowDetector.DetectGameLoopWindow();
+                if (winInfo.IsFound)
+                {
+                    config.EmulatorWindowHandle = winInfo.RenderWindowHandle != IntPtr.Zero ? winInfo.RenderWindowHandle : winInfo.MainWindowHandle;
+                }
+            }
+            catch { }
+        }
     }
+
 
     public static string FindGameLoopExePath()
     {

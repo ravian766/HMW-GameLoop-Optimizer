@@ -253,7 +253,7 @@ public static class EmulatorDiagnosticService
         return report;
     }
 
-    public static async Task<bool> AutoFixIssuesAsync(GameLoopConfig config, HardwareInfo hw)
+    public static async Task<bool> AutoFixIssuesAsync(GameLoopConfig config, HardwareInfo hw, bool resetAdb = true)
     {
         try
         {
@@ -269,8 +269,8 @@ public static class EmulatorDiagnosticService
             // 3. Purge shader caches
             await ShaderCacheCleaner.PurgeShaderCacheAsync(config);
 
-            // 4. Reset stale ADB daemon sockets
-            if (AdbManager.IsAdbAvailable(config))
+            // 4. Reset stale ADB daemon sockets (skip if GameLoop is actively running or resetAdb is disabled)
+            if (resetAdb && !ProcessManager.IsGameLoopRunning() && AdbManager.IsAdbAvailable(config))
             {
                 await AdbManager.RestartAdbServerAsync(config);
             }

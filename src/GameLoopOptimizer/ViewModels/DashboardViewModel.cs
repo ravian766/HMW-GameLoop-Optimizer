@@ -103,6 +103,62 @@ public class DashboardViewModel : ViewModelBase
         set => SetProperty(ref _isRunningDiagnostic, value);
     }
 
+    // Bottleneck Analysis Properties
+    private BottleneckAnalysisResult _bottleneckResult = new();
+    public BottleneckAnalysisResult BottleneckResult
+    {
+        get => _bottleneckResult;
+        set => SetProperty(ref _bottleneckResult, value);
+    }
+
+    // Baseline Benchmarking Properties
+    public PerformanceBaselineService BaselineService { get; }
+
+    private BaselineBenchmark? _baselineBefore;
+    public BaselineBenchmark? BaselineBefore
+    {
+        get => _baselineBefore;
+        set => SetProperty(ref _baselineBefore, value);
+    }
+
+    private BaselineBenchmark? _baselineAfter;
+    public BaselineBenchmark? BaselineAfter
+    {
+        get => _baselineAfter;
+        set => SetProperty(ref _baselineAfter, value);
+    }
+
+    private OptimizationComparison? _comparisonResult;
+    public OptimizationComparison? ComparisonResult
+    {
+        get => _comparisonResult;
+        set => SetProperty(ref _comparisonResult, value);
+    }
+
+    private bool _isBenchmarking;
+    public bool IsBenchmarking
+    {
+        get => _isBenchmarking;
+        set => SetProperty(ref _isBenchmarking, value);
+    }
+
+    private double _benchmarkProgress;
+    public double BenchmarkProgress
+    {
+        get => _benchmarkProgress;
+        set => SetProperty(ref _benchmarkProgress, value);
+    }
+
+    public bool IsSafeModeActive
+    {
+        get => SafeModeController.Instance.IsSafeModeActive;
+        set
+        {
+            SafeModeController.Instance.SetSafeMode(value);
+            OnPropertyChanged(nameof(IsSafeModeActive));
+        }
+    }
+
     public ObservableCollection<string> ScoreExplanations { get; } = new();
 
     public ICommand ScanSystemCommand { get; }
@@ -112,6 +168,8 @@ public class DashboardViewModel : ViewModelBase
     public ICommand ExecuteDeepCleanCommand { get; }
     public ICommand RunDiagnosticCommand { get; }
     public ICommand AutoRepairIssuesCommand { get; }
+    public ICommand RunBenchmarkCommand { get; }
+    public ICommand ToggleSafeModeCommand { get; }
 
     public DashboardViewModel(
         Func<HardwareInfo> getHw, 
@@ -119,12 +177,32 @@ public class DashboardViewModel : ViewModelBase
         Func<GameLoopConfig> getGl, 
         PerformanceMonitorService monitor,
         Func<Task> onQuickOptimize,
-        Func<Task>? onProEsportsOptimize = null)
+        Func<Task>? onProEsportsOptimize = null,
+        PerformanceBaselineService? baselineService = null)
     {
         _getHw = getHw;
         _getSys = getSys;
         _getGl = getGl;
         _monitor = monitor;
+        BaselineService = baselineService ?? new PerformanceBaselineService(monitor);
+
+        SafeModeController.Instance.SafeModeChanged += (s, active) =>
+        {
+            OnPropertyChanged(nameof(IsSafeModeActive));
+        };
+
+        BaselineService.BaselineCaptured += (s, b) =>
+        {
+            BaselineBefore = BaselineService.BaselineBefore;
+            BaselineAfter = BaselineService.BaselineAfter;
+        };
+
+        BaselineService.ComparisonGenerated += (s, comp) =>
+        {
+            ComparisonResult = comp;
+        };
+
+        DateTime lastBottleneckUpdate = DateTime.MinValue;
 
         _monitor.MetricsUpdated += (s, m) =>
         {
@@ -134,8 +212,15 @@ public class DashboardViewModel : ViewModelBase
                 CurrentRam = m.RamPercent;
                 CurrentGpu = m.GpuPercent;
                 CurrentDiskMb = Math.Round(m.DiskReadMbSec + m.DiskWriteMbSec, 1);
+
+                if ((DateTime.Now - lastBottleneckUpdate).TotalSeconds >= 2.5)
+                {
+                    lastBottleneckUpdate = DateTime.Now;
+                    BottleneckResult = BottleneckAnalyzer.Analyze(m, _getHw(), _getSys(), _getGl());
+                }
             });
         };
+
 
         ScanSystemCommand = new AsyncRelayCommand(async () =>
         {
@@ -250,6 +335,36 @@ public class DashboardViewModel : ViewModelBase
             }
         });
 
+        RunBenchmarkCommand = new AsyncRelayCommand(async () =>
+        {
+            if (IsBenchmarking) return;
+            IsBenchmarking = true;
+            BenchmarkProgress = 0;
+            try
+            {
+                var progress = new Progress<double>(p => BenchmarkProgress = p);
+                var bench = await BaselineService.RunStructuredBenchmarkAsync(15, progress);
+                if (BaselineBefore == null)
+                {
+                    BaselineService.RecordBaselineBefore(bench);
+                }
+                else
+                {
+                    BaselineService.RecordBaselineAfter(bench);
+                }
+                RefreshDashboard();
+            }
+            finally
+            {
+                IsBenchmarking = false;
+            }
+        });
+
+        ToggleSafeModeCommand = new RelayCommand(() =>
+        {
+            IsSafeModeActive = !IsSafeModeActive;
+        });
+
         RefreshDashboard();
     }
 
@@ -263,6 +378,7 @@ public class DashboardViewModel : ViewModelBase
         Score = ScoringEngine.CalculateScore(hw, sys, gl, Recommendations);
         HealthReport = EmulatorDiagnosticService.RunDiagnostic(gl, hw);
         JunkScanResult = DeepCleanerService.ScanJunk(gl);
+        BottleneckResult = BottleneckAnalyzer.Analyze(_monitor.LatestMetrics, hw, sys, gl);
 
         void UpdateExplanations()
         {
@@ -285,5 +401,10 @@ public class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(Hardware));
         OnPropertyChanged(nameof(System));
         OnPropertyChanged(nameof(GameLoop));
+        OnPropertyChanged(nameof(BottleneckResult));
+        OnPropertyChanged(nameof(BaselineBefore));
+        OnPropertyChanged(nameof(BaselineAfter));
+        OnPropertyChanged(nameof(ComparisonResult));
     }
 }
+

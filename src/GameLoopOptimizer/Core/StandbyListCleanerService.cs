@@ -145,7 +145,12 @@ public static class StandbyListCleanerService
                     string name = proc.ProcessName;
                     if (name.Contains("Android", StringComparison.OrdinalIgnoreCase) ||
                         name.Contains("aow", StringComparison.OrdinalIgnoreCase) ||
-                        name.Contains("GameLoop", StringComparison.OrdinalIgnoreCase))
+                        name.Contains("GameLoop", StringComparison.OrdinalIgnoreCase) ||
+                        name.Contains("AppMarket", StringComparison.OrdinalIgnoreCase) ||
+                        name.Contains("QMEmulator", StringComparison.OrdinalIgnoreCase) ||
+                        name.Contains("TxEx", StringComparison.OrdinalIgnoreCase) ||
+                        name.Contains("TBSWeb", StringComparison.OrdinalIgnoreCase) ||
+                        name.Contains("TxGame", StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }

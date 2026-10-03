@@ -19,6 +19,7 @@ public class MainViewModel : ViewModelBase
 
     public IEventAggregator EventAggregator { get; }
     public PerformanceMonitorService MonitorService { get; }
+    public PerformanceBaselineService BaselineService { get; }
     public GameLoopWatchdogService WatchdogService { get; }
     public List<IOptimizationModule> Modules { get; }
     public INavigationService Navigation { get; }
@@ -149,6 +150,8 @@ public class MainViewModel : ViewModelBase
         MonitorService.ConfigureAdbTelemetry(() => _gameLoop, () => WatchdogService.DetectedGamePackage);
         MonitorService.Start();
 
+        BaselineService = new PerformanceBaselineService(MonitorService);
+
         // Initialize Optimization Modules via unified registry
         Modules = modules?.ToList() ?? OptimizationModuleRegistry.CreateAllModules();
 
@@ -159,7 +162,9 @@ public class MainViewModel : ViewModelBase
             () => _gameLoop, 
             MonitorService, 
             QuickOptimizeAsync,
-            ProEsportsOptimizeAsync);
+            ProEsportsOptimizeAsync,
+            BaselineService);
+
 
         OptimizerVM = new OptimizerViewModel(
             Modules, 

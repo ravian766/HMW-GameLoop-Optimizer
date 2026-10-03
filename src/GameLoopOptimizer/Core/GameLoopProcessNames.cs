@@ -12,6 +12,11 @@ public static class GameLoopProcessNames
     public const string AowExe = "aow_exe";
     public const string QmEmulatorService = "QMEmulatorService";
     public const string AndroidProcess = "AndroidProcess";
+    public const string TbsWebStore = "TBSWebStore";
+    public const string TxEx = "TxEx";
+    public const string TSettingCenter = "TSettingCenter";
+    public const string SyEngine = "SyEngine";
+    public const string TxGameAssistant = "TxGameAssistant";
 
     /// <summary>
     /// Active render engines that execute Android virtualization for PUBG Mobile.
@@ -36,6 +41,11 @@ public static class GameLoopProcessNames
         AndroidEmulatorEx,
         AowExe,
         QmEmulatorService,
-        AndroidProcess
+        AndroidProcess,
+        TbsWebStore,
+        TxEx,
+        TSettingCenter,
+        SyEngine,
+        TxGameAssistant
     ];
 }

@@ -26,8 +26,11 @@
                 <StackPanel VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                         <TextBlock Text="⚡ Optimization Profile Matrix" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
-                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
-                            <TextBlock Text="KERNEL &amp; VM" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center" Margin="0,0,8,0">
+                            <TextBlock Text="MEASUREMENT-DRIVEN" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                        </Border>
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding IsSafeModeActive, Converter={StaticResource BooleanToTextConverter}, ConverterParameter='🛡️ SAFE MODE|⚡ ACTIVE'}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" />
                         </Border>
                     </StackPanel>
                     <WrapPanel Orientation="Horizontal">
@@ -37,29 +40,41 @@
                                      Command="{Binding SelectProfileCommand}"
                                      CommandParameter="{x:Static models:OptimizationProfile.Safe}" />
 
-                        <RadioButton Content="Balanced (Recommended)"
+                        <RadioButton Content="Balanced"
                                      Style="{StaticResource CategoryPill}"
                                      IsChecked="{Binding CurrentProfile, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Balanced}"
                                      Command="{Binding SelectProfileCommand}"
                                      CommandParameter="{x:Static models:OptimizationProfile.Balanced}" />
 
-                        <RadioButton Content="Max Performance"
+                        <RadioButton Content="Max FPS"
                                      Style="{StaticResource CategoryPill}"
                                      IsChecked="{Binding CurrentProfile, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=MaximumPerformance}"
                                      Command="{Binding SelectProfileCommand}"
                                      CommandParameter="{x:Static models:OptimizationProfile.MaximumPerformance}" />
 
-                        <RadioButton Content="⚡ Competitive"
+                        <RadioButton Content="⚡ Competitive FPS"
                                      Style="{StaticResource CategoryPill}"
                                      IsChecked="{Binding CurrentProfile, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Competitive}"
                                      Command="{Binding SelectProfileCommand}"
                                      CommandParameter="{x:Static models:OptimizationProfile.Competitive}" />
+
+                        <RadioButton Content="🎯 Stable FPS"
+                                     Style="{StaticResource CategoryPill}"
+                                     IsChecked="{Binding CurrentProfile, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=StableFps}"
+                                     Command="{Binding SelectProfileCommand}"
+                                     CommandParameter="{x:Static models:OptimizationProfile.StableFps}" />
 
                         <RadioButton Content="🌱 Low-End PC"
                                      Style="{StaticResource CategoryPill}"
                                      IsChecked="{Binding CurrentProfile, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=LowEndPC}"
                                      Command="{Binding SelectProfileCommand}"
                                      CommandParameter="{x:Static models:OptimizationProfile.LowEndPC}" />
+
+                        <RadioButton Content="🔋 Laptop / Battery"
+                                     Style="{StaticResource CategoryPill}"
+                                     IsChecked="{Binding CurrentProfile, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=LaptopBattery}"
+                                     Command="{Binding SelectProfileCommand}"
+                                     CommandParameter="{x:Static models:OptimizationProfile.LaptopBattery}" />
 
                         <RadioButton Content="Custom"
                                      Style="{StaticResource CategoryPill}"
@@ -71,17 +86,34 @@
 
                 <!-- Main Action Buttons -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
-                    <Button Content="🔄 Restore Defaults"
+                    <Button Content="💾 Export"
+                            ToolTip="Export current tuning choices to JSON"
+                            Command="{Binding ExportProfileCommand}"
+                            Style="{StaticResource SecondaryButton}"
+                            Padding="12,8"
+                            FontSize="11"
+                            Margin="0,0,6,0" />
+
+                    <Button Content="📂 Import"
+                            ToolTip="Import tuning profile from JSON"
+                            Command="{Binding ImportProfileCommand}"
+                            Style="{StaticResource SecondaryButton}"
+                            Padding="12,8"
+                            FontSize="11"
+                            Margin="0,0,8,0" />
+
+                    <Button Content="🔄 Restore"
                             Command="{Binding RestoreAllCommand}"
                             Style="{StaticResource SecondaryButton}"
-                            Padding="16,10"
-                            Margin="0,0,10,0" />
+                            Padding="14,10"
+                            Margin="0,0,8,0" />
 
                     <Button Content="⚡ Optimize Selected"
                             Command="{Binding OptimizeSelectedCommand}"
                             Style="{StaticResource PrimaryButton}"
-                            Padding="22,10" />
+                            Padding="20,10" />
                 </StackPanel>
+
             </Grid>
         </Border>
 

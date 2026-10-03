@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows.Input;
 using GameLoopOptimizer.Core;
 using GameLoopOptimizer.Models;
@@ -63,11 +64,24 @@ public class OptimizerViewModel : ViewModelBase
         set => SetProperty(ref _statusMessage, value);
     }
 
+    public bool IsSafeModeActive
+    {
+        get => SafeModeController.Instance.IsSafeModeActive;
+        set
+        {
+            SafeModeController.Instance.SetSafeMode(value);
+            OnPropertyChanged(nameof(IsSafeModeActive));
+        }
+    }
+
     public ICommand OptimizeSelectedCommand { get; }
     public ICommand RestoreAllCommand { get; }
     public ICommand SelectAllCommand { get; }
     public ICommand DeselectAllCommand { get; }
     public ICommand SelectProfileCommand { get; }
+    public ICommand ToggleSafeModeCommand { get; }
+    public ICommand ExportProfileCommand { get; }
+    public ICommand ImportProfileCommand { get; }
 
     public event EventHandler? OptimizationsChanged;
 
@@ -82,6 +96,11 @@ public class OptimizerViewModel : ViewModelBase
         _getSys = getSys;
         _getGl = getGl;
         _getMetrics = getMetrics;
+
+        SafeModeController.Instance.SafeModeChanged += (s, active) =>
+        {
+            OnPropertyChanged(nameof(IsSafeModeActive));
+        };
 
         foreach (var mod in modules)
         {
@@ -111,6 +130,64 @@ public class OptimizerViewModel : ViewModelBase
             }
         });
 
+        ToggleSafeModeCommand = new RelayCommand(() =>
+        {
+            IsSafeModeActive = !IsSafeModeActive;
+        });
+
+        ExportProfileCommand = new AsyncRelayCommand(async () =>
+        {
+            try
+            {
+                var sfd = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "JSON Profile (*.json)|*.json",
+                    FileName = $"{CurrentProfile}_Profile.json",
+                    Title = "Export Optimization Profile"
+                };
+
+                if (sfd.ShowDialog() == true)
+                {
+                    var mods = _allCards.Select(c => c.Module).ToList();
+                    bool ok = await OptimizationProfileManager.ExportProfileAsync(sfd.FileName, CurrentProfile, mods, _getHw());
+                    StatusMessage = ok ? $"Exported profile to {Path.GetFileName(sfd.FileName)}" : "Failed to export profile.";
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Export error: {ex.Message}";
+            }
+        });
+
+        ImportProfileCommand = new AsyncRelayCommand(async () =>
+        {
+            try
+            {
+                var ofd = new Microsoft.Win32.OpenFileDialog
+                {
+                    Filter = "JSON Profile (*.json)|*.json",
+                    Title = "Import Optimization Profile"
+                };
+
+                if (ofd.ShowDialog() == true)
+                {
+                    var model = await OptimizationProfileManager.ImportProfileAsync(ofd.FileName);
+                    if (model != null)
+                    {
+                        foreach (var card in _allCards)
+                        {
+                            card.IsSelected = model.SelectedModuleIds.Contains(card.Module.Id);
+                        }
+                        StatusMessage = $"Imported profile '{model.ProfileName}' with {model.SelectedModuleIds.Count} selected settings.";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Import error: {ex.Message}";
+            }
+        });
+
         ApplyProfileSelection(CurrentProfile);
         FilterCards();
     }
@@ -130,39 +207,19 @@ public class OptimizerViewModel : ViewModelBase
 
     private void ApplyProfileSelection(OptimizationProfile profile)
     {
+        var hw = _getHw();
+        var sys = _getSys();
+
         foreach (var card in _allCards)
         {
-            switch (profile)
+            if (profile == OptimizationProfile.Custom)
             {
-                case OptimizationProfile.Safe:
-                    card.IsSelected = card.RiskLevel == RiskLevel.Safe;
-                    break;
-                case OptimizationProfile.Balanced:
-                    card.IsSelected = card.RiskLevel == RiskLevel.Safe || card.RiskLevel == RiskLevel.Low;
-                    break;
-                case OptimizationProfile.MaximumPerformance:
-                    card.IsSelected = true;
-                    break;
-                case OptimizationProfile.Competitive:
-                    // Prioritize low-latency, timer, CPU affinity, GPU scheduling, and power delivery
-                    card.IsSelected = card.Category == OptimizationCategory.WindowsConfig ||
-                                      card.Category == OptimizationCategory.PowerDelivery ||
-                                      card.Category == OptimizationCategory.GameLoopEngine ||
-                                      card.RiskLevel != RiskLevel.Advanced;
-                    break;
-                case OptimizationProfile.LowEndPC:
-                    // Safe optimizations only, focusing on RAM freeing, storage cleanup, and essential debloat
-                    card.IsSelected = card.RiskLevel == RiskLevel.Safe &&
-                                      (card.Category == OptimizationCategory.MemoryStorage ||
-                                       card.Category == OptimizationCategory.WindowsConfig ||
-                                       card.Category == OptimizationCategory.BackgroundProcess);
-                    break;
-                case OptimizationProfile.Custom:
-                    // Keep user selection
-                    break;
+                continue;
             }
+            card.IsSelected = OptimizationProfileManager.ShouldModuleBeSelectedForProfile(card.Module, profile, hw, sys);
         }
     }
+
 
     private void FilterCards()
     {
@@ -208,6 +265,35 @@ public class OptimizerViewModel : ViewModelBase
         var snapBefore = OptimizationSnapshot.Capture(
             metricsBefore, sys, _allCards.Count(c => c.IsOptimized), _allCards.Count, "Pre-Optimization");
 
+        if (IsSafeModeActive || gl.IsAnalyzeOnlyMode)
+        {
+            string simReason = IsSafeModeActive 
+                ? "[SIMULATED - SAFE MODE ACTIVE] No system files or registry keys modified."
+                : $"[SIMULATED - ANALYZE ONLY] Unverified GameLoop '{gl.Version}'. No changes applied.";
+
+            foreach (var card in selectedCards)
+            {
+                report.Items.Add(new OptimizationReportItem
+                {
+                    ModuleId = card.Module.Id,
+                    Title = card.Title,
+                    Category = card.Category,
+                    Success = true,
+                    Message = simReason,
+                    PreviousState = card.CurrentStateDisplay,
+                    NewState = card.CurrentStateDisplay
+                });
+            }
+
+            report.AppliedCount = 0;
+            report.FailedCount = 0;
+            report.ScoreAfter = report.ScoreBefore;
+            LatestReport = report;
+            StatusMessage = "Safe Mode: Optimizations analyzed & recommended without applying changes.";
+            IsOptimizing = false;
+            return report;
+        }
+
         try
         {
             foreach (var card in selectedCards)
@@ -221,6 +307,7 @@ public class OptimizerViewModel : ViewModelBase
                     else failCount++;
 
                     card.RefreshProperties();
+
 
                     report.Items.Add(new OptimizationReportItem
                     {

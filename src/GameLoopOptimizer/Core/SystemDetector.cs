@@ -20,13 +20,15 @@ public static class SystemDetector
         var info = new SystemInfo();
 
         DetectOsInfo(info);
+        DetectVirtualizationAndSecurity(info);
         DetectGameMode(info);
-        DetectPowerPlan(info);
+        DetectHagsAndGraphics(info);
+        DetectPowerPlanAndBattery(info);
         DetectTimerResolution(info);
         DetectVisualEffects(info);
         info.IsAdmin = PermissionManager.IsAdministrator;
 
-        Logger.Info("SystemDetector", $"Detected: {info.OsCaption} (Build {info.OsBuild}), Game Mode: {info.IsGameModeEnabled}, Power Plan: {info.ActivePowerPlanName}, Admin: {info.IsAdmin}");
+        Logger.Info("SystemDetector", $"Detected: {info.OsCaption} {info.OsEdition} (Build {info.OsBuild}), Game Mode: {info.IsGameModeEnabled}, HAGS: {info.IsHagsEnabled}, Power: {info.ActivePowerPlanName} ({info.PowerSource}), Admin: {info.IsAdmin}, HVCI: {info.IsMemoryIntegrityEnabled}");
 
         return info;
     }
@@ -41,15 +43,25 @@ public static class SystemDetector
                 var productName = key.GetValue("ProductName") as string;
                 var displayVersion = key.GetValue("DisplayVersion") as string;
                 var currentBuild = key.GetValue("CurrentBuild") as string;
+                var editionId = key.GetValue("EditionID") as string;
 
                 info.OsCaption = productName ?? "Windows";
                 info.OsVersion = displayVersion ?? string.Empty;
                 info.OsBuild = currentBuild ?? Environment.OSVersion.Version.Build.ToString();
+                info.OsEdition = editionId ?? "Windows";
             }
             else
             {
                 info.OsCaption = $"Windows {Environment.OSVersion.Version.Major}";
                 info.OsBuild = Environment.OSVersion.Version.Build.ToString();
+            }
+
+            // UAC Status check
+            using var uacKey = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System");
+            if (uacKey != null)
+            {
+                var enableLua = uacKey.GetValue("EnableLUA");
+                info.IsUacEnabled = enableLua is int val && val == 1;
             }
         }
         catch (Exception ex)
@@ -59,6 +71,100 @@ public static class SystemDetector
 
         info.OsArchitecture = Environment.Is64BitOperatingSystem ? "64-bit" : "32-bit";
     }
+
+    private static void DetectVirtualizationAndSecurity(SystemInfo info)
+    {
+        try
+        {
+            // 1. Hypervisor / Hyper-V check via WMI
+            using var searcherComp = new System.Management.ManagementObjectSearcher("SELECT HypervisorPresent FROM Win32_ComputerSystem");
+            foreach (var item in searcherComp.Get())
+            {
+                if (item["HypervisorPresent"] != null)
+                {
+                    info.IsHyperVPresent = Convert.ToBoolean(item["HypervisorPresent"]);
+                }
+                break;
+            }
+        }
+        catch { }
+
+        try
+        {
+            // 2. BIOS Virtualization (VT-x / AMD-V)
+            using var searcherProc = new System.Management.ManagementObjectSearcher("SELECT VirtualizationFirmwareEnabled FROM Win32_Processor");
+            foreach (var item in searcherProc.Get())
+            {
+                if (item["VirtualizationFirmwareEnabled"] != null)
+                {
+                    info.IsVirtualizationEnabledInBios = Convert.ToBoolean(item["VirtualizationFirmwareEnabled"]);
+                }
+                break;
+            }
+        }
+        catch { }
+
+        try
+        {
+            // 3. Core Isolation / Memory Integrity (HVCI)
+            using var hvciKey = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity");
+            if (hvciKey != null)
+            {
+                var enabled = hvciKey.GetValue("Enabled");
+                info.IsMemoryIntegrityEnabled = enabled is int val && val == 1;
+                info.IsCoreIsolationEnabled = info.IsMemoryIntegrityEnabled;
+            }
+        }
+        catch { }
+    }
+
+    private static void DetectHagsAndGraphics(SystemInfo info)
+    {
+        try
+        {
+            // Hardware-Accelerated GPU Scheduling (HAGS)
+            // HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers -> HwSchMode (2 = On, 1 = Off)
+            using var gfxKey = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\GraphicsDrivers");
+            if (gfxKey != null)
+            {
+                var mode = gfxKey.GetValue("HwSchMode");
+                info.IsHagsEnabled = mode is int m && m == 2;
+            }
+        }
+        catch { }
+
+        try
+        {
+            // Fullscreen Optimizations status
+            using var gameConfigKey = Registry.CurrentUser.OpenSubKey(@"System\GameConfigStore");
+            if (gameConfigKey != null)
+            {
+                var fse = gameConfigKey.GetValue("GameDVR_FSEBehaviorMode");
+                // 2 = Disabled (native exclusive fullscreen), 0/default = Enabled
+                info.AreFullscreenOptimizationsEnabled = fse is not int val || val != 2;
+            }
+        }
+        catch { }
+    }
+
+    public static void DetectPowerPlanAndBattery(SystemInfo info)
+    {
+        DetectPowerPlan(info);
+
+        try
+        {
+            if (NativeMethods.GetSystemPowerStatus(out var powerStatus))
+            {
+                // ACLineStatus: 0 = Offline (Battery), 1 = Online (AC), 255 = Unknown
+                info.PowerSource = powerStatus.ACLineStatus == 0 ? PowerSourceState.Battery : PowerSourceState.AcPower;
+            }
+        }
+        catch
+        {
+            info.PowerSource = PowerSourceState.AcPower;
+        }
+    }
+
 
     public static void DetectGameMode(SystemInfo info)
     {

@@ -77,7 +77,8 @@ public class AdvancedFeaturesTests
         var hw = new HardwareInfo { GpuVendor = GpuVendor.Nvidia };
         var config = new GameLoopConfig { InstallPath = @"C:\NonExistent\Path" };
 
-        bool result = await EmulatorDiagnosticService.AutoFixIssuesAsync(config, hw);
+        // Pass resetAdb: false to guarantee unit tests never drop live ADB or kill emulator sessions
+        bool result = await EmulatorDiagnosticService.AutoFixIssuesAsync(config, hw, resetAdb: false);
         Assert.True(result);
     }
 

@@ -42,6 +42,8 @@
             <local:InverseBooleanConverter x:Key="InverseBooleanConverter" />
             <local:BooleanToStatusIconConverter x:Key="BooleanToStatusIconConverter" />
             <local:StringNotEmptyToVisibilityConverter x:Key="StringNotEmptyToVisibilityConverter" />
+            <local:BooleanToTextConverter x:Key="BooleanToTextConverter" />
+
 
             <!-- ViewModel DataTemplates -->
             <DataTemplate DataType="{x:Type vm:DashboardViewModel}">

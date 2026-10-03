@@ -85,6 +85,142 @@
                 </Grid>
             </Border>
 
+            <!-- ==================== INTELLIGENT BOTTLENECK DIAGNOSTICS & SAFE MODE ==================== -->
+            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,20">
+                <StackPanel>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🔬 Intelligent Bottleneck Diagnostics" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding BottleneckResult.Headline}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Safe Mode Toggle -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,8,0">
+                                <TextBlock Text="{Binding IsSafeModeActive, Converter={StaticResource BooleanToTextConverter}, ConverterParameter='🛡️ SAFE MODE: SIMULATION ONLY|⚡ ACTIVE TUNING'}"
+                                           FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" VerticalAlignment="Center" />
+                            </Border>
+                            <Button Content="Toggle Safe Mode"
+                                    Command="{Binding ToggleSafeModeCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="10,5"
+                                    FontSize="10" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Text="{Binding BottleneckResult.Explanation}" FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,12" />
+
+                    <!-- Two-Column Advice: Recommended Actions vs Actions to Avoid -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Recommended Actions -->
+                        <Border Grid.Column="0" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,6,0">
+                            <StackPanel>
+                                <TextBlock Text="✅ RECOMMENDED ACTIONS" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" Margin="0,0,0,6" />
+                                <ItemsControl ItemsSource="{Binding BottleneckResult.RecommendedActions}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding StringFormat='• {0}'}" FontSize="11" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,3" TextWrapping="Wrap" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Actions to Avoid -->
+                        <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="6,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="⚠️ AVOID UNMEASURED TWEAKS" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" Margin="0,0,0,6" />
+                                <ItemsControl ItemsSource="{Binding BottleneckResult.ActionsToAvoid}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding StringFormat='• {0}'}" FontSize="11" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" TextWrapping="Wrap" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- ==================== PERFORMANCE MEASUREMENT & BASELINE BENCHMARK ==================== -->
+            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,20">
+                <StackPanel>
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="📊 Empirical Baseline &amp; Measured Comparison" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="6" Padding="6,2" VerticalAlignment="Center">
+                                    <TextBlock Text="MEASURE • DON'T GUESS" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="Captures 1% Low FPS, frame-time variance, and stutter index before &amp; after optimizations to verify real gains." FontSize="11" Foreground="{DynamicResource BrushTextMuted}" Margin="0,2,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <ProgressBar Value="{Binding BenchmarkProgress}" Maximum="100" Width="100" Height="6" Visibility="{Binding IsBenchmarking, Converter={StaticResource BooleanToVisibilityConverter}}" Foreground="{DynamicResource BrushAccentCyan}" Background="{DynamicResource BrushBgInput}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                            <Button Content="⏱️ Run 15s Benchmark"
+                                    Command="{Binding RunBenchmarkCommand}"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Padding="14,8"
+                                    FontSize="11"
+                                    FontWeight="Bold" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Baseline Cards Grid -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="1.2*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Pre-Optimization Baseline -->
+                        <Border Grid.Column="0" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,6,0">
+                            <StackPanel>
+                                <TextBlock Text="PRE-OPTIMIZATION BASELINE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,4" />
+                                <TextBlock Text="{Binding BaselineBefore.SummaryText, FallbackValue='No baseline captured yet. Run benchmark to measure.'}" FontSize="11" Foreground="{DynamicResource BrushTextPrimary}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Post-Optimization Baseline -->
+                        <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="3,0,3,0">
+                            <StackPanel>
+                                <TextBlock Text="POST-OPTIMIZATION BASELINE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,4" />
+                                <TextBlock Text="{Binding BaselineAfter.SummaryText, FallbackValue='Run benchmark after applying optimizations.'}" FontSize="11" Foreground="{DynamicResource BrushTextPrimary}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Measured Delta & Verdict -->
+                        <Border Grid.Column="2" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="6,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="MEASURED VERDICT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,0,4" />
+                                <TextBlock Text="{Binding ComparisonResult.StabilityVerdict, FallbackValue='Awaiting before/after data'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" Margin="0,0,0,2" />
+                                <TextBlock Text="{Binding ComparisonResult.SummaryText, FallbackValue='Apply optimizations and run benchmark to measure delta.'}" FontSize="10.5" Foreground="{DynamicResource BrushTextMuted}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
             <!-- ==================== REAL-TIME TELEMETRY MATRIX ==================== -->
             <TextBlock Text="LIVE HARDWARE &amp; PROCESS TELEMETRY" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="2,0,0,10" />
             <Grid Margin="0,0,0,22">
@@ -102,6 +238,7 @@
                         <TextBlock Text="{Binding CurrentCpu, StringFormat='{}{0:F1}%'}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,4,0,4" />
                         <ProgressBar Value="{Binding CurrentCpu}" Maximum="100" Height="4" Foreground="{DynamicResource BrushAccentCyan}" Background="{DynamicResource BrushBgInput}" BorderThickness="0" Margin="0,0,0,6" />
                         <TextBlock Text="{Binding Hardware.CpuName}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Hardware.PhysicalCores, StringFormat='Topology: {0}C / {Binding Hardware.LogicalProcessors}T'}" FontSize="9.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
                     </StackPanel>
                 </Border>
 
@@ -112,6 +249,7 @@
                         <TextBlock Text="{Binding CurrentGpu, StringFormat='{}{0:F1}%'}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentViolet}" Margin="0,4,0,4" />
                         <ProgressBar Value="{Binding CurrentGpu}" Maximum="100" Height="4" Foreground="{DynamicResource BrushAccentViolet}" Background="{DynamicResource BrushBgInput}" BorderThickness="0" Margin="0,0,0,6" />
                         <TextBlock Text="{Binding Hardware.GpuName}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Hardware.DedicatedVramMb, StringFormat='VRAM: {0:F0} MB'}" FontSize="9.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
                     </StackPanel>
                 </Border>
 
@@ -121,7 +259,8 @@
                         <TextBlock Text="RAM USAGE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
                         <TextBlock Text="{Binding CurrentRam, StringFormat='{}{0:F0}%'}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" Margin="0,4,0,4" />
                         <ProgressBar Value="{Binding CurrentRam}" Maximum="100" Height="4" Foreground="{DynamicResource BrushAccentGreen}" Background="{DynamicResource BrushBgInput}" BorderThickness="0" Margin="0,0,0,6" />
-                        <TextBlock Text="{Binding Hardware.TotalRamGb, StringFormat='Total: {0:F1} GB RAM'}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding Hardware.TotalRamGb, StringFormat='Total: {0:F1} GB'}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding Hardware.RamSpeedType, StringFormat='{}{0} | Dual-Channel'}" FontSize="9.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
                     </StackPanel>
                 </Border>
 
@@ -131,10 +270,12 @@
                         <TextBlock Text="DISK ACTIVITY" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
                         <TextBlock Text="{Binding CurrentDiskMb, StringFormat='{}{0:F1} MB/s'}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" Margin="0,4,0,4" />
                         <ProgressBar Value="{Binding CurrentDiskMb}" Maximum="150" Height="4" Foreground="{DynamicResource BrushAccentAmber}" Background="{DynamicResource BrushBgInput}" BorderThickness="0" Margin="0,0,0,6" />
-                        <TextBlock Text="{Binding Hardware.SystemDrive, StringFormat='Storage: {0}', FallbackValue='Storage: Primary SSD'}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding Hardware.SystemDrive, StringFormat='Drive: {0}'}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding Hardware.PrimaryDriveType, StringFormat='Type: {0}'}" FontSize="9.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
                     </StackPanel>
                 </Border>
             </Grid>
+
 
             <!-- ==================== OPTIMIZATION BREAKDOWN & DIAGNOSTICS ==================== -->
             <Grid Margin="0,0,0,20">

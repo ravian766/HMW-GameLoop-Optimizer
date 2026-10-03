@@ -35,6 +35,10 @@ public class CompetitiveOptimizationTests
     [Fact]
     public void ProcessManager_IoAndMemoryPriority_ExecutesWithoutCrashing()
     {
+        // Safety guard: Never touch live engine process handles during automated unit tests
+        // to prevent Tencent ACE Anti-Cheat from terminating aow_exe / PUBG Mobile.
+        if (ProcessManager.IsGameLoopRunning()) return;
+
         int count = ProcessManager.SetGameLoopIoAndMemoryPriority(ioPriority: 3, memoryPriority: 5);
         Assert.True(count >= 0);
     }

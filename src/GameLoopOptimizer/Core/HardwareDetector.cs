@@ -27,7 +27,7 @@ public static class HardwareDetector
         // Calculate Tier
         info.CalculatedTier = CalculateTier(info);
 
-        Logger.Info("HardwareDetector", $"Detected: CPU: {info.CpuName} ({info.PhysicalCores}C/{info.LogicalProcessors}T), GPU: {info.GpuName} ({info.DedicatedVramMb:F0} MB), RAM: {info.TotalRamGb:F1} GB, Tier: {info.CalculatedTier}");
+        Logger.Info("HardwareDetector", $"Detected: CPU: {info.CpuName} ({info.PhysicalCores}C/{info.LogicalProcessors}T, Vendor: {info.CpuVendor}), GPU: {info.GpuName} ({info.DedicatedVramMb:F0} MB, Drv: {info.DriverVersion}), RAM: {info.UsedRamGb:F1}/{info.TotalRamGb:F1} GB ({info.RamSpeedType} {info.RamSpeedMhz}MHz), Tier: {info.CalculatedTier}");
 
         return info;
     }
@@ -79,7 +79,9 @@ public static class HardwareDetector
                 }
                 if (item["MaxClockSpeed"] != null)
                 {
-                    info.CpuBaseClockGhz = Math.Round(Convert.ToDouble(item["MaxClockSpeed"]) / 1000.0, 2);
+                    double maxMhz = Convert.ToDouble(item["MaxClockSpeed"]);
+                    info.CpuMaxClockGhz = Math.Round(maxMhz / 1000.0, 2);
+                    if (info.CpuBaseClockGhz <= 0) info.CpuBaseClockGhz = info.CpuMaxClockGhz;
                 }
                 break;
             }
@@ -87,6 +89,46 @@ public static class HardwareDetector
         catch (Exception ex)
         {
             Logger.Warn("HardwareDetector", $"WMI CPU query warning: {ex.Message}");
+        }
+
+        // Vendor classification
+        if (info.CpuName.Contains("Intel", StringComparison.OrdinalIgnoreCase))
+        {
+            info.CpuVendor = "Intel";
+        }
+        else if (info.CpuName.Contains("AMD", StringComparison.OrdinalIgnoreCase) || info.CpuName.Contains("Ryzen", StringComparison.OrdinalIgnoreCase))
+        {
+            info.CpuVendor = "AMD";
+        }
+        else if (info.CpuName.Contains("Qualcomm", StringComparison.OrdinalIgnoreCase) || info.CpuName.Contains("Snapdragon", StringComparison.OrdinalIgnoreCase))
+        {
+            info.CpuVendor = "Qualcomm";
+        }
+        else
+        {
+            info.CpuVendor = "Unknown";
+        }
+
+        // Check for AMD 3D V-Cache (e.g. 7800X3D, 5800X3D, 9800X3D, 7950X3D)
+        info.Has3dVcache = info.CpuName.Contains("X3D", StringComparison.OrdinalIgnoreCase) ||
+                           info.CpuName.Contains("3D V-Cache", StringComparison.OrdinalIgnoreCase);
+
+        // Intel Hybrid Architecture Detection (Performance Cores + Efficient Cores)
+        // Hybrid CPUs have physical cores < logical processors < physical cores * 2
+        if (info.CpuVendor == "Intel" && info.PhysicalCores > 0 && info.LogicalProcessors > info.PhysicalCores && info.LogicalProcessors < info.PhysicalCores * 2)
+        {
+            int pCores = info.LogicalProcessors - info.PhysicalCores;
+            int eCores = info.PhysicalCores - pCores;
+            if (pCores > 0 && eCores > 0)
+            {
+                info.PerformanceCoresCount = pCores;
+                info.EfficientCoresCount = eCores;
+            }
+        }
+        else
+        {
+            info.PerformanceCoresCount = info.PhysicalCores;
+            info.EfficientCoresCount = 0;
         }
 
         info.Architecture = Environment.Is64BitOperatingSystem ? "x64" : "x86";
@@ -101,30 +143,44 @@ public static class HardwareDetector
             if (NativeMethods.GlobalMemoryStatusEx(ref memStatus))
             {
                 info.TotalRamGb = Math.Round((double)memStatus.ullTotalPhys / (1024 * 1024 * 1024), 1);
+                info.UsedRamGb = Math.Round((double)(memStatus.ullTotalPhys - memStatus.ullAvailPhys) / (1024 * 1024 * 1024), 1);
+                double pressureRatio = info.TotalRamGb > 0 ? (info.UsedRamGb / info.TotalRamGb) : 0;
+                info.MemoryPressureStatus = pressureRatio > 0.85 ? "High" : (pressureRatio > 0.70 ? "Elevated" : "Normal");
             }
         }
         catch (Exception ex)
         {
             Logger.Warn("HardwareDetector", $"GlobalMemoryStatusEx failed: {ex.Message}");
             info.TotalRamGb = 8.0;
+            info.UsedRamGb = 4.0;
         }
 
         try
         {
             using var searcher = new ManagementObjectSearcher("SELECT Capacity, Speed, MemoryType, SMBIOSMemoryType FROM Win32_PhysicalMemory");
             int stickCount = 0;
+            int maxSpeed = 0;
             foreach (var item in searcher.Get())
             {
                 stickCount++;
+                if (item["Speed"] != null)
+                {
+                    int spd = Convert.ToInt32(item["Speed"]);
+                    if (spd > maxSpeed) maxSpeed = spd;
+                }
             }
             if (stickCount > 0)
             {
                 info.RamStickCount = stickCount;
             }
+            if (maxSpeed > 0)
+            {
+                info.RamSpeedMhz = maxSpeed;
+                info.RamSpeedType = maxSpeed >= 4800 ? "DDR5" : (maxSpeed >= 2133 ? "DDR4" : "DDR3");
+            }
         }
         catch
         {
-            // Fallback default
             info.RamStickCount = 2;
         }
     }
@@ -164,6 +220,7 @@ public static class HardwareDetector
                         !gpu.Contains("Virtual", StringComparison.OrdinalIgnoreCase))
                     {
                         info.GpuName = gpu;
+                        info.DisplayAdapter = gpu;
                         ClassifyGpuVendor(info, gpu);
                         if (info.GpuVendor == GpuVendor.Nvidia || info.GpuVendor == GpuVendor.Amd)
                         {
@@ -207,12 +264,18 @@ public static class HardwareDetector
                     if (info.GpuName == "Unknown GPU")
                     {
                         info.GpuName = desc.Trim();
+                        info.DisplayAdapter = desc.Trim();
                         ClassifyGpuVendor(info, desc);
                     }
 
                     if (string.IsNullOrEmpty(info.DriverVersion))
                     {
                         info.DriverVersion = subKey.GetValue("DriverVersion") as string ?? string.Empty;
+                    }
+
+                    if (string.IsNullOrEmpty(info.DriverDate))
+                    {
+                        info.DriverDate = subKey.GetValue("DriverDate") as string ?? string.Empty;
                     }
 
                     // True 64-bit VRAM size (bypasses 32-bit WMI 4GB cap)
@@ -254,13 +317,13 @@ public static class HardwareDetector
         // 1. Fast Native Win32 API (EnumDisplayDevices) - zero latency, reliable under all user privilege levels
         DetectGpuViaNativeWin32(info);
 
-        // 2. Registry Display Driver info (fetches exact 64-bit VRAM & driver version)
+        // 2. Registry Display Driver info (fetches exact 64-bit VRAM, driver date & driver version)
         DetectGpuViaRegistry(info);
 
         // 3. WMI Win32_VideoController fallback / enrichment
         try
         {
-            using var searcher = new ManagementObjectSearcher("SELECT Name, AdapterRAM, DriverVersion FROM Win32_VideoController");
+            using var searcher = new ManagementObjectSearcher("SELECT Name, AdapterRAM, DriverVersion, DriverDate FROM Win32_VideoController");
             foreach (var item in searcher.Get())
             {
                 var name = item["Name"]?.ToString() ?? string.Empty;
@@ -275,12 +338,22 @@ public static class HardwareDetector
                 if (info.GpuName == "Unknown GPU")
                 {
                     info.GpuName = name.Trim();
+                    info.DisplayAdapter = name.Trim();
                     ClassifyGpuVendor(info, name);
                 }
 
                 if (string.IsNullOrEmpty(info.DriverVersion) && item["DriverVersion"] != null)
                 {
                     info.DriverVersion = item["DriverVersion"].ToString()!;
+                }
+
+                if (string.IsNullOrEmpty(info.DriverDate) && item["DriverDate"] != null)
+                {
+                    var rawDate = item["DriverDate"].ToString()!;
+                    if (rawDate.Length >= 8)
+                    {
+                        info.DriverDate = $"{rawDate[0..4]}-{rawDate[4..6]}-{rawDate[6..8]}";
+                    }
                 }
 
                 if (info.DedicatedVramMb <= 0 && item["AdapterRAM"] != null)
@@ -315,7 +388,7 @@ public static class HardwareDetector
     {
         try
         {
-            // 1. Get current display mode
+            // 1. Get current primary display mode
             var devMode = new NativeMethods.DEVMODE();
             devMode.dmSize = (short)Marshal.SizeOf(typeof(NativeMethods.DEVMODE));
             if (NativeMethods.EnumDisplaySettings(null, NativeMethods.ENUM_CURRENT_SETTINGS, ref devMode))
@@ -325,7 +398,7 @@ public static class HardwareDetector
                 info.RefreshRateHz = devMode.dmDisplayFrequency;
             }
 
-            // 2. Enumerate all supported display modes to discover all refresh rates
+            // 2. Discover all refresh rates
             var supportedRates = new HashSet<int>();
             int maxRate = info.RefreshRateHz;
             var modeEnum = new NativeMethods.DEVMODE();
@@ -348,10 +421,61 @@ public static class HardwareDetector
             info.MaxRefreshRateHz = maxRate;
             info.SupportedRefreshRates = supportedRates.OrderBy(r => r).ToList();
 
+            // 3. Detect System DPI Scaling
+            var dpi = DpiDetector.GetSystemDpi();
+            info.DpiScalingPercent = dpi.ScalePercentage;
+
+            // 4. Multi-monitor discovery
+            info.ConnectedMonitors.Clear();
+            var d = new NativeMethods.DISPLAY_DEVICE();
+            d.cb = Marshal.SizeOf(d);
+
+            for (uint id = 0; NativeMethods.EnumDisplayDevices(null, id, ref d, 0); id++)
+            {
+                if ((d.StateFlags & 0x00000001) != 0) // Attached to desktop
+                {
+                    bool isPrimary = (d.StateFlags & 0x00000004) != 0;
+                    var monDevMode = new NativeMethods.DEVMODE();
+                    monDevMode.dmSize = (short)Marshal.SizeOf(typeof(NativeMethods.DEVMODE));
+
+                    if (NativeMethods.EnumDisplaySettings(d.DeviceName, NativeMethods.ENUM_CURRENT_SETTINGS, ref monDevMode))
+                    {
+                        var mon = new MonitorInfo
+                        {
+                            DeviceName = d.DeviceString?.Trim() ?? $"Display {id + 1}",
+                            ResolutionWidth = monDevMode.dmPelsWidth,
+                            ResolutionHeight = monDevMode.dmPelsHeight,
+                            RefreshRateHz = monDevMode.dmDisplayFrequency,
+                            MaxRefreshRateHz = monDevMode.dmDisplayFrequency,
+                            IsPrimary = isPrimary,
+                            DpiScalingPercent = info.DpiScalingPercent,
+                            AdapterName = info.GpuName
+                        };
+                        info.ConnectedMonitors.Add(mon);
+                    }
+                }
+                d.cb = Marshal.SizeOf(d);
+            }
+
+            if (info.ConnectedMonitors.Count == 0)
+            {
+                info.ConnectedMonitors.Add(new MonitorInfo
+                {
+                    DeviceName = "Primary Display",
+                    ResolutionWidth = info.ScreenWidth,
+                    ResolutionHeight = info.ScreenHeight,
+                    RefreshRateHz = info.RefreshRateHz,
+                    MaxRefreshRateHz = info.MaxRefreshRateHz,
+                    SupportedRefreshRates = info.SupportedRefreshRates,
+                    DpiScalingPercent = info.DpiScalingPercent,
+                    IsPrimary = true,
+                    AdapterName = info.GpuName
+                });
+            }
+
             Logger.Info("HardwareDetector",
-                $"Display: {info.ScreenWidth}x{info.ScreenHeight} @ {info.RefreshRateHz} Hz (current), " +
-                $"Max: {info.MaxRefreshRateHz} Hz, " +
-                $"Supported rates: [{string.Join(", ", info.SupportedRefreshRates.Select(r => $"{r} Hz"))}]");
+                $"Display: {info.ScreenWidth}x{info.ScreenHeight} @ {info.RefreshRateHz} Hz (Scale: {info.DpiScalingPercent}%), " +
+                $"Max: {info.MaxRefreshRateHz} Hz, Connected Monitors: {info.ConnectedMonitors.Count}");
         }
         catch (Exception ex)
         {
@@ -373,16 +497,36 @@ public static class HardwareDetector
                 info.FreeDiskSpaceGb = Math.Round((double)drive.AvailableFreeSpace / (1024 * 1024 * 1024), 1);
             }
 
-            info.PrimaryDriveType = DetectPrimaryStorageType();
+            info.PrimaryDriveType = DetectStorageTypeForPath(systemDrivePath);
+
+            // Locate GameLoop drive and PUBG data drive
+            string glExe = GameLoopDetector.FindGameLoopExePath();
+            if (!string.IsNullOrEmpty(glExe))
+            {
+                var glRoot = Path.GetPathRoot(glExe) ?? "C:\\";
+                info.GameLoopDrive = glRoot.TrimEnd('\\');
+                info.GameLoopDriveType = DetectStorageTypeForPath(glRoot);
+                info.PubgDataDrive = info.GameLoopDrive;
+                info.PubgDataDriveType = info.GameLoopDriveType;
+            }
+            else
+            {
+                info.GameLoopDrive = info.SystemDrive;
+                info.GameLoopDriveType = info.PrimaryDriveType;
+                info.PubgDataDrive = info.SystemDrive;
+                info.PubgDataDriveType = info.PrimaryDriveType;
+            }
         }
         catch (Exception ex)
         {
             Logger.Warn("HardwareDetector", $"Storage query failed: {ex.Message}");
             info.PrimaryDriveType = StorageType.Ssd;
+            info.GameLoopDriveType = StorageType.Ssd;
+            info.PubgDataDriveType = StorageType.Ssd;
         }
     }
 
-    private static StorageType DetectPrimaryStorageType()
+    private static StorageType DetectStorageTypeForPath(string path)
     {
         try
         {
@@ -395,7 +539,6 @@ public static class HardwareDetector
 
                 // BusType 17 = NVMe
                 if (busType == 17) return StorageType.Nvme;
-                // MediaType: 4 = SSD, 3 = HDD
                 if (mediaType == 4) return StorageType.Ssd;
                 if (mediaType == 3) return StorageType.Hdd;
             }
@@ -426,6 +569,7 @@ public static class HardwareDetector
 
         return StorageType.Ssd;
     }
+
 
     public static HardwareTier CalculateTier(HardwareInfo hw)
     {

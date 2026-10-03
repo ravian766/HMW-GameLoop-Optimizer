@@ -24,6 +24,7 @@ public class KeymapResolutionViewModel : ViewModelBase
             if (SetProperty(ref _resWidth, value))
             {
                 OnPropertyChanged(nameof(AspectRatioDescription));
+                RefreshDiagnostics();
             }
         }
     }
@@ -38,6 +39,7 @@ public class KeymapResolutionViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(AspectRatioDescription));
                 RecalculateSensitivity();
+                RefreshDiagnostics();
             }
         }
     }
@@ -213,6 +215,45 @@ public class KeymapResolutionViewModel : ViewModelBase
         set => SetProperty(ref _isBenchmarkingMouse, value);
     }
 
+    // Diagnostics & Viewport Properties
+    private GameLoopWindowInfo _windowDiagnostics = new();
+    public GameLoopWindowInfo WindowDiagnostics
+    {
+        get => _windowDiagnostics;
+        set => SetProperty(ref _windowDiagnostics, value);
+    }
+
+    private GameLoopEnvironmentDetails _environmentDiagnostics = new();
+    public GameLoopEnvironmentDetails EnvironmentDiagnostics
+    {
+        get => _environmentDiagnostics;
+        set => SetProperty(ref _environmentDiagnostics, value);
+    }
+
+    private ViewportMetrics _viewportDiagnostics = new();
+    public ViewportMetrics ViewportDiagnostics
+    {
+        get => _viewportDiagnostics;
+        set => SetProperty(ref _viewportDiagnostics, value);
+    }
+
+    public ObservableCollection<KeyMappingProfile> AvailableProfiles { get; } = new();
+
+    private KeyMappingProfile? _selectedProfile;
+    public KeyMappingProfile? SelectedProfile
+    {
+        get => _selectedProfile;
+        set
+        {
+            if (SetProperty(ref _selectedProfile, value))
+            {
+                RefreshDiagnostics();
+            }
+        }
+    }
+
+    public ObservableCollection<KeyDiagnosticItem> KeyDiagnostics { get; } = new();
+
     public ICommand SelectStretchedPresetCommand { get; }
     public ICommand ApplyStretchedResolutionCommand { get; }
     public ICommand CalibrateAndInjectKeymapCommand { get; }
@@ -227,6 +268,8 @@ public class KeymapResolutionViewModel : ViewModelBase
     public ICommand CopySensitivityToClipboardCommand { get; }
     public ICommand StartMouseBenchmarkCommand { get; }
     public ICommand StopMouseBenchmarkCommand { get; }
+    public ICommand RefreshDiagnosticsCommand { get; }
+    public ICommand SelectProfileCommand { get; }
 
     public event EventHandler? SettingsSaved;
 
@@ -336,8 +379,21 @@ public class KeymapResolutionViewModel : ViewModelBase
             StatusMessage = "Mouse Polling Benchmark stopped.";
         });
 
+        RefreshDiagnosticsCommand = new RelayCommand(() => RefreshDiagnostics());
+        SelectProfileCommand = new RelayCommand(param =>
+        {
+            if (param is KeyMappingProfile prof) SelectedProfile = prof;
+        });
+
+        foreach (var prof in MappingProfileManager.GetAllProfiles())
+        {
+            AvailableProfiles.Add(prof);
+        }
+        _selectedProfile = AvailableProfiles.FirstOrDefault();
+
         RefreshKeymaps();
         RecalculateSensitivity();
+        RefreshDiagnostics();
     }
 
     public void RefreshKeymaps()
@@ -529,4 +585,69 @@ public class KeymapResolutionViewModel : ViewModelBase
             IsKeymapCalibrating = false;
         }
     }
+
+    public void RefreshDiagnostics()
+    {
+        try
+        {
+            WindowDiagnostics = WindowDetector.DetectGameLoopWindow();
+            EnvironmentDiagnostics = GameLoopVersionDetector.Detect(Config);
+
+            double targetRatio = (ResHeight > 0) ? (double)ResWidth / ResHeight : (16.0 / 9.0);
+            int clientW = WindowDiagnostics.IsFound ? WindowDiagnostics.ClientWidth : ResWidth;
+            int clientH = WindowDiagnostics.IsFound ? WindowDiagnostics.ClientHeight : ResHeight;
+            ViewportDiagnostics = CoordinateTransformService.CalculateViewport(clientW, clientH, targetRatio);
+
+            void UpdateItems()
+            {
+                KeyDiagnostics.Clear();
+                var profile = SelectedProfile ?? AvailableProfiles.FirstOrDefault() ?? MappingProfileManager.GetBuiltInProfiles().FirstOrDefault();
+                if (profile != null)
+                {
+                    foreach (var c in profile.Controls)
+                    {
+                        var (nx, ny) = CoordinateTransformService.TransformCoordinate(c.ReferenceX, c.ReferenceY, ResWidth, ResHeight, c.Anchor);
+                        var (cx, cy) = CoordinateTransformService.NormalizedToClientPixels(nx, ny, ViewportDiagnostics);
+                        var (sx, sy) = CoordinateTransformService.ClientPixelsToScreen(cx, cy, WindowDiagnostics);
+
+                        KeyDiagnostics.Add(new KeyDiagnosticItem
+                        {
+                            Action = c.Action,
+                            Key = c.Key,
+                            Anchor = c.Anchor.ToString(),
+                            ReferencePos = $"({(int)Math.Round(c.ReferenceX * 1920)}, {(int)Math.Round(c.ReferenceY * 1080)})",
+                            NormalizedPos = $"({nx:F4}, {ny:F4})",
+                            ClientPixelPos = $"({cx}, {cy}) px",
+                            ScreenPixelPos = WindowDiagnostics.IsFound ? $"({sx}, {sy}) px" : "N/A (Window closed)"
+                        });
+                    }
+                }
+            }
+
+            if (System.Windows.Application.Current?.Dispatcher != null && !System.Windows.Application.Current.Dispatcher.CheckAccess())
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(UpdateItems);
+            }
+            else
+            {
+                UpdateItems();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("KeymapDiagnostics", $"Failed refreshing diagnostics: {ex.Message}");
+        }
+    }
 }
+
+public class KeyDiagnosticItem
+{
+    public string Action { get; set; } = string.Empty;
+    public string Key { get; set; } = string.Empty;
+    public string Anchor { get; set; } = string.Empty;
+    public string ReferencePos { get; set; } = string.Empty;
+    public string NormalizedPos { get; set; } = string.Empty;
+    public string ClientPixelPos { get; set; } = string.Empty;
+    public string ScreenPixelPos { get; set; } = string.Empty;
+}
+
