@@ -18,6 +18,8 @@ public class GameLoopWatchdogService : IDisposable
     private string _lastBoostedPackage = string.Empty;
     private int _adbCheckCooldown = 0;
     private bool _isAdbChecking = false;
+    private int _adbHeartbeatTick = 0;
+    private bool _isHeartbeatRunning = false;
 
     private long _lastIdleTime = 0;
     private long _lastKernelTime = 0;
@@ -178,6 +180,28 @@ public class GameLoopWatchdogService : IDisposable
                         }
                     }
                 }
+
+                // Periodic ADB Connection Watchdog & Thermal Throttle Guard (~30s interval)
+                _adbHeartbeatTick++;
+                if (_adbHeartbeatTick >= 15)
+                {
+                    _adbHeartbeatTick = 0;
+                    if (!_isHeartbeatRunning)
+                    {
+                        _isHeartbeatRunning = true;
+                        Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await CheckAdbHealthAndThermalsAsync();
+                            }
+                            finally
+                            {
+                                _isHeartbeatRunning = false;
+                            }
+                        });
+                    }
+                }
             }
         }
         catch { }
@@ -331,11 +355,11 @@ public class GameLoopWatchdogService : IDisposable
             long mask = ProcessManager.CalculateOptimalAffinityMask(Environment.ProcessorCount, Math.Max(1, Environment.ProcessorCount / 2));
             ProcessManager.SetGameLoopAffinity(mask);
 
-            // 3. In-VM Priority elevation
+            // 3. Match Preparation & In-VM Priority elevation
             var gl = _getGl();
             if (AdbManager.IsAdbAvailable(gl))
             {
-                await AdbManager.ElevateGameProcessPriorityAsync(packageName, gl);
+                await AdbManager.PrepareForMatchAsync(packageName, gl);
             }
 
             Logger.Success("Watchdog", $"Autonomous Game Boost active for '{gameTitle}'. Keymappings and frame pacing preserved.");
@@ -444,6 +468,45 @@ public class GameLoopWatchdogService : IDisposable
         catch { }
 
         return null;
+    }
+
+    private async Task CheckAdbHealthAndThermalsAsync()
+    {
+        var gl = _getGl();
+        if (!AdbManager.IsAdbAvailable(gl)) return;
+
+        try
+        {
+            // 1. ADB Connection Watchdog (Enhancement 8)
+            var echo = await AdbManager.ExecuteShellCommandAsync("echo ok", null, 2500, gl);
+            if (!echo.Contains("ok", StringComparison.OrdinalIgnoreCase))
+            {
+                Logger.Warn("Watchdog", "ADB Watchdog: Connection lost mid-session. Auto-reconnecting to GameLoop VM...");
+                bool reconnected = await AdbManager.AutoConnectGameLoopAsync(gl);
+                if (reconnected)
+                {
+                    Logger.Success("Watchdog", "ADB Watchdog: Successfully reconnected to GameLoop VM!");
+                    if (!string.IsNullOrEmpty(DetectedGamePackage))
+                    {
+                        await AdbManager.ElevateGameProcessPriorityAsync(DetectedGamePackage, gl);
+                    }
+                }
+            }
+
+            // 2. PUBG Thermal Throttle Guard (Enhancement 2)
+            var thermalSys = await AdbManager.ExecuteShellCommandAsync("cat /sys/class/thermal/thermal_zone*/temp", null, 2000, gl);
+            var thermalDump = await AdbManager.ExecuteShellCommandAsync("dumpsys thermalservice", null, 2000, gl);
+            var thermals = AdbTelemetryService.ParseThermalMetrics(thermalSys, thermalDump);
+            if (thermals.IsThrottling)
+            {
+                Logger.Warn("Watchdog", $"Thermal Guard: In-VM thermal throttle detected ({thermals.CpuTempC:F1}°C, {thermals.ThermalStatus}). Applying render boost & mitigation...");
+                await AdbManager.MitigateVmThermalThrottleAsync(gl);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn("Watchdog", $"Heartbeat & thermal check warning: {ex.Message}");
+        }
     }
 
     public void Dispose()

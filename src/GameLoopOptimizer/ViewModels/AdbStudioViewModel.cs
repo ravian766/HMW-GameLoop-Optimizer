@@ -7,11 +7,12 @@ using Microsoft.Win32;
 
 namespace GameLoopOptimizer.ViewModels;
 
-public class AdbStudioViewModel : ViewModelBase
+public class AdbStudioViewModel : ViewModelBase, IDisposable
 {
     private readonly Func<GameLoopConfig> _getGl;
     private readonly IAdbManager _adb;
     private readonly IEventAggregator _eventAggregator;
+    private readonly System.Timers.Timer? _heartbeatTimer;
 
     private bool _isAdbAvailable;
     public bool IsAdbAvailable
@@ -109,6 +110,55 @@ public class AdbStudioViewModel : ViewModelBase
     {
         get => _adbAudioLatencyReduction;
         set => SetProperty(ref _adbAudioLatencyReduction, value);
+    }
+
+    private bool _adbKillBackgroundApps = true;
+    public bool AdbKillBackgroundApps
+    {
+        get => _adbKillBackgroundApps;
+        set => SetProperty(ref _adbKillBackgroundApps, value);
+    }
+
+    private bool _adbGpuPipelineOptimize = true;
+    public bool AdbGpuPipelineOptimize
+    {
+        get => _adbGpuPipelineOptimize;
+        set => SetProperty(ref _adbGpuPipelineOptimize, value);
+    }
+
+    private bool _adbPowerProfileLock = true;
+    public bool AdbPowerProfileLock
+    {
+        get => _adbPowerProfileLock;
+        set => SetProperty(ref _adbPowerProfileLock, value);
+    }
+
+    private string _inVmPingResultText = "In-VM Ping: Standby (Click 'Probe Latency')";
+    public string InVmPingResultText
+    {
+        get => _inVmPingResultText;
+        set => SetProperty(ref _inVmPingResultText, value);
+    }
+
+    private bool _isTestingPing;
+    public bool IsTestingPing
+    {
+        get => _isTestingPing;
+        set => SetProperty(ref _isTestingPing, value);
+    }
+
+    private bool _isPreppingMatch;
+    public bool IsPreppingMatch
+    {
+        get => _isPreppingMatch;
+        set => SetProperty(ref _isPreppingMatch, value);
+    }
+
+    private string _lastVerificationSummary = string.Empty;
+    public string LastVerificationSummary
+    {
+        get => _lastVerificationSummary;
+        set => SetProperty(ref _lastVerificationSummary, value);
     }
 
     private bool _isPointerLocationEnabled;
@@ -217,6 +267,11 @@ public class AdbStudioViewModel : ViewModelBase
     public ICommand HistoryDownCommand { get; }
     public ICommand RunPresetCommand { get; }
     public ICommand AutoHealStuckEmulatorCommand { get; }
+    public ICommand PrepareForMatchCommand { get; }
+    public ICommand KillBackgroundAppsCommand { get; }
+    public ICommand RunInVmPingCommand { get; }
+    public ICommand LockPowerProfileCommand { get; }
+    public ICommand OptimizeGpuPipelineCommand { get; }
 
     private readonly List<string> _commandHistory = new();
     private int _historyIndex = -1;
@@ -265,8 +320,8 @@ public class AdbStudioViewModel : ViewModelBase
                 bool connected = await _adb.ConnectCustomDeviceAsync(CustomAdbPortText, _getGl());
                 await RefreshAdbStatusAsync();
                 StatusMessage = connected 
-                    ? $"Connected to ADB target {CustomAdbPortText}!" 
-                    : $"Failed to connect to {CustomAdbPortText}.";
+                    ? $"Connected to ADB target ({AdbDeviceName})!" 
+                    : $"Failed to connect to {CustomAdbPortText}. Ensure GameLoop emulator is running.";
             }
             finally
             {
@@ -557,6 +612,106 @@ public class AdbStudioViewModel : ViewModelBase
                 IsAdbBusy = false;
             }
         });
+
+        PrepareForMatchCommand = new AsyncRelayCommand(async () =>
+        {
+            string targetPkg = SelectedGamePackage?.PackageName ?? "com.tencent.ig";
+            IsPreppingMatch = true;
+            StatusMessage = $"Pre-match preparation active for {SelectedGamePackage?.DisplayName ?? targetPkg}...";
+            try
+            {
+                string result = await _adb.PrepareForMatchAsync(targetPkg, _getGl());
+                StatusMessage = result;
+                await RefreshTelemetryAsync();
+            }
+            finally
+            {
+                IsPreppingMatch = false;
+            }
+        });
+
+        KillBackgroundAppsCommand = new AsyncRelayCommand(async () =>
+        {
+            IsAdbBusy = true;
+            StatusMessage = "Terminating rogue background processes in Android VM...";
+            try
+            {
+                int killed = await _adb.KillInVmBackgroundAppsAsync(null, _getGl());
+                StatusMessage = killed > 0 
+                    ? $"Reclaimed RAM: Force-stopped {killed} background apps in VM!" 
+                    : "No non-essential background processes running.";
+                await RefreshTelemetryAsync();
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        RunInVmPingCommand = new AsyncRelayCommand(async () =>
+        {
+            IsTestingPing = true;
+            InVmPingResultText = "Probing In-VM network latency to 1.1.1.1...";
+            try
+            {
+                var ping = await _adb.RunInVmPingDiagnosticAsync("1.1.1.1", _getGl());
+                if (ping.Success)
+                {
+                    InVmPingResultText = $"In-VM Ping: {ping.AvgMs:F1}ms (Min={ping.MinMs:F1}ms, Max={ping.MaxMs:F1}ms, Loss={ping.PacketLossPct:F0}%)";
+                    AdbTelemetry.VmPingMs = ping.AvgMs;
+                }
+                else
+                {
+                    InVmPingResultText = "In-VM Ping: Target unreachable or timed out.";
+                }
+                StatusMessage = ping.Summary;
+            }
+            finally
+            {
+                IsTestingPing = false;
+            }
+        });
+
+        LockPowerProfileCommand = new AsyncRelayCommand(async () =>
+        {
+            IsAdbBusy = true;
+            StatusMessage = "Locking Android VM power governor to maximum performance...";
+            try
+            {
+                bool ok = await _adb.LockVmPowerProfileAsync(_getGl());
+                StatusMessage = ok ? "VM Power Profile locked to Performance!" : "Failed to lock power profile.";
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        OptimizeGpuPipelineCommand = new AsyncRelayCommand(async () =>
+        {
+            IsAdbBusy = true;
+            StatusMessage = "Optimizing In-VM SurfaceFlinger GPU pipeline...";
+            try
+            {
+                bool ok = await _adb.OptimizeVmGpuRenderPipelineAsync(_getGl());
+                StatusMessage = ok ? "In-VM GPU Pipeline optimized (Triple-Buffer active)!" : "Failed to optimize GPU pipeline.";
+                await RefreshTelemetryAsync();
+            }
+            finally
+            {
+                IsAdbBusy = false;
+            }
+        });
+
+        // Background ADB Connection Watchdog Heartbeat (~30s)
+        try
+        {
+            _heartbeatTimer = new System.Timers.Timer(30000);
+            _heartbeatTimer.Elapsed += async (s, e) => await OnHeartbeatTickAsync();
+            _heartbeatTimer.AutoReset = true;
+            _heartbeatTimer.Start();
+        }
+        catch { }
     }
 
     public void PushCommandHistory(string cmd)
@@ -581,14 +736,18 @@ public class AdbStudioViewModel : ViewModelBase
         }
 
         var devices = await _adb.GetConnectedDevicesAsync(gl);
-        var active = devices.FirstOrDefault(d => d.State.Equals("device", StringComparison.OrdinalIgnoreCase));
+        var active = devices.FirstOrDefault(d => d.IsEmulator && d.State.Equals("device", StringComparison.OrdinalIgnoreCase))
+                     ?? devices.FirstOrDefault(d => d.State.Equals("device", StringComparison.OrdinalIgnoreCase));
 
         if (active != null)
         {
             IsAdbConnected = true;
             AdbManager.ActiveDeviceSerial = active.Serial;
-            AdbDeviceName = active.Serial;
-            AdbStatusText = $"Connected ({active.Serial} - {active.Model})";
+            string displayName = active.Serial.StartsWith("emulator-5554", StringComparison.OrdinalIgnoreCase)
+                ? $"{active.Serial} (Port 5555)"
+                : active.Serial;
+            AdbDeviceName = displayName;
+            AdbStatusText = $"Connected ({displayName} - {active.Model})";
         }
         else
         {
@@ -596,8 +755,12 @@ public class AdbStudioViewModel : ViewModelBase
             if (connected)
             {
                 IsAdbConnected = true;
-                AdbDeviceName = AdbManager.ActiveDeviceSerial ?? "127.0.0.1:5555";
-                AdbStatusText = $"Connected ({AdbDeviceName})";
+                string serial = AdbManager.ActiveDeviceSerial ?? "127.0.0.1:5555";
+                string displayName = serial.StartsWith("emulator-5554", StringComparison.OrdinalIgnoreCase)
+                    ? $"{serial} (Port 5555)"
+                    : serial;
+                AdbDeviceName = displayName;
+                AdbStatusText = $"Connected ({displayName})";
             }
             else
             {
@@ -749,6 +912,37 @@ public class AdbStudioViewModel : ViewModelBase
                 count++;
             }
 
+            if (AdbGpuPipelineOptimize)
+            {
+                batchCmds.Add("setprop debug.sf.triple_buffer 1");
+                batchCmds.Add("setprop debug.egl.traceGpuCompletion 1");
+                batchCmds.Add("setprop debug.hwui.render_dirty_regions false");
+                batchCmds.Add("setprop debug.hwui.use_gpu_pixel_buffers true");
+                batchCmds.Add("setprop debug.sf.phase_offset_threshold_for_next_vsync_ns 6100000");
+                count++;
+            }
+
+            if (AdbPowerProfileLock)
+            {
+                batchCmds.Add("dumpsys battery set ac 1");
+                batchCmds.Add("dumpsys battery set level 100");
+                batchCmds.Add("settings put global low_power 0");
+                batchCmds.Add("settings put global adaptive_battery_management_enabled 0");
+                batchCmds.Add("setprop persist.sys.perf.default 1");
+                batchCmds.Add("setprop debug.cpufreq.governor performance");
+                count++;
+            }
+
+            if (AdbKillBackgroundApps)
+            {
+                int killed = await _adb.KillInVmBackgroundAppsAsync(null, gl);
+                if (killed > 0)
+                {
+                    Logger.Info("AdbStudioVM", $"Background App Killer stopped {killed} packages.");
+                }
+                count++;
+            }
+
             if (batchCmds.Count > 0)
             {
                 // 1. Batch execute all commands in one ADB process call
@@ -764,16 +958,30 @@ public class AdbStudioViewModel : ViewModelBase
                 }
 
                 // 3. Apply surfaceflinger graphics tweaks instantly
-                if (AdbGpuAcceleration || Adb120FpsUnlock)
+                if (AdbGpuAcceleration || Adb120FpsUnlock || AdbGpuPipelineOptimize)
                 {
                     await _adb.ExecuteShellCommandAsync("setprop ctl.restart surfaceflinger", null, 4000, gl);
                 }
             }
 
+            // 4. Post-Apply Verification (Enhancement 5)
+            var expectedProps = new Dictionary<string, string>();
+            if (AdbGpuAcceleration) expectedProps["debug.sf.hw"] = "1";
+            if (Adb120FpsUnlock) expectedProps["debug.sf.fps"] = "120";
+            if (AdbGpuPipelineOptimize) expectedProps["debug.sf.triple_buffer"] = "1";
+            if (AdbPowerProfileLock) expectedProps["persist.sys.perf.default"] = "1";
+            if (AdbDalvikHeapBoost) expectedProps["dalvik.vm.heapgrowthlimit"] = "512m";
+            if (AdbInVmDnsSync) expectedProps["net.dns1"] = "1.1.1.1";
+
+            var verifications = await _adb.VerifyAppliedOptimizationsAsync(expectedProps, null, gl);
+            int verifiedCount = verifications.Count(v => v.IsMatch);
+            int totalChecked = verifications.Count;
+            LastVerificationSummary = totalChecked > 0 ? $"({verifiedCount}/{totalChecked} verified active in VM)" : "";
+
             await RefreshTelemetryAsync();
 
-            StatusMessage = $"Applied {count} Android VM optimizations via ADB successfully!";
-            Logger.Success("AdbStudioVM", $"Applied {count} ADB in-VM optimization profiles for {targetPkg}.");
+            StatusMessage = $"Applied {count} Android VM optimizations via ADB successfully! {LastVerificationSummary}";
+            Logger.Success("AdbStudioVM", $"Applied {count} ADB in-VM optimization profiles for {targetPkg}. {LastVerificationSummary}");
         }
         catch (Exception ex)
         {
@@ -823,5 +1031,32 @@ public class AdbStudioViewModel : ViewModelBase
         {
             IsAdbBusy = false;
         }
+    }
+
+    public async Task OnHeartbeatTickAsync()
+    {
+        if (!IsAdbConnected || IsAdbBusy) return;
+        try
+        {
+            var gl = _getGl();
+            string echo = await _adb.ExecuteShellCommandAsync("echo ok", null, 2500, gl);
+            if (!echo.Contains("ok", StringComparison.OrdinalIgnoreCase))
+            {
+                Logger.Warn("AdbStudioVM", "ADB Watchdog: Connection lost. Auto-reconnecting to GameLoop VM...");
+                bool reconnected = await _adb.AutoConnectGameLoopAsync(gl);
+                await RefreshAdbStatusAsync();
+                if (reconnected)
+                {
+                    StatusMessage = "ADB Watchdog: Auto-reconnected to GameLoop VM!";
+                }
+            }
+        }
+        catch { }
+    }
+
+    public void Dispose()
+    {
+        _heartbeatTimer?.Stop();
+        _heartbeatTimer?.Dispose();
     }
 }

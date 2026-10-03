@@ -27,12 +27,29 @@ public class AdbDisplayMetrics
         : PhysicalResolution;
 }
 
+public class AdbThermalMetrics
+{
+    public double CpuTempC { get; set; }
+    public double GpuTempC { get; set; }
+    public string ThermalStatus { get; set; } = "Normal";
+    public bool IsThrottling { get; set; }
+
+    public string SummaryDisplay => CpuTempC > 0 
+        ? $"CPU: {CpuTempC:F1}°C | Status: {ThermalStatus}" + (IsThrottling ? " [THROTTLED!]" : " [OK]")
+        : "Thermals: Normal (No throttling)";
+}
+
 public class AdbTelemetrySnapshot
 {
     public bool IsConnected { get; set; }
     public string TargetPackage { get; set; } = string.Empty;
     public AdbMemoryMetrics Memory { get; set; } = new();
     public AdbDisplayMetrics Display { get; set; } = new();
+    public AdbThermalMetrics Thermal { get; set; } = new();
+    public string GpuRenderer { get; set; } = "Hardware / Default";
+    public string GpuVendor { get; set; } = "Unknown";
+    public double VmPingMs { get; set; }
+    public double NatOverheadMs { get; set; }
     public double EstimatedFps { get; set; }
     public double Fps
     {
@@ -95,6 +112,24 @@ public static class AdbTelemetryService
         var gfxinfoOut = await AdbManager.ExecuteShellCommandAsync($"dumpsys gfxinfo {snapshot.TargetPackage} framestats", null, 3000, config);
         snapshot.EstimatedFps = ParseFpsEstimate(gfxinfoOut, snapshot.TargetPackage, snapshot.Timestamp);
         ParseGfxAdvancedMetrics(gfxinfoOut, snapshot);
+
+        // 4. Fetch In-VM Thermal Metrics
+        try
+        {
+            var thermalSys = await AdbManager.ExecuteShellCommandAsync("cat /sys/class/thermal/thermal_zone*/temp", null, 2500, config);
+            var thermalDump = await AdbManager.ExecuteShellCommandAsync("dumpsys thermalservice", null, 2500, config);
+            snapshot.Thermal = ParseThermalMetrics(thermalSys, thermalDump);
+        }
+        catch { }
+
+        // 5. Fetch In-VM GPU Renderer info
+        try
+        {
+            var gpuInfo = await AdbManager.DetectVmGpuRendererAsync(config);
+            snapshot.GpuRenderer = gpuInfo.Renderer;
+            snapshot.GpuVendor = gpuInfo.Vendor;
+        }
+        catch { }
 
         snapshot.IsConnected = true;
         return snapshot;
@@ -284,5 +319,69 @@ public static class AdbTelemetryService
             double baseFrametime = 1000.0 / snapshot.EstimatedFps;
             snapshot.FrametimeVarianceMs = Math.Round(Math.Max(0.5, baseFrametime * (snapshot.DroppedFramesRatio + 0.1)), 1);
         }
+    }
+
+    public static AdbThermalMetrics ParseThermalMetrics(string sysThermalOutput, string dumpsysThermalOutput)
+    {
+        var metrics = new AdbThermalMetrics();
+        double highestTemp = 0;
+
+        // 1. Try dumpsys thermalservice output
+        if (!string.IsNullOrWhiteSpace(dumpsysThermalOutput))
+        {
+            var tempMatches = Regex.Matches(dumpsysThermalOutput, @"mValue=([\d\.]+).*?mName=(\w+)", RegexOptions.IgnoreCase);
+            foreach (Match m in tempMatches)
+            {
+                if (double.TryParse(m.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
+                {
+                    string name = m.Groups[2].Value.ToUpperInvariant();
+                    if (name.Contains("CPU") && metrics.CpuTempC == 0) metrics.CpuTempC = val;
+                    else if (name.Contains("GPU") && metrics.GpuTempC == 0) metrics.GpuTempC = val;
+                    if (val > highestTemp) highestTemp = val;
+                }
+            }
+
+            var statusMatch = Regex.Match(dumpsysThermalOutput, @"Thermal status:\s*(\d+)", RegexOptions.IgnoreCase);
+            if (statusMatch.Success && int.TryParse(statusMatch.Groups[1].Value, out int st))
+            {
+                metrics.ThermalStatus = st switch
+                {
+                    0 => "Normal",
+                    1 => "Light",
+                    2 => "Moderate",
+                    3 => "Severe",
+                    4 => "Critical",
+                    _ => "Elevated"
+                };
+                if (st >= 2) metrics.IsThrottling = true;
+            }
+        }
+
+        // 2. Try /sys/class/thermal output if CPU temp still 0
+        if (metrics.CpuTempC == 0 && !string.IsNullOrWhiteSpace(sysThermalOutput))
+        {
+            var lines = sysThermalOutput.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var line in lines)
+            {
+                if (double.TryParse(line.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
+                {
+                    if (val > 1000) val /= 1000.0;
+                    if (val > highestTemp && val < 120.0) highestTemp = val;
+                }
+            }
+            metrics.CpuTempC = Math.Round(highestTemp, 1);
+        }
+
+        if (highestTemp >= 80.0)
+        {
+            metrics.ThermalStatus = "Severe";
+            metrics.IsThrottling = true;
+        }
+        else if (highestTemp >= 70.0 && metrics.ThermalStatus == "Normal")
+        {
+            metrics.ThermalStatus = "Light";
+        }
+
+        return metrics;
     }
 }

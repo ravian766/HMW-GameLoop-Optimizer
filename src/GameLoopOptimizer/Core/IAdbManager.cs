@@ -38,6 +38,15 @@ public interface IAdbManager
     Task<bool> PutGlobalSettingAsync(string key, string value, GameLoopConfig? config = null);
     Task<string> GetInVmDeviceModelAsync(GameLoopConfig? config = null);
     Task<List<int>> DiscoverListeningEmulatorPortsAsync(GameLoopConfig? config = null);
+    Task CleanupOfflineDevicesAsync(GameLoopConfig? config = null);
+    Task<int> KillInVmBackgroundAppsAsync(IEnumerable<string>? additionalWhitelist = null, GameLoopConfig? config = null);
+    Task<bool> OptimizeVmGpuRenderPipelineAsync(GameLoopConfig? config = null);
+    Task<GpuRendererInfo> DetectVmGpuRendererAsync(GameLoopConfig? config = null);
+    Task<bool> LockVmPowerProfileAsync(GameLoopConfig? config = null);
+    Task<List<OptimizationVerificationResult>> VerifyAppliedOptimizationsAsync(IDictionary<string, string> expectedProps, IDictionary<string, string>? expectedSettings = null, GameLoopConfig? config = null);
+    Task<string> PrepareForMatchAsync(string? targetPackage = null, GameLoopConfig? config = null);
+    Task<bool> MitigateVmThermalThrottleAsync(GameLoopConfig? config = null);
+    Task<InVmPingResult> RunInVmPingDiagnosticAsync(string host = "1.1.1.1", GameLoopConfig? config = null);
 }
 
 public class DefaultAdbManager : IAdbManager
@@ -78,4 +87,13 @@ public class DefaultAdbManager : IAdbManager
     public Task<bool> PutGlobalSettingAsync(string key, string value, GameLoopConfig? config = null) => AdbManager.PutGlobalSettingAsync(key, value, config);
     public Task<string> GetInVmDeviceModelAsync(GameLoopConfig? config = null) => AdbManager.GetInVmDeviceModelAsync(config);
     public Task<List<int>> DiscoverListeningEmulatorPortsAsync(GameLoopConfig? config = null) => AdbManager.DiscoverListeningEmulatorPortsAsync(config);
+    public Task CleanupOfflineDevicesAsync(GameLoopConfig? config = null) => AdbManager.CleanupOfflineDevicesAsync(config);
+    public Task<int> KillInVmBackgroundAppsAsync(IEnumerable<string>? additionalWhitelist = null, GameLoopConfig? config = null) => AdbManager.KillInVmBackgroundAppsAsync(additionalWhitelist, config);
+    public Task<bool> OptimizeVmGpuRenderPipelineAsync(GameLoopConfig? config = null) => AdbManager.OptimizeVmGpuRenderPipelineAsync(config);
+    public Task<GpuRendererInfo> DetectVmGpuRendererAsync(GameLoopConfig? config = null) => AdbManager.DetectVmGpuRendererAsync(config);
+    public Task<bool> LockVmPowerProfileAsync(GameLoopConfig? config = null) => AdbManager.LockVmPowerProfileAsync(config);
+    public Task<List<OptimizationVerificationResult>> VerifyAppliedOptimizationsAsync(IDictionary<string, string> expectedProps, IDictionary<string, string>? expectedSettings = null, GameLoopConfig? config = null) => AdbManager.VerifyAppliedOptimizationsAsync(expectedProps, expectedSettings, config);
+    public Task<string> PrepareForMatchAsync(string? targetPackage = null, GameLoopConfig? config = null) => AdbManager.PrepareForMatchAsync(targetPackage, config);
+    public Task<bool> MitigateVmThermalThrottleAsync(GameLoopConfig? config = null) => AdbManager.MitigateVmThermalThrottleAsync(config);
+    public Task<InVmPingResult> RunInVmPingDiagnosticAsync(string host = "1.1.1.1", GameLoopConfig? config = null) => AdbManager.RunInVmPingDiagnosticAsync(host, config);
 }

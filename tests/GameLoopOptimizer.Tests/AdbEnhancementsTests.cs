@@ -216,5 +216,217 @@ Number Slow issue draw commands: 0
         Assert.True(hw.PhysicalCores >= 1);
         Assert.True(hw.TotalRamGb > 0);
     }
+
+    [Fact]
+    public void AdbManager_KnownGameLoopPorts_DoesNotIncludeConsolePort5554()
+    {
+        var ports = AdbManager.KnownGameLoopPorts;
+        Assert.DoesNotContain(5554, ports);
+        Assert.Equal(5555, ports[0]);
+    }
+
+    [Fact]
+    public async Task AdbManager_DiscoverListeningEmulatorPorts_PrioritizesPort5555()
+    {
+        var config = new GameLoopConfig { IsInstalled = false };
+        var ports = await AdbManager.DiscoverListeningEmulatorPortsAsync(config);
+        Assert.NotEmpty(ports);
+        Assert.Equal(5555, ports[0]);
+        Assert.DoesNotContain(5554, ports);
+    }
+
+    [Fact]
+    public void AdbManager_ParseDevicesOutput_ExtractsSerialStateAndModelWithInterveningProductTag()
+    {
+        string sample = "List of devices attached \r\n" +
+                        "emulator-5554          device product:22081212C model:ASUS_AI2201_D device:22081212C\r\n" +
+                        "127.0.0.1:5555         device product:22081212C model:ASUS_AI2201_D device:22081212C\r\n";
+
+        var devices = AdbManager.ParseDevicesOutput(sample);
+
+        Assert.Equal(2, devices.Count);
+        Assert.Equal("emulator-5554", devices[0].Serial);
+        Assert.Equal("device", devices[0].State);
+        Assert.Equal("ASUS_AI2201_D", devices[0].Model);
+        Assert.True(devices[0].IsEmulator);
+
+        Assert.Equal("127.0.0.1:5555", devices[1].Serial);
+        Assert.Equal("device", devices[1].State);
+        Assert.Equal("ASUS_AI2201_D", devices[1].Model);
+        Assert.True(devices[1].IsEmulator);
+    }
+
+    [Fact]
+    public void AdbManager_ParseDevicesOutput_SkipsDaemonStartupMessages()
+    {
+        string sample = "* daemon not running. starting it now on port 5037 *\r\n" +
+                        "* daemon started successfully *\r\n" +
+                        "List of devices attached \r\n" +
+                        "127.0.0.1:5555         device product:22081212C model:SM-S918B device:22081212C\r\n";
+
+        var devices = AdbManager.ParseDevicesOutput(sample);
+
+        Assert.Single(devices);
+        Assert.Equal("127.0.0.1:5555", devices[0].Serial);
+        Assert.Equal("device", devices[0].State);
+        Assert.Equal("SM-S918B", devices[0].Model);
+    }
+
+    [Fact]
+    public void AdbManager_ParseRunningPackages_FiltersWhitelistedAndIdentifiesRogueApps()
+    {
+        string samplePs = @"USER           PID  PPID     VSZ    RSS WCHAN            ADDR S NAME
+root             1     0   20744   2560 0                   0 S init
+root             2     0       0      0 0                   0 S [kthreadd]
+system         611     1   35128   5740 0                   0 S servicemanager
+system         854   523 2045612 124560 0                   0 S system_server
+u0_a12        1560   523 1056784  85600 0                   0 S com.android.systemui
+u0_a25        2104   523 1256784  95600 0                   0 S com.google.android.gms
+u0_a30        2450   523 1156784  75600 0                   0 S com.google.android.gms:persistent
+u0_a45        3020   523  985600  62400 0                   0 S com.android.vending
+u0_a60        4100   523 1580000 350000 0                   0 S com.tencent.ig
+u0_a70        5200   523  850000  45000 0                   0 S com.tencent.tinput
+u0_a80        6100   523  500000  30000 0                   0 S com.bloatware.optimizer
+";
+
+        var rogueApps = AdbManager.ParseRunningPackages(samplePs);
+
+        // Safe/whitelisted should not be in rogueApps
+        Assert.DoesNotContain("com.tencent.ig", rogueApps);
+        Assert.DoesNotContain("com.tencent.tinput", rogueApps);
+        Assert.DoesNotContain("com.android.systemui", rogueApps);
+        Assert.DoesNotContain("system_server", rogueApps);
+        Assert.DoesNotContain("init", rogueApps);
+
+        // Rogue/background services must be identified
+        Assert.Contains("com.google.android.gms", rogueApps);
+        Assert.Contains("com.android.vending", rogueApps);
+        Assert.Contains("com.bloatware.optimizer", rogueApps);
+    }
+
+    [Fact]
+    public void AdbManager_ParseGpuRendererInfo_ExtractsGlesVendorRendererVersion()
+    {
+        string sampleDump = @"
+SurfaceFlinger state:
+GLES: ARM, Mali-G78, OpenGL ES 3.2
+";
+        var info = AdbManager.ParseGpuRendererInfo(sampleDump);
+
+        Assert.Equal("ARM", info.Vendor);
+        Assert.Equal("Mali-G78", info.Renderer);
+        Assert.Equal("OpenGL ES 3.2", info.Version);
+    }
+
+    [Fact]
+    public void AdbManager_ParseGpuRendererInfo_HandlesMesaVirglFormat()
+    {
+        string sampleDump = @"
+GL_VENDOR: Mesa
+GL_RENDERER: virgl (Intel UHD Graphics 630)
+GL_VERSION: OpenGL ES 3.1 Mesa 21.0.3
+";
+        var info = AdbManager.ParseGpuRendererInfo(sampleDump);
+
+        Assert.Equal("Mesa", info.Vendor);
+        Assert.Contains("virgl", info.Renderer, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("OpenGL ES 3.1", info.Version);
+    }
+
+    [Fact]
+    public void AdbManager_ParseGetPropOutput_ExtractsPropertiesCorrectly()
+    {
+        string sampleGetProp = @"
+[debug.sf.fps]: [120]
+[dalvik.vm.heapgrowthlimit]: [512m]
+[net.dns1]: [1.1.1.1]
+[ro.product.model]: [ASUS_AI2201_D]
+";
+        var props = AdbManager.ParseGetPropOutput(sampleGetProp);
+
+        Assert.Equal("120", props["debug.sf.fps"]);
+        Assert.Equal("512m", props["dalvik.vm.heapgrowthlimit"]);
+        Assert.Equal("1.1.1.1", props["net.dns1"]);
+        Assert.Equal("ASUS_AI2201_D", props["ro.product.model"]);
+    }
+
+    [Fact]
+    public void AdbManager_ParsePingOutput_ExtractsLatencyAndLoss()
+    {
+        string samplePing = @"
+PING 1.1.1.1 (1.1.1.1) 56(84) bytes of data.
+64 bytes from 1.1.1.1: icmp_seq=1 ttl=56 time=18.4 ms
+64 bytes from 1.1.1.1: icmp_seq=2 ttl=56 time=22.6 ms
+64 bytes from 1.1.1.1: icmp_seq=3 ttl=56 time=19.1 ms
+64 bytes from 1.1.1.1: icmp_seq=4 ttl=56 time=20.3 ms
+
+--- 1.1.1.1 ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3004ms
+rtt min/avg/max/mdev = 18.400/20.100/22.600/1.543 ms
+";
+        var result = AdbManager.ParsePingOutput(samplePing, "1.1.1.1");
+
+        Assert.True(result.Success);
+        Assert.Equal(18.4, result.MinMs);
+        Assert.Equal(20.1, result.AvgMs);
+        Assert.Equal(22.6, result.MaxMs);
+        Assert.Equal(1.5, result.MdevMs);
+        Assert.Equal(0.0, result.PacketLossPct);
+        Assert.Contains("Avg=20.1ms", result.Summary);
+    }
+
+    [Fact]
+    public void AdbTelemetryService_ParseThermalMetrics_ExtractsCpuGpuAndThermalStatus()
+    {
+        string sysOut = "48000\n52000\n";
+        string dumpOut = @"
+Current temperatures from HAL:
+    Temperature{mValue=58.5, mType=0, mName=CPU, mStatus=0}
+    Temperature{mValue=61.0, mType=1, mName=GPU, mStatus=0}
+Thermal status: 0
+";
+        var thermals = AdbTelemetryService.ParseThermalMetrics(sysOut, dumpOut);
+
+        Assert.Equal(58.5, thermals.CpuTempC);
+        Assert.Equal(61.0, thermals.GpuTempC);
+        Assert.Equal("Normal", thermals.ThermalStatus);
+        Assert.False(thermals.IsThrottling);
+        Assert.Contains("Normal", thermals.SummaryDisplay);
+    }
+
+    [Fact]
+    public void AdbTelemetryService_ParseThermalMetrics_DetectsThrottlingWhenSevere()
+    {
+        string sysOut = "84000\n";
+        string dumpOut = @"
+Current temperatures from HAL:
+    Temperature{mValue=84.0, mType=0, mName=CPU, mStatus=2}
+Thermal status: 2
+";
+        var thermals = AdbTelemetryService.ParseThermalMetrics(sysOut, dumpOut);
+
+        Assert.Equal(84.0, thermals.CpuTempC);
+        Assert.True(thermals.IsThrottling);
+        Assert.Equal("Severe", thermals.ThermalStatus);
+        Assert.Contains("THROTTLED", thermals.SummaryDisplay);
+    }
+
+    [Fact]
+    public void AdbStudioViewModel_HasAllEnhancementTogglesAndCommands()
+    {
+        var vm = new GameLoopOptimizer.ViewModels.AdbStudioViewModel(() => new GameLoopConfig());
+
+        Assert.True(vm.AdbKillBackgroundApps);
+        Assert.True(vm.AdbGpuPipelineOptimize);
+        Assert.True(vm.AdbPowerProfileLock);
+
+        Assert.NotNull(vm.PrepareForMatchCommand);
+        Assert.NotNull(vm.KillBackgroundAppsCommand);
+        Assert.NotNull(vm.RunInVmPingCommand);
+        Assert.NotNull(vm.LockPowerProfileCommand);
+        Assert.NotNull(vm.OptimizeGpuPipelineCommand);
+
+        vm.Dispose();
+    }
 }
 

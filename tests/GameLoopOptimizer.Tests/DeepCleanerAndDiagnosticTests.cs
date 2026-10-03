@@ -82,6 +82,9 @@ public class DeepCleanerAndDiagnosticTests
     [Fact]
     public async Task EmulatorDiagnosticService_AutoFixIssuesAsync_ExecutesSafely()
     {
+        // Safety guard: Never reset ADB or touch emulator state while user is actively running GameLoop
+        if (ProcessManager.IsGameLoopRunning()) return;
+
         // Arrange
         var config = new GameLoopConfig();
         var hw = new HardwareInfo { GpuVendor = GpuVendor.Nvidia };

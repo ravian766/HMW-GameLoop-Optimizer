@@ -39,6 +39,13 @@
                             Padding="10,7"
                             FontSize="11"
                             Margin="0,0,6,0" />
+                    <Button Content="⚔️ Prep Match"
+                            Command="{Binding PrepareForMatchCommand}"
+                            Style="{StaticResource PrimaryButton}"
+                            Padding="12,7"
+                            FontSize="11"
+                            Margin="0,0,6,0"
+                            ToolTip="One-Click Pre-Match Prep: Kill BG apps, purge shader cache, elevate priority &amp; purge host standby memory" />
                     <Button Content="⚡ ADB Boost"
                             Command="{Binding ApplyAllAdbOptimizationsCommand}"
                             Style="{StaticResource SuccessButton}"
@@ -129,8 +136,22 @@
                                     Style="{StaticResource SecondaryButton}"
                                     Padding="10,5"
                                     FontSize="11"
-                                    Margin="0,0,0,4"
+                                    Margin="0,0,4,4"
                                     ToolTip="Clear game state via ADB pm clear" />
+                            <Button Content="🗑️ Kill BG Apps"
+                                    Command="{Binding KillBackgroundAppsCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="10,5"
+                                    FontSize="11"
+                                    Margin="0,0,4,4"
+                                    ToolTip="Force-stop all non-essential Android VM background apps to reclaim RAM" />
+                            <Button Content="🌐 Ping Probe"
+                                    Command="{Binding RunInVmPingCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="10,5"
+                                    FontSize="11"
+                                    Margin="0,0,0,4"
+                                    ToolTip="Diagnose in-VM ping and GameLoop NAT bridge latency" />
                         </WrapPanel>
 
                         <TextBlock Text="Translates game bytecode into native machine code ahead-of-time to eliminate hot-drop frame drops." FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,8" TextWrapping="Wrap" />
@@ -198,6 +219,32 @@
                             </Border>
                         </Grid>
 
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="{DynamicResource BrushCardBackground}" CornerRadius="6" Padding="8,8" Margin="0,0,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="GPU RENDERER" FontSize="9.5" Foreground="{DynamicResource BrushTextSecondary}" />
+                                    <TextBlock Text="{Binding AdbTelemetry.GpuRenderer}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" TextTrimming="CharacterEllipsis" ToolTip="{Binding AdbTelemetry.GpuRenderer}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1" Background="{DynamicResource BrushCardBackground}" CornerRadius="6" Padding="8,8" Margin="2,0,2,0">
+                                <StackPanel>
+                                    <TextBlock Text="VM THERMAL STATE" FontSize="9.5" Foreground="{DynamicResource BrushTextSecondary}" />
+                                    <TextBlock Text="{Binding AdbTelemetry.Thermal.SummaryDisplay}" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis" ToolTip="{Binding AdbTelemetry.Thermal.SummaryDisplay}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="2" Background="{DynamicResource BrushCardBackground}" CornerRadius="6" Padding="8,8" Margin="4,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="IN-VM PING" FontSize="9.5" Foreground="{DynamicResource BrushTextSecondary}" />
+                                    <TextBlock Text="{Binding InVmPingResultText}" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" TextTrimming="CharacterEllipsis" ToolTip="{Binding InVmPingResultText}" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
                         <TextBlock Text="{Binding AdbTelemetry.Memory.SummaryDisplay}" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
@@ -215,6 +262,7 @@
                         <TextBlock Text="COMPOSITION, REFRESH, AUDIO &amp; INPUT" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,0,10" />
                         <CheckBox Content="Zero UI Animation Latency (0.0x Scale)" IsChecked="{Binding AdbZeroAnimations}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,8" />
                         <CheckBox Content="SurfaceFlinger Pure GPU Hardware Rasterizer" IsChecked="{Binding AdbGpuAcceleration}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,8" />
+                        <CheckBox Content="SurfaceFlinger Triple-Buffering &amp; Low-Jitter Pipeline" IsChecked="{Binding AdbGpuPipelineOptimize}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,8" />
                         <CheckBox Content="240Hz High-Speed Input Dispatch &amp; Aim Polling" IsChecked="{Binding AdbInputPolling}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,8" />
                         <CheckBox Content="True 120Hz Android SurfaceFlinger Refresh Unlock" IsChecked="{Binding Adb120FpsUnlock}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,8" />
                         <CheckBox Content="Fast-Track Low-Latency Audio (Bypass Buffer)" IsChecked="{Binding AdbAudioLatencyReduction}" Foreground="{DynamicResource BrushTextPrimary}" />
@@ -225,6 +273,8 @@
                     <StackPanel>
                         <TextBlock Text="MEMORY HEAP, NETWORK &amp; RESOLUTION" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,0,10" />
                         <CheckBox Content="1024MB Dalvik Heap Ceiling (Eliminate GC Stutter)" IsChecked="{Binding AdbDalvikHeapBoost}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,8" />
+                        <CheckBox Content="In-VM Background App Killer (Reclaim 200–400MB)" IsChecked="{Binding AdbKillBackgroundApps}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,8" />
+                        <CheckBox Content="Lock AC Power Profile &amp; Performance Governor" IsChecked="{Binding AdbPowerProfileLock}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,8" />
                         <CheckBox Content="Suppress Verbose Logcat &amp; Debug Telemetry" IsChecked="{Binding AdbSuppressLogging}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,8" />
                         <CheckBox Content="Disable Android Adaptive Battery &amp; App Standby" IsChecked="{Binding AdbDisableDoze}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,8" />
                         <CheckBox Content="Sync Low-Jitter DNS (1.1.1.1) &amp; In-VM TCP Buffers" IsChecked="{Binding AdbInVmDnsSync}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,10" />

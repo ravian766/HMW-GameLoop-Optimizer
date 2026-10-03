@@ -71,6 +71,9 @@ public class AdvancedFeaturesTests
     [Fact]
     public async Task EmulatorDiagnosticService_AutoFixIssuesAsync_ExecutesSafely()
     {
+        // Safety guard: Never reset ADB or touch emulator state while user is actively running GameLoop
+        if (ProcessManager.IsGameLoopRunning()) return;
+
         var hw = new HardwareInfo { GpuVendor = GpuVendor.Nvidia };
         var config = new GameLoopConfig { InstallPath = @"C:\NonExistent\Path" };
 
