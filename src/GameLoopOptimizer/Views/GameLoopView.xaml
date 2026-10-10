@@ -151,10 +151,23 @@
                                             <ComboBoxItem Content="4096 MB (4 GB - Standard)">
                                                 <ComboBoxItem.Tag><sys:Int32>4096</sys:Int32></ComboBoxItem.Tag>
                                             </ComboBoxItem>
-                                            <ComboBoxItem Content="8192 MB (8 GB - High Performance)">
+                                            <ComboBoxItem Content="6144 MB (6 GB - Balanced)">
+                                                <ComboBoxItem.Tag><sys:Int32>6144</sys:Int32></ComboBoxItem.Tag>
+                                            </ComboBoxItem>
+                                            <ComboBoxItem Content="8192 MB (8 GB - High Performance • Sweet Spot)">
                                                 <ComboBoxItem.Tag><sys:Int32>8192</sys:Int32></ComboBoxItem.Tag>
                                             </ComboBoxItem>
+                                            <ComboBoxItem Content="10240 MB (10 GB - Enthusiast • Requires ≥16GB PC)">
+                                                <ComboBoxItem.Tag><sys:Int32>10240</sys:Int32></ComboBoxItem.Tag>
+                                            </ComboBoxItem>
+                                            <ComboBoxItem Content="12288 MB (12 GB - Extreme • Requires ≥24GB-32GB PC)">
+                                                <ComboBoxItem.Tag><sys:Int32>12288</sys:Int32></ComboBoxItem.Tag>
+                                            </ComboBoxItem>
+                                            <ComboBoxItem Content="16384 MB (16 GB - Maximum Workstation • Requires ≥32GB+ PC)">
+                                                <ComboBoxItem.Tag><sys:Int32>16384</sys:Int32></ComboBoxItem.Tag>
+                                            </ComboBoxItem>
                                         </ComboBox>
+                                        <TextBlock Text="{Binding RamAllocationHostStatus}" FontSize="10" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,4,0,0" TextWrapping="Wrap" />
                                     </StackPanel>
                                 </Grid>
 
@@ -172,6 +185,18 @@
                                         <TextBlock Text="{Binding DisplayWarningMessage}" FontSize="11.5" Foreground="#FFCC44" TextWrapping="Wrap" Margin="0,0,0,4" />
                                         <TextBlock FontSize="10.5" Foreground="#AA8833" TextWrapping="Wrap">
                                             <Run Text="This is informational only. Your FPS selection (" /><Run Text="{Binding FpsLevel, Mode=OneWay}" FontWeight="Bold" /><Run Text=" FPS) is applied to GameLoop without modification." />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- RAM Safety Warning Banner (only visible when allocated RAM starves Windows host) -->
+                                <Border Background="#2A1F0F" BorderBrush="#CC8800" BorderThickness="1" CornerRadius="8"
+                                        Padding="12,8" Margin="0,0,0,14"
+                                        Visibility="{Binding HasRamWarning, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding RamWarningMessage}" FontSize="11.5" Foreground="#FFCC44" TextWrapping="Wrap" Margin="0,0,0,4" />
+                                        <TextBlock FontSize="10.5" Foreground="#AA8833" TextWrapping="Wrap">
+                                            <Run Text="This is a safety advisory. Your custom RAM allocation (" /><Run Text="{Binding RamMb, Mode=OneWay}" FontWeight="Bold" /><Run Text=" MB) will still be written directly to GameLoop's engine registry when applied." />
                                         </TextBlock>
                                     </StackPanel>
                                 </Border>

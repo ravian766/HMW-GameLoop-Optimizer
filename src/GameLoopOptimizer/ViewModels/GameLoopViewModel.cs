@@ -79,6 +79,9 @@ public class GameLoopViewModel : ViewModelBase
             if (SetProperty(ref _ramMb, value))
             {
                 OnPropertyChanged(nameof(CurrentEngineAndResDisplay));
+                OnPropertyChanged(nameof(HasRamWarning));
+                OnPropertyChanged(nameof(RamWarningMessage));
+                OnPropertyChanged(nameof(RamAllocationHostStatus));
             }
         }
     }
@@ -386,6 +389,51 @@ public class GameLoopViewModel : ViewModelBase
     public string DisplayWarningMessage => HasDisplayWarning
         ? $"⚠ Monitor refresh rate: {MonitorRefreshRateHz} Hz. {FpsLevel} FPS is configured and applied, but may not be fully visible on this display."
         : string.Empty;
+
+    /// <summary>Calculates whether the currently selected RAM allocation poses host memory starvation risks.</summary>
+    public bool HasRamWarning
+    {
+        get
+        {
+            double totalHostRam = Hardware?.TotalRamGb > 0 ? Hardware.TotalRamGb : 16.0;
+            double allocatedGb = RamMb / 1024.0;
+            double reservedForHost = totalHostRam - allocatedGb;
+            // Starvation risk if allocation is >= 75% of total system RAM or leaves less than 3.5 GB for Windows host
+            return allocatedGb >= (totalHostRam * 0.75) || reservedForHost < 3.5;
+        }
+    }
+
+    /// <summary>Detailed explanation of RAM allocation status relative to host memory.</summary>
+    public string RamWarningMessage
+    {
+        get
+        {
+            if (!HasRamWarning) return string.Empty;
+            double totalHostRam = Hardware?.TotalRamGb > 0 ? Hardware.TotalRamGb : 16.0;
+            double allocatedGb = RamMb / 1024.0;
+            double reservedForHost = Math.Max(0, totalHostRam - allocatedGb);
+            int percent = (int)Math.Round((allocatedGb / totalHostRam) * 100);
+            return $"⚠ High RAM Allocation: Allocating {allocatedGb:F0} GB ({percent}% of {totalHostRam:F0} GB host RAM) leaves only {reservedForHost:F1} GB for Windows OS and GPU drivers. This may trigger page-file thrashing and micro-stutters.";
+        }
+    }
+
+    /// <summary>Real-time status string showing VM allocation vs host reserve.</summary>
+    public string RamAllocationHostStatus
+    {
+        get
+        {
+            double totalHostRam = Hardware?.TotalRamGb > 0 ? Hardware.TotalRamGb : 16.0;
+            double allocatedGb = RamMb / 1024.0;
+            double reservedForHost = Math.Max(0, totalHostRam - allocatedGb);
+            int percent = (int)Math.Round((allocatedGb / totalHostRam) * 100);
+
+            if (HasRamWarning)
+            {
+                return $"⚠ {allocatedGb:F0} GB Allocated ({percent}% of {totalHostRam:F0} GB) • Only {reservedForHost:F1} GB host reserve (Risk of paging)";
+            }
+            return $"✓ {allocatedGb:F0} GB Allocated ({percent}% of {totalHostRam:F0} GB) • {reservedForHost:F1} GB safely reserved for Windows Host";
+        }
+    }
 
     private SettingsApplicationReport? _lastApplyReport;
     /// <summary>Detailed per-setting report from the last Apply operation.</summary>
@@ -737,6 +785,9 @@ public class GameLoopViewModel : ViewModelBase
 
         OnPropertyChanged(nameof(Hardware));
         OnPropertyChanged(nameof(Config));
+        OnPropertyChanged(nameof(HasRamWarning));
+        OnPropertyChanged(nameof(RamWarningMessage));
+        OnPropertyChanged(nameof(RamAllocationHostStatus));
     }
 
     private void ParseResolution(string resStr)
@@ -785,6 +836,9 @@ public class GameLoopViewModel : ViewModelBase
             OnPropertyChanged(nameof(HasDisplayWarning));
             OnPropertyChanged(nameof(DisplayWarningMessage));
             OnPropertyChanged(nameof(MonitorRefreshRateHz));
+            OnPropertyChanged(nameof(HasRamWarning));
+            OnPropertyChanged(nameof(RamWarningMessage));
+            OnPropertyChanged(nameof(RamAllocationHostStatus));
 
             StatusMessage = HasDisplayWarning
                 ? $"Settings applied! ⚠ Monitor: {MonitorRefreshRateHz} Hz — {FpsLevel} FPS configured but display limited. Restart GameLoop for reload."
