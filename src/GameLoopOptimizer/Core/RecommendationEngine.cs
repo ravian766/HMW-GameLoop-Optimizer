@@ -32,6 +32,19 @@ public class HardwareRecommendations
     public string MonitorNote => MonitorLimitsRecommendation
         ? $"Note: Your monitor runs at {MonitorMatchedFpsLevel} Hz. {RecommendedFpsLevel} FPS is still fully configurable — the game renders at {RecommendedFpsLevel} FPS internally."
         : string.Empty;
+
+    /// <summary>Numeric RenderingMode for 7.0.19.05+ registry: 0=Smart, 1=OpenGL+, 2=DirectX+, 3=Vulkan.</summary>
+    public int RecommendedRenderingMode => RecommendedRenderer switch
+    {
+        GraphicsRenderer.SmartMode => 0,
+        GraphicsRenderer.OpenGLPlus => 1,
+        GraphicsRenderer.DirectXPlus => 2,
+        GraphicsRenderer.Vulkan => 3,
+        _ => 2
+    };
+
+    /// <summary>Whether the hardware is capable of running the Vulkan rendering backend.</summary>
+    public bool IsVulkanCapable { get; set; }
 }
 
 public static class RecommendationEngine
@@ -113,10 +126,11 @@ public static class RecommendationEngine
 
         // 4. Hardware-Aware Graphics Engine & Shader Cache
         rec.RecommendedRenderer = DetermineOptimalRenderer(hw);
+        rec.IsVulkanCapable = IsHardwareVulkanCapable(hw);
         rec.RecommendedShaderCache = true;  // Crucial for eliminating micro-stutters during asset streaming
         rec.RecommendedVSync = false;       // Eliminates render queue input lag
 
-        string rendererName = rec.RecommendedRenderer == GraphicsRenderer.DirectXPlus ? "DirectX+" : "OpenGL+";
+        string rendererName = GetRendererName(rec.RecommendedRenderer);
         rec.RecommendationSummary = $"Based on your {hw.CpuName} ({hw.LogicalProcessors} threads), {hw.GpuName} ({hw.DedicatedVramMb:F0}MB VRAM), and {hw.TotalRamGb:F0}GB RAM, " +
             $"allocating {rec.RecommendedCpuCores} cores and {rec.RecommendedRamMb / 1024}GB RAM with {rendererName} and local shader caching is recommended for optimal frame pacing.";
 
@@ -167,5 +181,49 @@ public static class RecommendationEngine
 
         // Default fallback for mid/high tier dedicated GPUs
         return GraphicsRenderer.DirectXPlus;
+    }
+
+    /// <summary>
+    /// Determines if the hardware can run Vulkan rendering (GameLoop 7.0.19.05+).
+    /// Vulkan requires a dedicated GPU with modern driver support.
+    /// </summary>
+    public static bool IsHardwareVulkanCapable(HardwareInfo hw)
+    {
+        if (!hw.IsDedicatedGpu) return false;
+
+        // NVIDIA: GTX 900 series and later support Vulkan
+        if (hw.GpuVendor == GpuVendor.Nvidia && hw.DedicatedVramMb >= 2048)
+            return true;
+
+        // AMD: GCN 2nd gen and later (RX 200+, RX 400+, RX 5000+)
+        if (hw.GpuVendor == GpuVendor.Amd && hw.DedicatedVramMb >= 2048)
+        {
+            var gpuLower = hw.GpuName.ToLowerInvariant();
+            if (gpuLower.Contains("rx ") || gpuLower.Contains("vega") || gpuLower.Contains("navi"))
+                return true;
+        }
+
+        // Intel Arc: Supports Vulkan 1.3
+        if (hw.GpuVendor == GpuVendor.Intel && hw.IsDedicatedGpu &&
+            hw.GpuName.Contains("Arc", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns a human-readable renderer display name including Vulkan and Smart Mode.
+    /// </summary>
+    public static string GetRendererName(GraphicsRenderer renderer)
+    {
+        return renderer switch
+        {
+            GraphicsRenderer.DirectXPlus => "DirectX+",
+            GraphicsRenderer.OpenGLPlus => "OpenGL+",
+            GraphicsRenderer.Vulkan => "Vulkan",
+            GraphicsRenderer.SmartMode => "Smart Mode (Auto)",
+            GraphicsRenderer.Auto => "Auto",
+            _ => renderer.ToString()
+        };
     }
 }

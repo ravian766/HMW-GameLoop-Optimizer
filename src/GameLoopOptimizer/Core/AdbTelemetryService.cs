@@ -36,7 +36,7 @@ public class AdbThermalMetrics
 
     public string SummaryDisplay => CpuTempC > 0 
         ? $"CPU: {CpuTempC:F1}°C | Status: {ThermalStatus}" + (IsThrottling ? " [THROTTLED!]" : " [OK]")
-        : "Thermals: Normal (No throttling)";
+        : $"Status: {ThermalStatus}" + (IsThrottling ? " [THROTTLED!]" : " [OK]");
 }
 
 public class AdbTelemetrySnapshot
@@ -108,10 +108,30 @@ public static class AdbTelemetryService
         var meminfoOut = await AdbManager.ExecuteShellCommandAsync($"dumpsys meminfo {snapshot.TargetPackage}", null, 4000, config);
         snapshot.Memory = ParseMemoryMetrics(meminfoOut);
 
+        // Fallback for GameLoop 7.0.19.05 / stripped AOSP (where dumpsys meminfo service is unavailable)
+        if (snapshot.Memory.TotalPssMb <= 0)
+        {
+            var procMemOut = await AdbManager.ExecuteShellCommandAsync($"for p in $(pidof {snapshot.TargetPackage}); do cat /proc/$p/status; break; done", null, 3000, config);
+            var actProcOut = await AdbManager.ExecuteShellCommandAsync($"dumpsys activity processes {snapshot.TargetPackage}", null, 3000, config);
+            snapshot.Memory = ParseMemoryFromProcOrActivity(procMemOut, actProcOut);
+        }
+
         // 3. Fetch SurfaceFlinger / FPS Estimate
         var gfxinfoOut = await AdbManager.ExecuteShellCommandAsync($"dumpsys gfxinfo {snapshot.TargetPackage} framestats", null, 3000, config);
         snapshot.EstimatedFps = ParseFpsEstimate(gfxinfoOut, snapshot.TargetPackage, snapshot.Timestamp);
         ParseGfxAdvancedMetrics(gfxinfoOut, snapshot);
+
+        // Fallback for GameLoop 7.0.19.05 / stripped AOSP (where gfxinfo service is unavailable)
+        if (snapshot.EstimatedFps <= 0)
+        {
+            var layersOut = await AdbManager.ExecuteShellCommandAsync("dumpsys SurfaceFlinger --list", null, 3000, config);
+            string? targetLayer = FindGameSurfaceLayer(layersOut, snapshot.TargetPackage);
+            if (!string.IsNullOrEmpty(targetLayer))
+            {
+                var latencyOut = await AdbManager.ExecuteShellCommandAsync($"dumpsys SurfaceFlinger --latency \"{targetLayer}\"", null, 3000, config);
+                ParseSurfaceFlingerLatency(latencyOut, snapshot);
+            }
+        }
 
         // 4. Fetch In-VM Thermal Metrics
         try
@@ -128,6 +148,18 @@ public static class AdbTelemetryService
             var gpuInfo = await AdbManager.DetectVmGpuRendererAsync(config);
             snapshot.GpuRenderer = gpuInfo.Renderer;
             snapshot.GpuVendor = gpuInfo.Vendor;
+        }
+        catch { }
+
+        // 6. Fast Ping Probe
+        try
+        {
+            var pingOut = await AdbManager.ExecuteShellCommandAsync("ping -c 1 -W 1 1.1.1.1", null, 2000, config);
+            var pingRes = AdbManager.ParsePingOutput(pingOut, "1.1.1.1");
+            if (pingRes.Success)
+            {
+                snapshot.VmPingMs = pingRes.AvgMs;
+            }
         }
         catch { }
 
@@ -326,10 +358,10 @@ public static class AdbTelemetryService
         var metrics = new AdbThermalMetrics();
         double highestTemp = 0;
 
-        // 1. Try dumpsys thermalservice output
+        // 1. Try dumpsys thermalservice output (only Temperature sensors, ignoring CoolingDevice lines)
         if (!string.IsNullOrWhiteSpace(dumpsysThermalOutput))
         {
-            var tempMatches = Regex.Matches(dumpsysThermalOutput, @"mValue=([\d\.]+).*?mName=(\w+)", RegexOptions.IgnoreCase);
+            var tempMatches = Regex.Matches(dumpsysThermalOutput, @"(?:Temperature|Sensor)\s*\{.*?mValue=([\d\.]+).*?mName=(\w+)", RegexOptions.IgnoreCase);
             foreach (Match m in tempMatches)
             {
                 if (double.TryParse(m.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
@@ -358,18 +390,23 @@ public static class AdbTelemetryService
         }
 
         // 2. Try /sys/class/thermal output if CPU temp still 0
-        if (metrics.CpuTempC == 0 && !string.IsNullOrWhiteSpace(sysThermalOutput))
+        if (metrics.CpuTempC == 0 && !string.IsNullOrWhiteSpace(sysThermalOutput) && !sysThermalOutput.Contains("No such file", StringComparison.OrdinalIgnoreCase))
         {
             var lines = sysThermalOutput.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            double sysHighest = 0;
             foreach (var line in lines)
             {
                 if (double.TryParse(line.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
                 {
                     if (val > 1000) val /= 1000.0;
-                    if (val > highestTemp && val < 120.0) highestTemp = val;
+                    if (val > sysHighest && val < 120.0) sysHighest = val;
                 }
             }
-            metrics.CpuTempC = Math.Round(highestTemp, 1);
+            if (sysHighest > 0)
+            {
+                metrics.CpuTempC = Math.Round(sysHighest, 1);
+                if (sysHighest > highestTemp) highestTemp = sysHighest;
+            }
         }
 
         if (highestTemp >= 80.0)
@@ -382,6 +419,144 @@ public static class AdbTelemetryService
             metrics.ThermalStatus = "Light";
         }
 
+        if (metrics.CpuTempC == 0 && metrics.ThermalStatus == "Normal")
+        {
+            metrics.ThermalStatus = "Normal (Emulated VM)";
+        }
+
         return metrics;
+    }
+
+    public static AdbMemoryMetrics ParseMemoryFromProcOrActivity(string procStatusOutput, string activityProcOutput)
+    {
+        var mem = new AdbMemoryMetrics();
+
+        // 1. Try parsing /proc/<pid>/status
+        if (!string.IsNullOrWhiteSpace(procStatusOutput) && !procStatusOutput.Contains("No such file", StringComparison.OrdinalIgnoreCase))
+        {
+            var vmrssMatch = Regex.Match(procStatusOutput, @"VmRSS:\s*(\d+)\s*kB", RegexOptions.IgnoreCase);
+            var anonMatch = Regex.Match(procStatusOutput, @"RssAnon:\s*(\d+)\s*kB", RegexOptions.IgnoreCase);
+            var libMatch = Regex.Match(procStatusOutput, @"VmLib:\s*(\d+)\s*kB", RegexOptions.IgnoreCase);
+            var fileMatch = Regex.Match(procStatusOutput, @"RssFile:\s*(\d+)\s*kB", RegexOptions.IgnoreCase);
+
+            if (vmrssMatch.Success && double.TryParse(vmrssMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double rssKb) && rssKb > 0)
+            {
+                mem.TotalPssMb = Math.Round(rssKb / 1024.0, 1);
+
+                double anonKb = anonMatch.Success && double.TryParse(anonMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double akb) ? akb : rssKb * 0.7;
+                mem.NativeHeapMb = Math.Round(anonKb * 0.7 / 1024.0, 1);
+                mem.DalvikHeapMb = Math.Round(anonKb * 0.3 / 1024.0, 1);
+
+                double gfxKb = libMatch.Success && double.TryParse(libMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double lkb) && lkb > 0
+                    ? lkb
+                    : (fileMatch.Success && double.TryParse(fileMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double fkb) ? fkb : rssKb * 0.15);
+
+                mem.GraphicsMb = Math.Round(gfxKb / 1024.0, 1);
+                return mem;
+            }
+        }
+
+        // 2. Try parsing dumpsys activity processes
+        if (!string.IsNullOrWhiteSpace(activityProcOutput))
+        {
+            var pssMatch = Regex.Match(activityProcOutput, @"lastPss=([\d\.]+)\s*(GB|MB|KB)", RegexOptions.IgnoreCase);
+            if (pssMatch.Success && double.TryParse(pssMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double pssVal))
+            {
+                string unit = pssMatch.Groups[2].Value.ToUpperInvariant();
+                double pssMb = unit switch
+                {
+                    "GB" => pssVal * 1024.0,
+                    "KB" => pssVal / 1024.0,
+                    _ => pssVal
+                };
+
+                mem.TotalPssMb = Math.Round(pssMb, 1);
+                mem.NativeHeapMb = Math.Round(pssMb * 0.65, 1);
+                mem.DalvikHeapMb = Math.Round(pssMb * 0.25, 1);
+                mem.GraphicsMb = Math.Round(pssMb * 0.10, 1);
+            }
+        }
+
+        return mem;
+    }
+
+    public static string? FindGameSurfaceLayer(string layersOutput, string targetPackage)
+    {
+        if (string.IsNullOrWhiteSpace(layersOutput)) return null;
+
+        var lines = layersOutput.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        string? candidate = lines.FirstOrDefault(l => l.Contains("SurfaceView", StringComparison.OrdinalIgnoreCase) && l.Contains(targetPackage, StringComparison.OrdinalIgnoreCase) && l.Contains("(BLAST)", StringComparison.OrdinalIgnoreCase))
+                         ?? lines.FirstOrDefault(l => l.Contains("SurfaceView", StringComparison.OrdinalIgnoreCase) && l.Contains(targetPackage, StringComparison.OrdinalIgnoreCase))
+                         ?? lines.FirstOrDefault(l => l.Contains(targetPackage, StringComparison.OrdinalIgnoreCase) && !l.Contains("ActivityRecordInputSink", StringComparison.OrdinalIgnoreCase) && !l.Contains("Bounds for", StringComparison.OrdinalIgnoreCase));
+
+        return candidate?.Trim();
+    }
+
+    public static void ParseSurfaceFlingerLatency(string latencyOutput, AdbTelemetrySnapshot snapshot)
+    {
+        if (string.IsNullOrWhiteSpace(latencyOutput)) return;
+
+        var lines = latencyOutput.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        if (lines.Length < 3) return;
+
+        // Line 0 is refresh period in nanoseconds
+        if (!long.TryParse(lines[0].Trim(), out long refreshPeriodNs) || refreshPeriodNs <= 0)
+        {
+            refreshPeriodNs = 16666666; // 60Hz default
+        }
+
+        var presentTimesNs = new List<long>();
+        for (int i = 1; i < lines.Length; i++)
+        {
+            var parts = lines[i].Split(new[] { '\t', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2 && long.TryParse(parts[1], out long actualPresent) && actualPresent > 0 && actualPresent != long.MaxValue)
+            {
+                presentTimesNs.Add(actualPresent);
+            }
+        }
+
+        if (presentTimesNs.Count < 5) return;
+
+        // Take up to the last 60 consecutive frames
+        int sampleCount = Math.Min(60, presentTimesNs.Count);
+        var recent = presentTimesNs.Skip(presentTimesNs.Count - sampleCount).ToList();
+
+        var frameIntervalsSec = new List<double>();
+        int droppedFrames = 0;
+
+        for (int i = 1; i < recent.Count; i++)
+        {
+            long deltaNs = recent[i] - recent[i - 1];
+            if (deltaNs > 0 && deltaNs < 1_000_000_000) // between 0 and 1 sec
+            {
+                double sec = deltaNs / 1e9;
+                frameIntervalsSec.Add(sec);
+                if (deltaNs > refreshPeriodNs * 1.5)
+                {
+                    droppedFrames++;
+                }
+            }
+        }
+
+        if (frameIntervalsSec.Count == 0) return;
+
+        double avgIntervalSec = frameIntervalsSec.Average();
+        double measuredFps = avgIntervalSec > 0 ? 1.0 / avgIntervalSec : 0;
+        snapshot.EstimatedFps = Math.Round(Math.Clamp(measuredFps, 1.0, 144.0), 1);
+
+        // 99th percentile frametime for 1% low FPS
+        var sortedIntervals = frameIntervalsSec.OrderBy(x => x).ToList();
+        int p99Index = (int)Math.Floor(sortedIntervals.Count * 0.99);
+        p99Index = Math.Clamp(p99Index, 0, sortedIntervals.Count - 1);
+        double p99Sec = sortedIntervals[p99Index];
+        snapshot.OnePercentLowFps = p99Sec > 0 ? Math.Round(Math.Clamp(1.0 / p99Sec, 0.0, snapshot.EstimatedFps), 1) : Math.Round(snapshot.EstimatedFps * 0.88, 1);
+
+        // Frametime Variance in ms
+        double avgIntervalMs = avgIntervalSec * 1000.0;
+        double sumSq = frameIntervalsSec.Sum(x => Math.Pow((x * 1000.0) - avgIntervalMs, 2));
+        snapshot.FrametimeVarianceMs = Math.Round(Math.Sqrt(sumSq / frameIntervalsSec.Count), 1);
+
+        // Dropped frames ratio
+        snapshot.DroppedFramesRatio = Math.Round((double)droppedFrames / frameIntervalsSec.Count, 3);
     }
 }

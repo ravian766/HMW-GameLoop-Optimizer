@@ -143,6 +143,10 @@ public static class BackupManager
             {
                 return RestoreAdbProp(entry);
             }
+            else if (entry.TargetType == "IniFile")
+            {
+                return RestoreIniValue(entry);
+            }
 
             return false;
         }
@@ -170,9 +174,30 @@ public static class BackupManager
             }
             return false;
         }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool RestoreIniValue(BackupEntry entry)
+    {
+        if (string.IsNullOrWhiteSpace(entry.TargetPath) || !File.Exists(entry.TargetPath)) return false;
+
+        try
+        {
+            bool ok = GameLoopIniService.RestoreIniEntry(entry.TargetPath, entry.ValueName, entry.PreviousValue);
+            if (ok)
+            {
+                MarkReverted(entry.Id);
+                Logger.Success("BackupManager", $"Restored INI '{entry.TargetPath}' [{entry.ValueName}] to '{entry.PreviousValue}'");
+                return true;
+            }
+            return false;
+        }
         catch (Exception ex)
         {
-            Logger.Error("BackupManager", $"Failed to restore AdbProp {entry.TargetPath}: {ex.Message}");
+            Logger.Error("BackupManager", $"Failed to restore INI {entry.TargetPath}: {ex.Message}");
             return false;
         }
     }

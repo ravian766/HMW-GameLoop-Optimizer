@@ -86,12 +86,109 @@ public class GameLoopViewModel : ViewModelBase
         }
     }
 
+    private GraphicsRenderer _selectedRenderer = GraphicsRenderer.DirectXPlus;
+    public GraphicsRenderer SelectedRenderer
+    {
+        get => _selectedRenderer;
+        set
+        {
+            if (SetProperty(ref _selectedRenderer, value))
+            {
+                _forceDirectX = value == GraphicsRenderer.DirectXPlus;
+                _forceVulkan = value == GraphicsRenderer.Vulkan;
+                _smartModeEnabled = value == GraphicsRenderer.SmartMode;
+                OnPropertyChanged(nameof(ForceDirectX));
+                OnPropertyChanged(nameof(ForceVulkan));
+                OnPropertyChanged(nameof(SmartModeEnabled));
+                OnPropertyChanged(nameof(CurrentRendererDisplayName));
+            }
+        }
+    }
+
     private bool _forceDirectX = true;
     public bool ForceDirectX
     {
         get => _forceDirectX;
-        set => SetProperty(ref _forceDirectX, value);
+        set
+        {
+            if (SetProperty(ref _forceDirectX, value))
+            {
+                if (value && _selectedRenderer != GraphicsRenderer.DirectXPlus)
+                {
+                    _selectedRenderer = GraphicsRenderer.DirectXPlus;
+                    _forceVulkan = false;
+                    _smartModeEnabled = false;
+                    OnPropertyChanged(nameof(SelectedRenderer));
+                    OnPropertyChanged(nameof(ForceVulkan));
+                    OnPropertyChanged(nameof(SmartModeEnabled));
+                    OnPropertyChanged(nameof(CurrentRendererDisplayName));
+                }
+                else if (!value && _selectedRenderer == GraphicsRenderer.DirectXPlus)
+                {
+                    _selectedRenderer = GraphicsRenderer.OpenGLPlus;
+                    _forceVulkan = false;
+                    _smartModeEnabled = false;
+                    OnPropertyChanged(nameof(SelectedRenderer));
+                    OnPropertyChanged(nameof(ForceVulkan));
+                    OnPropertyChanged(nameof(SmartModeEnabled));
+                    OnPropertyChanged(nameof(CurrentRendererDisplayName));
+                }
+            }
+        }
     }
+
+    private bool _forceVulkan = false;
+    public bool ForceVulkan
+    {
+        get => _forceVulkan;
+        set
+        {
+            if (SetProperty(ref _forceVulkan, value))
+            {
+                if (value)
+                {
+                    _selectedRenderer = GraphicsRenderer.Vulkan;
+                    _forceDirectX = false;
+                    _smartModeEnabled = false;
+                    OnPropertyChanged(nameof(SelectedRenderer));
+                    OnPropertyChanged(nameof(ForceDirectX));
+                    OnPropertyChanged(nameof(SmartModeEnabled));
+                    OnPropertyChanged(nameof(CurrentRendererDisplayName));
+                }
+            }
+        }
+    }
+
+    private bool _smartModeEnabled = false;
+    public bool SmartModeEnabled
+    {
+        get => _smartModeEnabled;
+        set
+        {
+            if (SetProperty(ref _smartModeEnabled, value))
+            {
+                if (value)
+                {
+                    _selectedRenderer = GraphicsRenderer.SmartMode;
+                    _forceDirectX = false;
+                    _forceVulkan = false;
+                    OnPropertyChanged(nameof(SelectedRenderer));
+                    OnPropertyChanged(nameof(ForceDirectX));
+                    OnPropertyChanged(nameof(ForceVulkan));
+                    OnPropertyChanged(nameof(CurrentRendererDisplayName));
+                }
+            }
+        }
+    }
+
+    private int _antiAliasingMode = 0;
+    public int AntiAliasingMode
+    {
+        get => _antiAliasingMode;
+        set => SetProperty(ref _antiAliasingMode, value);
+    }
+
+    public string CurrentRendererDisplayName => RecommendationEngine.GetRendererName(SelectedRenderer);
 
     private bool _shaderCacheEnabled = true;
     public bool ShaderCacheEnabled
@@ -766,7 +863,26 @@ public class GameLoopViewModel : ViewModelBase
 
         CpuCores = gl.VmCpuCount > 0 ? gl.VmCpuCount : Recommendations.RecommendedCpuCores;
         RamMb = gl.VmMemorySizeInMb > 0 ? gl.VmMemorySizeInMb : Recommendations.RecommendedRamMb;
+        if (gl.RenderingMode >= 0)
+        {
+            SelectedRenderer = gl.ActiveRenderer;
+        }
+        else if (gl.ForceVulkan)
+        {
+            SelectedRenderer = GraphicsRenderer.Vulkan;
+        }
+        else if (gl.SmartModeEnabled)
+        {
+            SelectedRenderer = GraphicsRenderer.SmartMode;
+        }
+        else
+        {
+            SelectedRenderer = gl.ForceDirectX ? GraphicsRenderer.DirectXPlus : GraphicsRenderer.OpenGLPlus;
+        }
         ForceDirectX = gl.ForceDirectX;
+        ForceVulkan = gl.ForceVulkan;
+        SmartModeEnabled = gl.SmartModeEnabled;
+        AntiAliasingMode = gl.AntiAliasingMode;
         ShaderCacheEnabled = gl.LocalShaderCacheEnabled;
         FpsLevel = gl.PubgFpsLevel > 0 ? gl.PubgFpsLevel : Recommendations.RecommendedFpsLevel;
         PubgRenderQuality = gl.PubgRenderQuality >= 0 ? gl.PubgRenderQuality : 0;
@@ -811,6 +927,17 @@ public class GameLoopViewModel : ViewModelBase
                 gl.VmCpuCount = CpuCores;
                 gl.VmMemorySizeInMb = RamMb;
                 gl.ForceDirectX = ForceDirectX;
+                gl.ForceVulkan = ForceVulkan;
+                gl.SmartModeEnabled = SmartModeEnabled;
+                gl.RenderingMode = SelectedRenderer switch
+                {
+                    GraphicsRenderer.SmartMode => 0,
+                    GraphicsRenderer.OpenGLPlus => 1,
+                    GraphicsRenderer.DirectXPlus => 2,
+                    GraphicsRenderer.Vulkan => 3,
+                    _ => 2
+                };
+                gl.AntiAliasingMode = AntiAliasingMode;
                 gl.LocalShaderCacheEnabled = ShaderCacheEnabled;
                 gl.ShaderCacheEnabled = ShaderCacheEnabled;
                 gl.PubgFpsLevel = FpsLevel;
@@ -870,6 +997,7 @@ public class GameLoopViewModel : ViewModelBase
 
         var targetPaths = new[]
         {
+            @"Software\Tencent\GameLoop",
             @"Software\Tencent\MobileGamePC",
             @"Software\Tencent\TxGameAssistant"
         };
@@ -893,7 +1021,10 @@ public class GameLoopViewModel : ViewModelBase
             "com.tencent.ig",
             "com.pubg.krmobile",
             "com.pubg.imobile",
-            "com.vng.pubgmobile"
+            "com.vng.pubgmobile",
+            "com.rekoo.pubgm",
+            "com.tencent.tmgp.pubgmhd",
+            "com.activision.callofduty.shooter"
         };
 
         foreach (var path in targetPaths)
@@ -918,6 +1049,20 @@ public class GameLoopViewModel : ViewModelBase
                     key.SetValue("VSyncEnabled", 0, RegistryValueKind.DWord);
                     key.SetValue("SetGraphicsCard", 1, RegistryValueKind.DWord);
                     key.SetValue("GraphicsCardEnabled", 1, RegistryValueKind.DWord);
+
+                    // GameLoop 7.0.19.05+ rendering mode and anti-aliasing keys
+                    int targetRenderingMode = SelectedRenderer switch
+                    {
+                        GraphicsRenderer.SmartMode => 0,
+                        GraphicsRenderer.OpenGLPlus => 1,
+                        GraphicsRenderer.DirectXPlus => 2,
+                        GraphicsRenderer.Vulkan => 3,
+                        _ => 2
+                    };
+                    key.SetValue("ForceVulkan", ForceVulkan ? 1 : 0, RegistryValueKind.DWord);
+                    key.SetValue("SmartModeEnabled", SmartModeEnabled ? 1 : 0, RegistryValueKind.DWord);
+                    key.SetValue("RenderingMode", targetRenderingMode, RegistryValueKind.DWord);
+                    key.SetValue("AntiAliasingMode", AntiAliasingMode, RegistryValueKind.DWord);
 
                     // Per-package PUBG settings (FPS, Quality, Scale)
                     foreach (var pkg in packages)
@@ -951,35 +1096,60 @@ public class GameLoopViewModel : ViewModelBase
                 });
             }
 
-            // ── HKLM Write (best-effort, may require admin) ──
-            try
+            // ── HKLM Write (both 64-bit and WOW6432Node paths) ──
+            var hklmPrefixes = new[] { $@"SOFTWARE\{path}", $@"SOFTWARE\WOW6432Node\{path}" };
+            foreach (var hklmPath in hklmPrefixes)
             {
-                using var hklmKey = Registry.LocalMachine.CreateSubKey($@"SOFTWARE\WOW6432Node\{path}");
-                if (hklmKey != null)
+                try
                 {
-                    hklmKey.SetValue("VMCpuCount", CpuCores, RegistryValueKind.DWord);
-                    hklmKey.SetValue("VMMemorySizeInMB", RamMb, RegistryValueKind.DWord);
-                    hklmKey.SetValue("VMResWidth", ResWidth, RegistryValueKind.DWord);
-                    hklmKey.SetValue("VMResHeight", ResHeight, RegistryValueKind.DWord);
-                    hklmKey.SetValue("VMDPI", ResHeight >= 1440 ? 400 : 320, RegistryValueKind.DWord);
-                    hklmKey.SetValue("ForceDirectX", ForceDirectX ? 1 : 0, RegistryValueKind.DWord);
-                    hklmKey.SetValue("LocalShaderCacheEnabled", ShaderCacheEnabled ? 1 : 0, RegistryValueKind.DWord);
-                    hklmKey.SetValue("ShaderCacheEnabled", ShaderCacheEnabled ? 1 : 0, RegistryValueKind.DWord);
-
-                    foreach (var pkg in packages)
+                    using var hklmKey = Registry.LocalMachine.CreateSubKey(hklmPath);
+                    if (hklmKey != null)
                     {
-                        hklmKey.SetValue($"{pkg}_FPSLevel", registryFps, RegistryValueKind.DWord);
-                        hklmKey.SetValue($"{pkg}_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
-                        hklmKey.SetValue($"{pkg}_ContentScale", registryContentScale, RegistryValueKind.DWord);
-                    }
+                        hklmKey.SetValue("VMCpuCount", CpuCores, RegistryValueKind.DWord);
+                        hklmKey.SetValue("VMMemorySizeInMB", RamMb, RegistryValueKind.DWord);
+                        hklmKey.SetValue("VMResWidth", ResWidth, RegistryValueKind.DWord);
+                        hklmKey.SetValue("VMResHeight", ResHeight, RegistryValueKind.DWord);
+                        hklmKey.SetValue("VMDPI", ResHeight >= 1440 ? 400 : 320, RegistryValueKind.DWord);
+                        hklmKey.SetValue("ForceDirectX", ForceDirectX ? 1 : 0, RegistryValueKind.DWord);
+                        hklmKey.SetValue("LocalShaderCacheEnabled", ShaderCacheEnabled ? 1 : 0, RegistryValueKind.DWord);
+                        hklmKey.SetValue("ShaderCacheEnabled", ShaderCacheEnabled ? 1 : 0, RegistryValueKind.DWord);
 
-                    hklmKey.SetValue("VMPhoneDevice", profile.DevicePhoneString, RegistryValueKind.String);
-                    hklmKey.SetValue("VMDeviceManufacturer", profile.Manufacturer, RegistryValueKind.String);
-                    hklmKey.SetValue("VMDeviceModel", profile.Model, RegistryValueKind.String);
+                        // GameLoop 7.0.19.05+ keys
+                        int targetRenderingModeHklm = SelectedRenderer switch
+                        {
+                            GraphicsRenderer.SmartMode => 0,
+                            GraphicsRenderer.OpenGLPlus => 1,
+                            GraphicsRenderer.DirectXPlus => 2,
+                            GraphicsRenderer.Vulkan => 3,
+                            _ => 2
+                        };
+                        hklmKey.SetValue("ForceVulkan", ForceVulkan ? 1 : 0, RegistryValueKind.DWord);
+                        hklmKey.SetValue("SmartModeEnabled", SmartModeEnabled ? 1 : 0, RegistryValueKind.DWord);
+                        hklmKey.SetValue("RenderingMode", targetRenderingModeHklm, RegistryValueKind.DWord);
+                        hklmKey.SetValue("AntiAliasingMode", AntiAliasingMode, RegistryValueKind.DWord);
+
+                        foreach (var pkg in packages)
+                        {
+                            hklmKey.SetValue($"{pkg}_FPSLevel", registryFps, RegistryValueKind.DWord);
+                            hklmKey.SetValue($"{pkg}_RenderQuality", registryRenderQuality, RegistryValueKind.DWord);
+                            hklmKey.SetValue($"{pkg}_ContentScale", registryContentScale, RegistryValueKind.DWord);
+                        }
+
+                        hklmKey.SetValue("VMPhoneDevice", profile.DevicePhoneString, RegistryValueKind.String);
+                        hklmKey.SetValue("VMDeviceManufacturer", profile.Manufacturer, RegistryValueKind.String);
+                        hklmKey.SetValue("VMDeviceModel", profile.Model, RegistryValueKind.String);
+                    }
                 }
+                catch { /* HKLM write is best-effort — may lack admin privileges */ }
             }
-            catch { /* HKLM write is best-effort — may lack admin privileges */ }
         }
+
+        // ── Synchronize with GameLoop.ini (GameLoop 7.0.19.05+) ──
+        try
+        {
+            GameLoopIniService.SyncConfigToIni(Config);
+        }
+        catch { }
 
         return report;
     }
@@ -1037,7 +1207,10 @@ public class GameLoopViewModel : ViewModelBase
     {
         CpuCores = Recommendations.RecommendedCpuCores;
         RamMb = Recommendations.RecommendedRamMb;
+        SelectedRenderer = Recommendations.RecommendedRenderer;
         ForceDirectX = Recommendations.RecommendedForceDirectX;
+        ForceVulkan = Recommendations.RecommendedRenderer == GraphicsRenderer.Vulkan;
+        SmartModeEnabled = Recommendations.RecommendedRenderer == GraphicsRenderer.SmartMode;
         ShaderCacheEnabled = Recommendations.RecommendedShaderCache;
         FpsLevel = 120;
         PubgRenderQuality = 1;

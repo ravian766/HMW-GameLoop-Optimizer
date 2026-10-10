@@ -339,4 +339,40 @@ public class ActiveSavTests
         string v4Decoded = ActiveSavService.DecodeCVar(v4Encoded);
         Assert.Equal(v4Cvar, v4Decoded);
     }
+
+    [Fact]
+    public void ActiveSavService_SmoothOptimizationCVars_EncodeDecodeCorrectly()
+    {
+        string[] smoothCvars = new[]
+        {
+            "r.BloomQuality=0.0",
+            "r.MobileSimpleShader=1",
+            "r.UserShadowSwitch=0",
+            "r.SkyAtmosphere=0.0",
+            "r.MaterialQualitySuperHigh=0.0",
+            "Engine.GSleepTimeThod=0.0001",
+            "r.Streaming.PoolSize=150"
+        };
+
+        foreach (var cvar in smoothCvars)
+        {
+            string enc = ActiveSavService.EncodeCVar(cvar);
+            string dec = ActiveSavService.DecodeCVar(enc);
+            Assert.Equal(cvar, dec);
+        }
+    }
+
+    [Fact]
+    public async Task ActiveSavService_LiveSync_CanInjectEsportsPreset()
+    {
+        var gl = new GameLoopConfig { InstallPath = @"D:\Program Files\Tencent" };
+        if (!AdbManager.IsAdbAvailable(gl)) return;
+        var devices = await AdbManager.GetConnectedDevicesAsync(gl);
+        if (!devices.Any(d => d.State.Equals("device", StringComparison.OrdinalIgnoreCase))) return;
+
+        var preset = ActiveSavProfile.BuiltInPresets.First(p => p.Name.Contains("Esports 120 FPS"));
+        var result = await ActiveSavService.PushActiveSavProfileAsync(preset, gl);
+
+        Assert.True(result.Success, $"Push failed: {result.Message}");
+    }
 }

@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             xmlns:models="clr-namespace:GameLoopOptimizer.Models"
              xmlns:controls="clr-namespace:GameLoopOptimizer.Views.Controls"
              mc:Ignorable="d" 
              d:DesignHeight="1000" d:DesignWidth="1020">
@@ -171,10 +172,56 @@
                                     </StackPanel>
                                 </Grid>
 
-                                <!-- Rendering Mode Checkboxes -->
+                                <!-- Rendering Mode & Engine Pipeline -->
+                                <Grid Margin="0,0,0,16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Graphics Renderer Backend -->
+                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                        <TextBlock Text="Graphics Rendering Backend" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,4" />
+                                        <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding SelectedRenderer}">
+                                            <ComboBoxItem Content="DirectX+ Mode (Native D3D • Dedicated GPU)">
+                                                <ComboBoxItem.Tag><models:GraphicsRenderer>DirectXPlus</models:GraphicsRenderer></ComboBoxItem.Tag>
+                                            </ComboBoxItem>
+                                            <ComboBoxItem Content="OpenGL+ Mode (Legacy / Intel iGPU)">
+                                                <ComboBoxItem.Tag><models:GraphicsRenderer>OpenGLPlus</models:GraphicsRenderer></ComboBoxItem.Tag>
+                                            </ComboBoxItem>
+                                            <ComboBoxItem Content="Vulkan Mode (GameLoop 7.0.19.05+ • Ultra Low Latency)">
+                                                <ComboBoxItem.Tag><models:GraphicsRenderer>Vulkan</models:GraphicsRenderer></ComboBoxItem.Tag>
+                                            </ComboBoxItem>
+                                            <ComboBoxItem Content="Smart Mode (GameLoop Auto-Selector)">
+                                                <ComboBoxItem.Tag><models:GraphicsRenderer>SmartMode</models:GraphicsRenderer></ComboBoxItem.Tag>
+                                            </ComboBoxItem>
+                                        </ComboBox>
+                                        <TextBlock Text="{Binding CurrentRendererDisplayName, StringFormat='Active: {0}'}" FontSize="10" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,4,0,0" />
+                                    </StackPanel>
+
+                                    <!-- Anti-Aliasing Mode (7.0.19.05+) -->
+                                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                        <TextBlock Text="Anti-Aliasing Mode (GameLoop 7.0.19.05+)" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,4" />
+                                        <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding AntiAliasingMode}">
+                                            <ComboBoxItem Content="Off (Maximum FPS)">
+                                                <ComboBoxItem.Tag><sys:Int32>0</sys:Int32></ComboBoxItem.Tag>
+                                            </ComboBoxItem>
+                                            <ComboBoxItem Content="FXAA (Fast Approximate • Low Overhead)">
+                                                <ComboBoxItem.Tag><sys:Int32>1</sys:Int32></ComboBoxItem.Tag>
+                                            </ComboBoxItem>
+                                            <ComboBoxItem Content="MSAA 2x (Balanced Smooth Edges)">
+                                                <ComboBoxItem.Tag><sys:Int32>2</sys:Int32></ComboBoxItem.Tag>
+                                            </ComboBoxItem>
+                                            <ComboBoxItem Content="MSAA 4x (Maximum Edge Quality)">
+                                                <ComboBoxItem.Tag><sys:Int32>3</sys:Int32></ComboBoxItem.Tag>
+                                            </ComboBoxItem>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Shader Caching Toggle -->
                                 <WrapPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                    <CheckBox Content="DirectX+ Mode (Uncheck for OpenGL+)" IsChecked="{Binding ForceDirectX}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,24,6" />
-                                    <CheckBox Content="Enable Local Shader Caching (Eliminates Stutters)" IsChecked="{Binding ShaderCacheEnabled}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
+                                    <CheckBox Content="Enable Local Shader Caching (Eliminates Micro-Stutters)" IsChecked="{Binding ShaderCacheEnabled}" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,24,6" />
                                 </WrapPanel>
 
                                 <!-- Display Warning Banner (only visible when FPS > monitor Hz) -->

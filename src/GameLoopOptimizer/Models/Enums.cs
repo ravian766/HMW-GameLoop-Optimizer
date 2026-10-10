@@ -76,7 +76,11 @@ public enum GraphicsRenderer
 {
     Auto,
     DirectXPlus,
-    OpenGLPlus
+    OpenGLPlus,
+    /// <summary>Vulkan rendering backend available in GameLoop 7.0.19.05+.</summary>
+    Vulkan,
+    /// <summary>Smart Mode: engine auto-selects best renderer (GameLoop 7.0.19.05+).</summary>
+    SmartMode
 }
 
 public enum BottleneckType

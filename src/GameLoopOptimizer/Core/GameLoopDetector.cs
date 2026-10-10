@@ -9,10 +9,15 @@ public static class GameLoopDetector
 {
     private static readonly string[] PossibleRegistryPaths = new[]
     {
+        @"Software\Tencent\GameLoop",
+        @"SOFTWARE\Tencent\GameLoop",
+        @"SOFTWARE\WOW6432Node\Tencent\GameLoop",
         @"Software\Tencent\MobileGamePC",
         @"SOFTWARE\WOW6432Node\Tencent\MobileGamePC",
         @"Software\Tencent\TxGameAssistant",
-        @"SOFTWARE\WOW6432Node\Tencent\TxGameAssistant"
+        @"SOFTWARE\WOW6432Node\Tencent\TxGameAssistant",
+        @"Software\Tencent\Androws",
+        @"SOFTWARE\WOW6432Node\Tencent\Androws"
     };
 
     private static readonly string[] EmulatorProcessNames =
@@ -87,73 +92,47 @@ public static class GameLoopDetector
 
     private static void DetectFromRegistry(GameLoopConfig config)
     {
-        // Try HKCU first, then HKLM
-        RegistryKey? targetKey = null;
-        string foundPath = string.Empty;
-
         try
         {
+            // Inspect both HKCU and HKLM across all possible registry locations to accumulate configuration
             foreach (var path in PossibleRegistryPaths)
             {
-                var hkcuKey = Registry.CurrentUser.OpenSubKey(path);
-                if (hkcuKey != null)
+                using (var hkcuKey = Registry.CurrentUser.OpenSubKey(path))
                 {
-                    targetKey = hkcuKey;
-                    foundPath = path;
-                    config.RegistryKeyPath = path;
-                    break;
+                    if (hkcuKey != null)
+                    {
+                        ReadFromRegistryKey(hkcuKey, path, config);
+                    }
                 }
 
-                var hklmKey = Registry.LocalMachine.OpenSubKey(path);
-                if (hklmKey != null)
+                using (var hklmKey = Registry.LocalMachine.OpenSubKey(path))
                 {
-                    targetKey = hklmKey;
-                    foundPath = path;
-                    config.RegistryKeyPath = path;
-                    break;
+                    if (hklmKey != null)
+                    {
+                        ReadFromRegistryKey(hklmKey, path, config);
+                    }
                 }
             }
 
-            if (targetKey != null)
+            // If InstallPath is detected but Version is still unset, check MAIN_VERSION file (GameLoop 7.0.19.05 layout)
+            if (!string.IsNullOrEmpty(config.InstallPath) && string.IsNullOrEmpty(config.Version) && Directory.Exists(config.InstallPath))
             {
-                config.IsInstalled = true;
-
-                // Read engine values
-                config.VmCpuCount = ConvertToInt(targetKey.GetValue("VMCpuCount"), 4);
-                config.VmMemorySizeInMb = ConvertToInt(targetKey.GetValue("VMMemorySizeInMB"), 4096);
-                config.VmResWidth = ConvertToInt(targetKey.GetValue("VMResWidth"), 1920);
-                config.VmResHeight = ConvertToInt(targetKey.GetValue("VMResHeight"), 1080);
-                config.VmDpi = ConvertToInt(targetKey.GetValue("VMDPI"), 320);
-
-                config.VSyncEnabled = ConvertToInt(targetKey.GetValue("VSyncEnabled"), 0) == 1;
-                config.ForceDirectX = ConvertToInt(targetKey.GetValue("ForceDirectX"), 1) == 1;
-                config.EnableGlesv3 = ConvertToInt(targetKey.GetValue("EnableGLESv3"), 1) == 1;
-                config.LocalShaderCacheEnabled = ConvertToInt(targetKey.GetValue("LocalShaderCacheEnabled"), 1) == 1;
-                config.ShaderCacheEnabled = ConvertToInt(targetKey.GetValue("ShaderCacheEnabled"), 1) == 1;
-                config.RenderOptimizeEnabled = ConvertToInt(targetKey.GetValue("RenderOptimizeEnabled"), 1) == 1;
-                config.FxaaQuality = ConvertToInt(targetKey.GetValue("FxaaQuality"), 0);
-
-                // PUBG Mobile specific settings
-                config.PubgFpsLevel = ConvertToInt(targetKey.GetValue("com.tencent.ig_FPSLevel"), 90);
-                config.PubgRenderQuality = ConvertToInt(targetKey.GetValue("com.tencent.ig_RenderQuality"), 2);
-                config.PubgContentScale = ConvertToInt(targetKey.GetValue("com.tencent.ig_ContentScale"), 1);
-
-                var device = targetKey.GetValue("VMPhoneDevice") as string;
-                if (!string.IsNullOrEmpty(device)) config.DeviceModel = device;
-
-                var brand = targetKey.GetValue("brand") as string;
-                if (!string.IsNullOrEmpty(brand)) config.Brand = brand;
-
-                var ver = targetKey.GetValue("TSyzsVersion") as string ?? targetKey.GetValue("version")?.ToString();
-                if (!string.IsNullOrEmpty(ver)) config.Version = ver;
-
-                var regInstallPath = targetKey.GetValue("InstallPath") as string;
-                if (!string.IsNullOrEmpty(regInstallPath) && Directory.Exists(regInstallPath))
+                var mainVerPath = Path.Combine(config.InstallPath, "MAIN_VERSION");
+                if (!File.Exists(mainVerPath))
                 {
-                    config.InstallPath = regInstallPath;
+                    var appDir = Path.Combine(config.InstallPath, "Application");
+                    if (Directory.Exists(appDir))
+                    {
+                        var match = Directory.GetFiles(appDir, "MAIN_VERSION", SearchOption.AllDirectories).FirstOrDefault();
+                        if (match != null) mainVerPath = match;
+                    }
                 }
 
-                targetKey.Dispose();
+                if (File.Exists(mainVerPath))
+                {
+                    var text = File.ReadAllText(mainVerPath).Trim();
+                    if (!string.IsNullOrEmpty(text)) config.Version = text;
+                }
             }
 
             // Resolve actual GameLoop executable install path if not set or invalid
@@ -166,11 +145,117 @@ public static class GameLoopDetector
                     config.InstallPath = Path.GetDirectoryName(resolvedExe) ?? resolvedExe;
                 }
             }
+
+            // 7.0.19.05+ UserDir & GameLoop.ini detection and synchronization
+            GameLoopIniService.DetectAndApply(config);
         }
         catch (Exception ex)
         {
             Logger.Warn("GameLoopDetector", $"Registry read failed: {ex.Message}");
         }
+    }
+
+    private static void ReadFromRegistryKey(RegistryKey key, string registryPath, GameLoopConfig config)
+    {
+        config.IsInstalled = true;
+        if (string.IsNullOrEmpty(config.RegistryKeyPath) || config.RegistryKeyPath == @"Software\Tencent\MobileGamePC")
+        {
+            config.RegistryKeyPath = registryPath;
+        }
+
+        // Install path & user data
+        var regInstall = key.GetValue("InstallPath") as string;
+        if (!string.IsNullOrEmpty(regInstall) && Directory.Exists(regInstall))
+        {
+            config.InstallPath = regInstall;
+        }
+
+        var gameLoopData = key.GetValue("GameLoopData") as string;
+        if (!string.IsNullOrEmpty(gameLoopData) && Directory.Exists(gameLoopData))
+        {
+            config.UserDir = gameLoopData;
+        }
+
+        var userDir = key.GetValue("UserDir") as string ?? key.GetValue("UserDataDir") as string;
+        if (!string.IsNullOrEmpty(userDir) && Directory.Exists(userDir))
+        {
+            config.UserDir = userDir;
+        }
+
+        var ver = key.GetValue("Version")?.ToString() ?? key.GetValue("TSyzsVersion") as string;
+        if (!string.IsNullOrEmpty(ver) && (string.IsNullOrEmpty(config.Version) || ver.StartsWith("7.0.19", StringComparison.OrdinalIgnoreCase)))
+        {
+            config.Version = ver;
+        }
+
+        var brand = key.GetValue("brand") as string;
+        if (!string.IsNullOrEmpty(brand)) config.Brand = brand;
+
+        var device = key.GetValue("VMPhoneDevice") as string;
+        if (!string.IsNullOrEmpty(device)) config.DeviceModel = device;
+
+        // Engine settings
+        var cpu = key.GetValue("VMCpuCount");
+        if (cpu != null) config.VmCpuCount = ConvertToInt(cpu, config.VmCpuCount);
+
+        var mem = key.GetValue("VMMemorySizeInMB");
+        if (mem != null) config.VmMemorySizeInMb = ConvertToInt(mem, config.VmMemorySizeInMb);
+
+        var rw = key.GetValue("VMResWidth");
+        if (rw != null) config.VmResWidth = ConvertToInt(rw, config.VmResWidth);
+
+        var rh = key.GetValue("VMResHeight");
+        if (rh != null) config.VmResHeight = ConvertToInt(rh, config.VmResHeight);
+
+        var dpi = key.GetValue("VMDPI");
+        if (dpi != null) config.VmDpi = ConvertToInt(dpi, config.VmDpi);
+
+        var vsync = key.GetValue("VSyncEnabled");
+        if (vsync != null) config.VSyncEnabled = ConvertToInt(vsync, 0) == 1;
+
+        var fdx = key.GetValue("ForceDirectX");
+        if (fdx != null) config.ForceDirectX = ConvertToInt(fdx, 1) == 1;
+
+        var gles3 = key.GetValue("EnableGLESv3");
+        if (gles3 != null) config.EnableGlesv3 = ConvertToInt(gles3, 1) == 1;
+
+        var lsc = key.GetValue("LocalShaderCacheEnabled");
+        if (lsc != null) config.LocalShaderCacheEnabled = ConvertToInt(lsc, 1) == 1;
+
+        var sc = key.GetValue("ShaderCacheEnabled");
+        if (sc != null) config.ShaderCacheEnabled = ConvertToInt(sc, 1) == 1;
+
+        var ro = key.GetValue("RenderOptimizeEnabled");
+        if (ro != null) config.RenderOptimizeEnabled = ConvertToInt(ro, 1) == 1;
+
+        var fxaa = key.GetValue("FxaaQuality");
+        if (fxaa != null) config.FxaaQuality = ConvertToInt(fxaa, config.FxaaQuality);
+
+        // GameLoop 7.0.19.05+ keys
+        var fv = key.GetValue("ForceVulkan");
+        if (fv != null) config.ForceVulkan = ConvertToInt(fv, 0) == 1;
+
+        var sm = key.GetValue("SmartModeEnabled");
+        if (sm != null) config.SmartModeEnabled = ConvertToInt(sm, 0) == 1;
+
+        var rm = key.GetValue("RenderingMode");
+        if (rm != null) config.RenderingMode = ConvertToInt(rm, config.RenderingMode);
+
+        var aa = key.GetValue("AntiAliasingMode");
+        if (aa != null) config.AntiAliasingMode = ConvertToInt(aa, config.AntiAliasingMode);
+
+        var vkVer = key.GetValue("VulkanApiVersion") as string;
+        if (!string.IsNullOrEmpty(vkVer)) config.VulkanApiVersion = vkVer;
+
+        // PUBG Mobile specific
+        var fps = key.GetValue("com.tencent.ig_FPSLevel");
+        if (fps != null) config.PubgFpsLevel = ConvertToInt(fps, config.PubgFpsLevel);
+
+        var rq = key.GetValue("com.tencent.ig_RenderQuality");
+        if (rq != null) config.PubgRenderQuality = ConvertToInt(rq, config.PubgRenderQuality);
+
+        var cs = key.GetValue("com.tencent.ig_ContentScale");
+        if (cs != null) config.PubgContentScale = ConvertToInt(cs, config.PubgContentScale);
     }
 
     public static void DetectRunningProcesses(GameLoopConfig config)
@@ -218,7 +303,7 @@ public static class GameLoopDetector
     public static string FindGameLoopExePath()
     {
         // 1. Check running process main module
-        foreach (var name in new[] { "AppMarket", "AndroidEmulator", "AndroidEmulatorEn", "AndroidEmulatorEx", "aow_exe" })
+        foreach (var name in new[] { "GameLoopEmulator", "GameLoop", "GameLoopLauncher", "GameLoopVm", "AppMarket", "AndroidEmulator", "AndroidEmulatorEn", "AndroidEmulatorEx", "aow_exe", "GameLoopRenderer" })
         {
             try
             {
@@ -239,9 +324,19 @@ public static class GameLoopDetector
             catch { }
         }
 
-        // 2. Check standard drive locations
+        // 2. Check standard locations including GameLoop 7.0.19.05 Tencent paths
         var candidates = new List<string>
         {
+            @"D:\Program Files\Tencent\GameLoop\Application\7.0.167.0\GameLoop.exe",
+            @"D:\Program Files\Tencent\GameLoop\Application\7.0.167.0\GameLoopEmulator.exe",
+            @"C:\Program Files\Tencent\GameLoop\Application\7.0.167.0\GameLoop.exe",
+            @"C:\Program Files\Tencent\GameLoop\Application\7.0.167.0\GameLoopEmulator.exe",
+            @"D:\Program Files\Tencent\GameLoop\Application\GameLoopLauncher.exe",
+            @"C:\Program Files\Tencent\GameLoop\Application\GameLoopLauncher.exe",
+            @"D:\Program Files\Tencent\GameLoopData\Component\GameLoop\GameLoopEmulator.exe",
+            @"C:\Program Files\Tencent\GameLoopData\Component\GameLoop\GameLoopEmulator.exe",
+            @"D:\Program Files\Tencent\GameLoopData\Component\GameLoop\GameLoop.exe",
+            @"C:\Program Files\Tencent\GameLoopData\Component\GameLoop\GameLoop.exe",
             @"D:\Program Files\TxGameAssistant\AppMarket\AppMarket.exe",
             @"C:\Program Files\TxGameAssistant\AppMarket\AppMarket.exe",
             @"C:\Program Files (x86)\TxGameAssistant\AppMarket\AppMarket.exe",
@@ -252,14 +347,36 @@ public static class GameLoopDetector
             @"D:\Program Files\TxGameAssistant\ui\AndroidEmulator.exe",
             @"C:\Program Files\TxGameAssistant\ui\AndroidEmulator.exe",
             @"D:\GameLoop\AppMarket\AppMarket.exe",
-            @"C:\GameLoop\AppMarket\AppMarket.exe"
+            @"C:\GameLoop\AppMarket\AppMarket.exe",
+            @"D:\GameLoop\TxGameAssistant\AppMarket\AppMarket.exe",
+            @"C:\GameLoop\TxGameAssistant\AppMarket\AppMarket.exe",
+            @"D:\GameLoop\TxGameAssistant\ui\AndroidEmulatorEn.exe",
+            @"C:\GameLoop\TxGameAssistant\ui\AndroidEmulatorEn.exe"
         };
 
         // Also check all drive letters
         foreach (var drive in DriveInfo.GetDrives().Where(d => d.IsReady))
         {
+            candidates.Add(Path.Combine(drive.RootDirectory.FullName, "Program Files", "Tencent", "GameLoop", "Application", "GameLoopLauncher.exe"));
+            candidates.Add(Path.Combine(drive.RootDirectory.FullName, "Program Files", "Tencent", "GameLoopData", "Component", "GameLoop", "GameLoopEmulator.exe"));
             candidates.Add(Path.Combine(drive.RootDirectory.FullName, "Program Files", "TxGameAssistant", "AppMarket", "AppMarket.exe"));
             candidates.Add(Path.Combine(drive.RootDirectory.FullName, "TxGameAssistant", "AppMarket", "AppMarket.exe"));
+            candidates.Add(Path.Combine(drive.RootDirectory.FullName, "GameLoop", "TxGameAssistant", "AppMarket", "AppMarket.exe"));
+            candidates.Add(Path.Combine(drive.RootDirectory.FullName, "GameLoop", "TxGameAssistant", "ui", "AndroidEmulatorEn.exe"));
+
+            var appDir = Path.Combine(drive.RootDirectory.FullName, "Program Files", "Tencent", "GameLoop", "Application");
+            if (Directory.Exists(appDir))
+            {
+                try
+                {
+                    foreach (var sub in Directory.GetDirectories(appDir))
+                    {
+                        candidates.Add(Path.Combine(sub, "GameLoop.exe"));
+                        candidates.Add(Path.Combine(sub, "GameLoopEmulator.exe"));
+                    }
+                }
+                catch { }
+            }
         }
 
         foreach (var candidate in candidates)

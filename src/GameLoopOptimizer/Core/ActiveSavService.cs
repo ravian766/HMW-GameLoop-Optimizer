@@ -364,17 +364,73 @@ public static class ActiveSavService
 
     #region ADB Synchronization & Local Fallback
 
+    /// <summary>
+    /// GameLoop 7.0.19.05 / Android 11 elevates SELinux to Enforcing and restricts /sdcard/Android/data permissions.
+    /// Pre-elevates storage permissions, sets SELinux to Permissive, and grants read-write access to UE4Game directories.
+    /// </summary>
+    public static async Task EnsureElevatedStoragePermissionsAsync(string? pkg, GameLoopConfig gl)
+    {
+        try
+        {
+            // 1. Permissive SELinux mode so file system operations are unrestricted
+            await AdbManager.ExecuteRootShellCommandAsync("setenforce 0", config: gl);
+
+            // 2. Grant full external storage manager permission to adb shell
+            await AdbManager.ExecuteShellCommandAsync("cmd appops set com.android.shell MANAGE_EXTERNAL_STORAGE allow", config: gl);
+
+            var targets = !string.IsNullOrEmpty(pkg) ? new[] { pkg } : SupportedPackages;
+            foreach (var p in targets)
+            {
+                // Ensure directories have traversal (777) and files have read-write (666) permissions on ext4 storage
+                await AdbManager.ExecuteRootShellCommandAsync(
+                    $"find /data/media/0/Android/data/{p}/files/UE4Game -type d -exec chmod 777 {{}} + ; " +
+                    $"find /data/media/0/Android/data/{p}/files/UE4Game -type f -exec chmod 666 {{}} + 2>/dev/null",
+                    config: gl);
+                await AdbManager.ExecuteRootShellCommandAsync(
+                    $"chmod -R 777 /sdcard/Android/data/{p}/files/UE4Game 2>/dev/null ; " +
+                    $"chmod -R 666 /sdcard/Android/data/{p}/files/UE4Game/* 2>/dev/null",
+                    config: gl);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn("ActiveSavService", $"Could not pre-elevate storage permissions: {ex.Message}");
+        }
+    }
+
     public static async Task<string?> DetectActiveRemoteGamePackageAsync(GameLoopConfig gl)
     {
         if (!AdbManager.IsAdbAvailable(gl)) return null;
         await AdbManager.AutoConnectGameLoopAsync(gl);
+        await EnsureElevatedStoragePermissionsAsync(null, gl);
 
+        // 1. Check if any supported game is actively running in VM memory
+        foreach (var pkg in SupportedPackages)
+        {
+            string pid = await AdbManager.ExecuteShellCommandAsync($"pidof {pkg}", config: gl);
+            if (!string.IsNullOrWhiteSpace(pid) && pid.Trim().Length > 0)
+            {
+                return pkg;
+            }
+        }
+
+        // 2. Check if Active.sav exists on disk
         foreach (var pkg in SupportedPackages)
         {
             string remotePath = GetRemotePathForPackage(pkg);
-            string output = await AdbManager.ExecuteShellCommandAsync($"ls {remotePath}", config: gl);
+            string output = await AdbManager.ExecuteShellCommandAsync($"ls \"{remotePath}\"", config: gl);
             if (!output.Contains("No such file", StringComparison.OrdinalIgnoreCase) &&
                 output.Contains("Active.sav", StringComparison.OrdinalIgnoreCase))
+            {
+                return pkg;
+            }
+        }
+
+        // 3. Fallback: Check installed 3rd party packages
+        string pmList = await AdbManager.ExecuteShellCommandAsync("pm list packages -3", config: gl);
+        foreach (var pkg in SupportedPackages)
+        {
+            if (pmList.Contains(pkg, StringComparison.OrdinalIgnoreCase))
             {
                 return pkg;
             }
@@ -397,6 +453,7 @@ public static class ActiveSavService
         try
         {
             await AdbManager.AutoConnectGameLoopAsync(gl);
+            await EnsureElevatedStoragePermissionsAsync(null, gl);
             string? pkg = await DetectActiveRemoteGamePackageAsync(gl);
             if (string.IsNullOrEmpty(pkg))
             {
@@ -462,27 +519,24 @@ public static class ActiveSavService
             result.TargetPackage = pkg;
             Directory.CreateDirectory(LocalStagingDirectory);
 
+            await EnsureElevatedStoragePermissionsAsync(pkg, gl);
+
             // 1. Check if the game process is running; if so, stop it so UE4 memory cache doesn't overwrite save files
             string pidCheck = await AdbManager.ExecuteShellCommandAsync($"pidof {pkg}", config: gl);
             bool wasRunning = !string.IsNullOrWhiteSpace(pidCheck) && pidCheck.Trim().Length > 0;
             if (wasRunning)
             {
                 Logger.Info("ActiveSavService", $"Stopping {pkg} to prevent UE4 memory cache collision during injection...");
-                await AdbManager.ExecuteShellCommandAsync($"am force-stop {pkg}", config: gl);
+                await AdbManager.ExecuteRootShellCommandAsync($"am force-stop {pkg} ; killall -9 {pkg} 2>/dev/null", config: gl);
                 await Task.Delay(1000);
             }
 
-            // Purge temporary shaders, remote config caches, and logs so cached resolution/graphics state doesn't overwrite settings
-            await AdbManager.ExecuteShellCommandAsync($"rm -rf /sdcard/Android/data/{pkg}/cache/*", config: gl);
-            await AdbManager.ExecuteShellCommandAsync($"rm -rf /sdcard/Android/data/{pkg}/files/UE4Game/ShadowTrackerExtra/ShadowTrackerExtra/Saved/Logs/*", config: gl);
-            await AdbManager.ExecuteShellCommandAsync($"rm -rf /sdcard/Android/data/{pkg}/files/UE4Game/ShadowTrackerExtra/ShadowTrackerExtra/Saved/LightData/*", config: gl);
+            // Purge temporary shaders, remote config caches, and logs using root
+            await AdbManager.ExecuteRootShellCommandAsync($"rm -rf /sdcard/Android/data/{pkg}/cache/* /sdcard/Android/data/{pkg}/files/UE4Game/ShadowTrackerExtra/ShadowTrackerExtra/Saved/Logs/* /sdcard/Android/data/{pkg}/files/UE4Game/ShadowTrackerExtra/ShadowTrackerExtra/Saved/LightData/* 2>/dev/null", config: gl);
 
-            // PUBG 4.x: Clear SharedPreferences graphics cache (the game caches quality/FPS state here and restores on launch)
-            await AdbManager.ExecuteShellCommandAsync($"rm -f /data/data/{pkg}/shared_prefs/com.tencent.ig.v2.playerprefs.xml", config: gl);
-            await AdbManager.ExecuteShellCommandAsync($"rm -f /data/data/{pkg}/shared_prefs/*graphics*.xml", config: gl);
-            await AdbManager.ExecuteShellCommandAsync($"rm -f /data/data/{pkg}/shared_prefs/*quality*.xml", config: gl);
-            await AdbManager.ExecuteShellCommandAsync($"rm -f /data/data/{pkg}/shared_prefs/*UserSetting*.xml", config: gl);
-            Logger.Info("ActiveSavService", "Purged SharedPreferences graphics cache (PUBG 4.x anti-override bypass).");
+            // PUBG 4.x: Clear SharedPreferences graphics cache using elevated root (the game caches quality/FPS state here and restores on launch)
+            await AdbManager.ExecuteRootShellCommandAsync($"rm -rf /data/data/{pkg}/shared_prefs/*graphics* /data/data/{pkg}/shared_prefs/*quality* /data/data/{pkg}/shared_prefs/*UserSetting* /data/data/{pkg}/shared_prefs/com.tencent.ig.v2.playerprefs.xml 2>/dev/null", config: gl);
+            Logger.Info("ActiveSavService", "Purged SharedPreferences graphics cache via elevated root (PUBG 4.x anti-override bypass).");
 
             string remoteActiveSav = GetRemotePathForPackage(pkg);
             string localActiveSav = Path.Combine(LocalStagingDirectory, $"{pkg}_Active.sav");
@@ -491,9 +545,20 @@ public static class ActiveSavService
             bool pulledActive = await AdbManager.PullFileFromVmAsync(remoteActiveSav, localActiveSav, gl);
             if (!pulledActive || !File.Exists(localActiveSav))
             {
-                result.Success = false;
-                result.Message = "Failed to pull base Active.sav for patching.";
-                return result;
+                var latestBak = Directory.Exists(BackupDirectory)
+                    ? new DirectoryInfo(BackupDirectory).GetFiles($"Active_{pkg}_*.sav").OrderByDescending(f => f.CreationTimeUtc).FirstOrDefault()
+                    : null;
+                if (latestBak != null)
+                {
+                    File.Copy(latestBak.FullName, localActiveSav, true);
+                    Logger.Info("ActiveSavService", $"Recovered base Active.sav from snapshot: {latestBak.Name}");
+                }
+                else
+                {
+                    result.Success = false;
+                    result.Message = "Failed to pull base Active.sav for patching.";
+                    return result;
+                }
             }
 
             CreateBackupSnapshot(localActiveSav, pkg);
@@ -547,8 +612,18 @@ public static class ActiveSavService
             // 4b. PUBG 4.x: Synchronize GameUserSettings.ini (additional engine config file read by v4.x+)
             await SyncGameUserSettingsIniAsync(pkg, profile, gl);
 
-            // 5. Trigger Android VM 120 FPS unlock props & sync high-refresh device profile
+            // 5. Restore full read/write permissions and game user ownership
+            await AdbManager.ExecuteRootShellCommandAsync(
+                $"chown -R 10075:10075 /data/media/0/Android/data/{pkg}/files/UE4Game 2>/dev/null ; " +
+                $"find /data/media/0/Android/data/{pkg}/files/UE4Game -type d -exec chmod 777 {{}} + 2>/dev/null ; " +
+                $"find /data/media/0/Android/data/{pkg}/files/UE4Game -type f -exec chmod 666 {{}} + 2>/dev/null ; " +
+                $"chmod -R 777 /sdcard/Android/data/{pkg}/files/UE4Game 2>/dev/null ; " +
+                $"chmod -R 666 /sdcard/Android/data/{pkg}/files/UE4Game/* 2>/dev/null",
+                config: gl);
+
+            // 5b. Trigger Android VM 120 FPS unlock props, display refresh rate, and spoof high-refresh device profile
             await AdbManager.Unlock120FpsAsync(gl);
+            await AdbManager.ExecuteShellCommandAsync("settings put system min_refresh_rate 120 ; settings put system peak_refresh_rate 120 ; settings put global min_refresh_rate 120 ; settings put global peak_refresh_rate 120", config: gl);
             var devProfile = deviceProfile ?? DeviceProfile.Profiles.FirstOrDefault(p => p.MaxSupportedFps >= 120) ?? DeviceProfile.Profiles.First();
             await AdbManager.SpoofDeviceProfileAsync(devProfile, gl);
 
@@ -719,6 +794,20 @@ public static class ActiveSavService
                 _ => 30
             };
 
+            // Smooth performance optimizations:
+            bool isSmooth = profile.BattleQuality <= 1;
+            string bloomVal = isSmooth ? "0.0" : (profile.BattleQuality >= 4 ? "1.0" : "0.0");
+            string skyAtmoVal = profile.BattleQuality >= 5 ? "1.0" : "0.0";
+            string matSuperHigh = profile.BattleQuality >= 5 ? "1.0" : "0.0";
+            int matQualityLevel = isSmooth ? 0 : (profile.BattleQuality >= 3 ? 1 : 0);
+            int detailMode = isSmooth ? 0 : (profile.BattleQuality >= 4 ? 2 : 1);
+            string pprVal = isSmooth ? "0.0" : "1.0";
+            string toneFilmVal = isSmooth ? "0.0" : "1.0";
+            string depthResolveVal = isSmooth ? "0.0" : "1.0";
+            string msaaVal = isSmooth ? "0.0" : (profile.BattleQuality >= 3 ? "1.0" : "0.0");
+            int simpleShader = isSmooth ? 1 : 0;
+            int userShadowSwitch = isSmooth ? 0 : (profile.BattleQuality >= 3 ? 1 : 0);
+
             // Track which CVars we've seen so we don't duplicate them
             var seenCVars = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -763,6 +852,81 @@ public static class ActiveSavService
                     {
                         updatedLines.Add(EncodeCVar($"r.PUBGDeviceDefaultQuality={cvarQuality}"));
                         seenCVars.Add("r.PUBGDeviceDefaultQuality");
+                    }
+                    else if (dec.StartsWith("r.BloomQuality=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar($"r.BloomQuality={bloomVal}"));
+                        seenCVars.Add("r.BloomQuality");
+                    }
+                    else if (dec.StartsWith("r.SkyAtmosphere=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar($"r.SkyAtmosphere={skyAtmoVal}"));
+                        seenCVars.Add("r.SkyAtmosphere");
+                    }
+                    else if (dec.StartsWith("r.MaterialQualitySuperHigh=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar($"r.MaterialQualitySuperHigh={matSuperHigh}"));
+                        seenCVars.Add("r.MaterialQualitySuperHigh");
+                    }
+                    else if (dec.StartsWith("r.MaterialQualityLevel=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar($"r.MaterialQualityLevel={matQualityLevel}"));
+                        seenCVars.Add("r.MaterialQualityLevel");
+                    }
+                    else if (dec.StartsWith("r.DetailMode=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar($"r.DetailMode={detailMode}"));
+                        seenCVars.Add("r.DetailMode");
+                    }
+                    else if (dec.StartsWith("r.Mobile.EnablePPR=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar($"r.Mobile.EnablePPR={pprVal}"));
+                        seenCVars.Add("r.Mobile.EnablePPR");
+                    }
+                    else if (dec.StartsWith("r.Mobile.TonemapperFilm=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar($"r.Mobile.TonemapperFilm={toneFilmVal}"));
+                        seenCVars.Add("r.Mobile.TonemapperFilm");
+                    }
+                    else if (dec.StartsWith("r.Mobile.AlwaysResolveDepth=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar($"r.Mobile.AlwaysResolveDepth={depthResolveVal}"));
+                        seenCVars.Add("r.Mobile.AlwaysResolveDepth");
+                    }
+                    else if (dec.StartsWith("r.MobileMSAA=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar($"r.MobileMSAA={msaaVal}"));
+                        seenCVars.Add("r.MobileMSAA");
+                    }
+                    else if (dec.StartsWith("r.MSAACount=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar($"r.MSAACount={msaaVal}"));
+                        seenCVars.Add("r.MSAACount");
+                    }
+                    else if (dec.StartsWith("r.DefaultFeature.AntiAliasing=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar($"r.DefaultFeature.AntiAliasing={msaaVal}"));
+                        seenCVars.Add("r.DefaultFeature.AntiAliasing");
+                    }
+                    else if (dec.StartsWith("r.MobileSimpleShader=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar($"r.MobileSimpleShader={simpleShader}"));
+                        seenCVars.Add("r.MobileSimpleShader");
+                    }
+                    else if (dec.StartsWith("r.UserShadowSwitch=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar($"r.UserShadowSwitch={userShadowSwitch}"));
+                        seenCVars.Add("r.UserShadowSwitch");
+                    }
+                    else if (dec.StartsWith("Engine.GSleepTimeThod=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar("Engine.GSleepTimeThod=0.0001"));
+                        seenCVars.Add("Engine.GSleepTimeThod");
+                    }
+                    else if (dec.StartsWith("r.Streaming.PoolSize=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        updatedLines.Add(EncodeCVar($"r.Streaming.PoolSize={(isSmooth ? "150" : "300")}"));
+                        seenCVars.Add("r.Streaming.PoolSize");
                     }
                     // FPS cap bypass CVars (legacy)
                     else if (dec.StartsWith("r.PUBGDeviceFPSLow=", StringComparison.OrdinalIgnoreCase))
@@ -849,6 +1013,16 @@ public static class ActiveSavService
             // PUBG 4.x quality override CVar
             if (!seenCVars.Contains("r.PUBGDeviceDefaultQuality"))
                 missingCVars.Add(EncodeCVar($"r.PUBGDeviceDefaultQuality={cvarQuality}"));
+
+            // Smooth performance optimizations
+            if (!seenCVars.Contains("r.BloomQuality"))
+                missingCVars.Add(EncodeCVar($"r.BloomQuality={bloomVal}"));
+            if (!seenCVars.Contains("r.MobileSimpleShader"))
+                missingCVars.Add(EncodeCVar($"r.MobileSimpleShader={simpleShader}"));
+            if (!seenCVars.Contains("r.UserShadowSwitch"))
+                missingCVars.Add(EncodeCVar($"r.UserShadowSwitch={userShadowSwitch}"));
+            if (!seenCVars.Contains("Engine.GSleepTimeThod"))
+                missingCVars.Add(EncodeCVar("Engine.GSleepTimeThod=0.0001"));
 
             if (missingCVars.Count > 0)
             {

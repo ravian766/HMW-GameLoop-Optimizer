@@ -38,7 +38,8 @@ public class GpuPreferenceModule : IOptimizationModule
             var valueNames = key.GetValueNames();
             bool hasGameLoopEntry = valueNames.Any(n => n.Contains("AppMarket.exe", StringComparison.OrdinalIgnoreCase) ||
                                                         n.Contains("AndroidEmulator", StringComparison.OrdinalIgnoreCase) ||
-                                                        n.Contains("aow_exe", StringComparison.OrdinalIgnoreCase));
+                                                        n.Contains("aow_exe", StringComparison.OrdinalIgnoreCase) ||
+                                                        n.Contains("GameLoopRenderer", StringComparison.OrdinalIgnoreCase));
 
             IsOptimized = hasGameLoopEntry;
             CurrentStateDisplay = hasGameLoopEntry ? "High Performance GPU Enforced" : "Default (Windows Auto)";
@@ -72,6 +73,12 @@ public class GpuPreferenceModule : IOptimizationModule
                 exeCandidates.Add(Path.Combine(gl.InstallPath, "ui", "AndroidEmulator.exe"));
                 exeCandidates.Add(Path.Combine(gl.InstallPath, "ui", "AndroidEmulatorEx.exe"));
                 exeCandidates.Add(Path.Combine(gl.InstallPath, "ui", "aow_exe.exe"));
+                // GameLoop 7.0.19.05+ Vulkan renderer and nested paths
+                exeCandidates.Add(Path.Combine(gl.InstallPath, "ui", "GameLoopRenderer.exe"));
+                exeCandidates.Add(Path.Combine(gl.InstallPath, "ui", "GameLoopService.exe"));
+                exeCandidates.Add(Path.Combine(gl.InstallPath, "TxGameAssistant", "ui", "GameLoopRenderer.exe"));
+                exeCandidates.Add(Path.Combine(gl.InstallPath, "TxGameAssistant", "ui", "AndroidEmulatorEn.exe"));
+                exeCandidates.Add(Path.Combine(gl.InstallPath, "TxGameAssistant", "AppMarket", "AppMarket.exe"));
             }
 
             int configuredCount = 0;
@@ -98,6 +105,43 @@ public class GpuPreferenceModule : IOptimizationModule
                     configuredCount++;
                 }
             }
+
+            // GameLoop 7.0.19.05+ Registry Integration: Ensure GameLoop does NOT disable GPU preferences
+            try
+            {
+                using var glHklmKey = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Tencent\GameLoop", writable: true);
+                if (glHklmKey != null)
+                {
+                    var prevDisable = glHklmKey.GetValue("DisableGpuPreferences")?.ToString();
+                    if (prevDisable == "1")
+                    {
+                        BackupManager.RecordBackup(new BackupEntry
+                        {
+                            ModuleId = Id,
+                            Title = "GameLoop DisableGpuPreferences Setting",
+                            Category = Category,
+                            TargetType = "Registry",
+                            TargetPath = @"HKLM\SOFTWARE\Tencent\GameLoop",
+                            ValueName = "DisableGpuPreferences",
+                            PreviousValue = prevDisable,
+                            PreviousValueKind = "DWord",
+                            NewValue = "0",
+                            Description = "Ensure GameLoop honors Windows discrete GPU preferences"
+                        });
+                        glHklmKey.SetValue("DisableGpuPreferences", 0, RegistryValueKind.DWord);
+                    }
+
+                    if (hw.GpuVendor == GpuVendor.Nvidia)
+                    {
+                        glHklmKey.SetValue("NV_AsyncPresent", 1, RegistryValueKind.DWord);
+                    }
+                    else if (hw.GpuVendor == GpuVendor.Amd)
+                    {
+                        glHklmKey.SetValue("AMD_AsyncPresent", 1, RegistryValueKind.DWord);
+                    }
+                }
+            }
+            catch { }
 
             IsOptimized = true;
             CurrentStateDisplay = $"High Performance ({configuredCount} executables)";

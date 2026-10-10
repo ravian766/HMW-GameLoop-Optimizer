@@ -428,5 +428,89 @@ Thermal status: 2
 
         vm.Dispose();
     }
+
+    [Fact]
+    public void AdbTelemetryService_ParseThermalMetrics_GameLoop701905_IgnoresCoolingDevice()
+    {
+        string sysOut = "cat: /sys/class/thermal/thermal_zone*/temp: No such file or directory";
+        string dumpOut = @"
+IsStatusOverride: false
+Thermal Status: 0
+Cached temperatures:
+HAL Ready: true
+HAL connection:
+	ThermalHAL 2.0 connected: yes
+Current temperatures from HAL:
+Current cooling devices from HAL:
+	CoolingDevice{mValue=100, mType=0, mName=test cooling device}
+Temperature static thresholds from HAL:
+	{.type = CPU, .name = TCPU, .hotThrottlingThresholds = [NaN, NaN, NaN, NaN, NaN, 99.0, 108.0], .coldThrottlingThresholds = [NaN, NaN, NaN, NaN, NaN, NaN, NaN], .vrThrottlingThreshold = NaN}
+";
+        var thermals = AdbTelemetryService.ParseThermalMetrics(sysOut, dumpOut);
+
+        Assert.Equal(0, thermals.CpuTempC);
+        Assert.False(thermals.IsThrottling);
+        Assert.Equal("Normal (Emulated VM)", thermals.ThermalStatus);
+        Assert.Contains("Status: Normal (Emulated VM)", thermals.SummaryDisplay);
+        Assert.DoesNotContain("THROTTLED", thermals.SummaryDisplay);
+    }
+
+    [Fact]
+    public void AdbTelemetryService_ParseMemoryFromProcOrActivity_ParsesProcStatusAccurately()
+    {
+        string procStatus = @"
+Name:	MainThread-UE4
+Pid:	4151
+VmRSS:	 2097152 kB
+RssAnon:	 1572864 kB
+VmLib:	  314572 kB
+";
+        string actProc = "lastPss=1.3GB";
+
+        var mem = AdbTelemetryService.ParseMemoryFromProcOrActivity(procStatus, actProc);
+
+        Assert.Equal(2048.0, mem.TotalPssMb, precision: 1);
+        Assert.True(mem.NativeHeapMb > 0);
+        Assert.True(mem.DalvikHeapMb > 0);
+        Assert.True(mem.GraphicsMb > 0);
+        Assert.Contains("Total: 2048.0 MB", mem.SummaryDisplay);
+    }
+
+    [Fact]
+    public void AdbTelemetryService_FindGameSurfaceLayer_IdentifiesBlastSurfaceView()
+    {
+        string layersList = @"
+Display 0 name=""Built-in Screen""#1
+Task=8#175
+b44d9f4 ActivityRecordInputSink com.tencent.ig/com.epicgames.ue4.GameActivity#181
+bbbb481 com.tencent.ig/com.epicgames.ue4.GameActivity#183
+Background for SurfaceView[com.tencent.ig/com.epicgames.ue4.GameActivity]#189
+SurfaceView[com.tencent.ig/com.epicgames.ue4.GameActivity]#187
+SurfaceView[com.tencent.ig/com.epicgames.ue4.GameActivity](BLAST)#188
+";
+        string? layer = AdbTelemetryService.FindGameSurfaceLayer(layersList, "com.tencent.ig");
+
+        Assert.NotNull(layer);
+        Assert.Contains("SurfaceView", layer);
+        Assert.Contains("com.tencent.ig", layer);
+    }
+
+    [Fact]
+    public void AdbTelemetryService_ParseSurfaceFlingerLatency_ComputesFramerateAndStats()
+    {
+        string latencyData = "16666666\n";
+        long baseTs = 1000000000L;
+        for (int i = 0; i < 30; i++)
+        {
+            baseTs += 16666666L;
+            latencyData += $"{baseTs}\t{baseTs}\t{baseTs}\n";
+        }
+
+        var snapshot = new AdbTelemetrySnapshot();
+        AdbTelemetryService.ParseSurfaceFlingerLatency(latencyData, snapshot);
+
+        Assert.True(snapshot.EstimatedFps >= 59.0 && snapshot.EstimatedFps <= 61.0);
+        Assert.True(snapshot.OnePercentLowFps > 0);
+    }
 }
 

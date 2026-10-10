@@ -94,11 +94,39 @@ public static class AdbManager
             candidates.Add(Path.Combine(config.InstallPath, "AppMarket", "adb.exe"));
             candidates.Add(Path.Combine(config.InstallPath, "ui", "adb.exe"));
             candidates.Add(Path.Combine(config.InstallPath, "vms", "AndroidEmulator", "adb.exe"));
+            // 7.0.19.05+ nested paths
+            candidates.Add(Path.Combine(config.InstallPath, "TxGameAssistant", "ui", "adb.exe"));
+            candidates.Add(Path.Combine(config.InstallPath, "TxGameAssistant", "AppMarket", "adb.exe"));
+            candidates.Add(Path.Combine(config.InstallPath, "TxGameAssistant", "vms", "AndroidEmulator", "adb.exe"));
+            candidates.Add(Path.Combine(config.InstallPath, "Application", "adb.exe"));
+
+            var appDir = Path.Combine(config.InstallPath, "Application");
+            if (Directory.Exists(appDir))
+            {
+                try
+                {
+                    foreach (var sub in Directory.GetDirectories(appDir))
+                    {
+                        candidates.Add(Path.Combine(sub, "adb.exe"));
+                    }
+                }
+                catch { }
+            }
+        }
+
+        if (config != null && !string.IsNullOrEmpty(config.UserDir))
+        {
+            candidates.Add(Path.Combine(config.UserDir, "Component", "GameLoop", "adb.exe"));
+            candidates.Add(Path.Combine(config.UserDir, "adb.exe"));
         }
 
         // 2. Standard TxGameAssistant / GameLoop paths
         candidates.AddRange(new[]
         {
+            @"D:\Program Files\Tencent\GameLoop\Application\7.0.167.0\adb.exe",
+            @"C:\Program Files\Tencent\GameLoop\Application\7.0.167.0\adb.exe",
+            @"D:\Program Files\Tencent\GameLoopData\Component\GameLoop\adb.exe",
+            @"C:\Program Files\Tencent\GameLoopData\Component\GameLoop\adb.exe",
             @"C:\Program Files\TxGameAssistant\AppMarket\adb.exe",
             @"C:\Program Files\TxGameAssistant\ui\adb.exe",
             @"C:\Program Files\TxGameAssistant\vms\AndroidEmulator\adb.exe",
@@ -114,16 +142,24 @@ public static class AdbManager
             @"C:\GameLoop\AppMarket\adb.exe",
             @"C:\GameLoop\ui\adb.exe",
             @"D:\GameLoop\AppMarket\adb.exe",
-            @"D:\GameLoop\ui\adb.exe"
+            @"D:\GameLoop\ui\adb.exe",
+            // 7.0.19.05+
+            @"D:\GameLoop\TxGameAssistant\ui\adb.exe",
+            @"C:\GameLoop\TxGameAssistant\ui\adb.exe",
+            @"D:\GameLoop\TxGameAssistant\AppMarket\adb.exe",
+            @"C:\GameLoop\TxGameAssistant\AppMarket\adb.exe"
         });
 
         // 3. Search across all ready drives
         foreach (var drive in DriveInfo.GetDrives().Where(d => d.IsReady))
         {
+            candidates.Add(Path.Combine(drive.RootDirectory.FullName, "Program Files", "Tencent", "GameLoopData", "Component", "GameLoop", "adb.exe"));
             candidates.Add(Path.Combine(drive.RootDirectory.FullName, "Program Files", "TxGameAssistant", "AppMarket", "adb.exe"));
             candidates.Add(Path.Combine(drive.RootDirectory.FullName, "Program Files", "TxGameAssistant", "ui", "adb.exe"));
             candidates.Add(Path.Combine(drive.RootDirectory.FullName, "TxGameAssistant", "AppMarket", "adb.exe"));
             candidates.Add(Path.Combine(drive.RootDirectory.FullName, "TxGameAssistant", "ui", "adb.exe"));
+            candidates.Add(Path.Combine(drive.RootDirectory.FullName, "GameLoop", "TxGameAssistant", "ui", "adb.exe"));
+            candidates.Add(Path.Combine(drive.RootDirectory.FullName, "GameLoop", "TxGameAssistant", "AppMarket", "adb.exe"));
         }
 
         // 4. Check PATH environment variable
@@ -234,6 +270,36 @@ public static class AdbManager
             : $"-s {serial} shell {shellCommand}";
 
         return await ExecuteAdbCommandAsync(args, timeoutMs, config);
+    }
+
+    /// <summary>
+    /// Executes a shell command with root privileges in the Android VM.
+    /// Utilizes GameLoop 7's native setuid root wrapper (/system/xbin/txperm), falling back to su and adb shell.
+    /// </summary>
+    public static async Task<string> ExecuteRootShellCommandAsync(string shellCommand, string? targetDevice = null, int timeoutMs = 8000, GameLoopConfig? config = null)
+    {
+        string escapedCmd = shellCommand.Replace("'", "'\\''");
+        // 1. Try GameLoop 7 setuid root binary (/system/xbin/txperm 0 /system/bin/sh -c '...')
+        string txpermCmd = $"/system/xbin/txperm 0 /system/bin/sh -c '{escapedCmd}'";
+        string res = await ExecuteShellCommandAsync(txpermCmd, targetDevice, timeoutMs, config);
+        if (!res.Contains("txperm: not found", StringComparison.OrdinalIgnoreCase) &&
+            !res.Contains("No such file", StringComparison.OrdinalIgnoreCase) &&
+            !res.Contains("Permission denied", StringComparison.OrdinalIgnoreCase))
+        {
+            return res;
+        }
+
+        // 2. Try standard su
+        string suCmd = $"su 0 /system/bin/sh -c '{escapedCmd}'";
+        res = await ExecuteShellCommandAsync(suCmd, targetDevice, timeoutMs, config);
+        if (!res.Contains("su: not found", StringComparison.OrdinalIgnoreCase) &&
+            !res.Contains("No such file", StringComparison.OrdinalIgnoreCase))
+        {
+            return res;
+        }
+
+        // 3. Fallback to direct shell command
+        return await ExecuteShellCommandAsync(shellCommand, targetDevice, timeoutMs, config);
     }
 
     public static async Task<string> ExecuteBatchShellCommandAsync(IEnumerable<string> shellCommands, string? targetDevice = null, int timeoutMs = 12000, GameLoopConfig? config = null)
@@ -903,19 +969,89 @@ public static class AdbManager
             : $"-s {serial} pull \"{remotePath}\" \"{localPath}\"";
 
         var res = await ExecuteAdbCommandAsync(args, 15000, config);
-        return !res.Contains("error:", StringComparison.OrdinalIgnoreCase) && !res.Contains("failed", StringComparison.OrdinalIgnoreCase);
+        bool success = !res.Contains("error:", StringComparison.OrdinalIgnoreCase) && !res.Contains("failed", StringComparison.OrdinalIgnoreCase);
+        if (success && File.Exists(localPath))
+        {
+            return true;
+        }
+
+        // Elevated fallback: In GameLoop 7 / Android 11, Scoped Storage and 0600 file modes deny adb shell.
+        // Copy target to /data/local/tmp (world-readable) via root, pull from staging, then cleanup.
+        try
+        {
+            string tmpRemote = $"/data/local/tmp/staging_pull_{Path.GetFileName(remotePath)}.tmp";
+            await ExecuteRootShellCommandAsync($"cp -f \"{remotePath}\" \"{tmpRemote}\" && chmod 666 \"{tmpRemote}\"", config: config);
+
+            string fallbackArgs = string.IsNullOrEmpty(serial)
+                ? $"pull \"{tmpRemote}\" \"{localPath}\""
+                : $"-s {serial} pull \"{tmpRemote}\" \"{localPath}\"";
+
+            var fallbackRes = await ExecuteAdbCommandAsync(fallbackArgs, 15000, config);
+            await ExecuteRootShellCommandAsync($"rm -f \"{tmpRemote}\"", config: config);
+
+            if (!fallbackRes.Contains("error:", StringComparison.OrdinalIgnoreCase) && File.Exists(localPath))
+            {
+                Logger.Success("AdbManager", $"Pulled {remotePath} via elevated root staging fallback.");
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn("AdbManager", $"Elevated pull fallback failed: {ex.Message}");
+        }
+
+        return false;
     }
 
     public static async Task<bool> PushFileToVmAsync(string localPath, string remotePath, GameLoopConfig? config = null)
     {
         if (!File.Exists(localPath)) return false;
         string serial = _activeDeviceSerial ?? string.Empty;
+
+        // Try direct push first
         string args = string.IsNullOrEmpty(serial)
             ? $"push \"{localPath}\" \"{remotePath}\""
             : $"-s {serial} push \"{localPath}\" \"{remotePath}\"";
 
         var res = await ExecuteAdbCommandAsync(args, 15000, config);
-        return !res.Contains("error:", StringComparison.OrdinalIgnoreCase) && !res.Contains("failed", StringComparison.OrdinalIgnoreCase);
+        bool directSuccess = !res.Contains("error:", StringComparison.OrdinalIgnoreCase) && !res.Contains("failed", StringComparison.OrdinalIgnoreCase);
+        if (directSuccess)
+        {
+            await ExecuteRootShellCommandAsync($"chmod 666 \"{remotePath}\" 2>/dev/null", config: config);
+            return true;
+        }
+
+        // Elevated fallback: In GameLoop 7 / Android 11, pushing directly into /sdcard/Android/data triggers
+        // 'remote fchown failed: Operation not permitted' or permission errors.
+        // Push into /data/local/tmp, then copy to destination and grant 666 permissions using root.
+        try
+        {
+            string tmpRemote = $"/data/local/tmp/staging_push_{Path.GetFileName(remotePath)}.tmp";
+            string stageArgs = string.IsNullOrEmpty(serial)
+                ? $"push \"{localPath}\" \"{tmpRemote}\""
+                : $"-s {serial} push \"{localPath}\" \"{tmpRemote}\"";
+
+            var stageRes = await ExecuteAdbCommandAsync(stageArgs, 15000, config);
+            if (!stageRes.Contains("error:", StringComparison.OrdinalIgnoreCase) && !stageRes.Contains("failed", StringComparison.OrdinalIgnoreCase))
+            {
+                string normPath = remotePath.Replace('\\', '/');
+                string remoteDir = normPath.Contains('/') ? normPath.Substring(0, normPath.LastIndexOf('/')) : string.Empty;
+                if (!string.IsNullOrEmpty(remoteDir))
+                {
+                    await ExecuteRootShellCommandAsync($"mkdir -p \"{remoteDir}\" && chmod 777 \"{remoteDir}\"", config: config);
+                }
+
+                await ExecuteRootShellCommandAsync($"cat \"{tmpRemote}\" > \"{remotePath}\" && rm -f \"{tmpRemote}\" && chmod 666 \"{remotePath}\"", config: config);
+                Logger.Success("AdbManager", $"Pushed {localPath} -> {remotePath} via elevated staging fallback.");
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn("AdbManager", $"Elevated push fallback failed: {ex.Message}");
+        }
+
+        return false;
     }
 
     public static async Task<bool> ElevateGameProcessPriorityAsync(string packageName = "com.tencent.ig", GameLoopConfig? config = null)

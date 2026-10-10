@@ -303,6 +303,15 @@ public static class ResolutionKeymapService
             candidateDirs.Add(Path.Combine(config.InstallPath, "ui", "ConfigFile"));
             candidateDirs.Add(Path.Combine(config.InstallPath, "AppMarket"));
             candidateDirs.Add(Path.Combine(config.InstallPath, "AppMarket", "ConfigFile"));
+            // 7.0.19.05+ nested directory structure
+            candidateDirs.Add(Path.Combine(config.InstallPath, "TxGameAssistant", "ui"));
+            candidateDirs.Add(Path.Combine(config.InstallPath, "TxGameAssistant", "ui", "ConfigFile"));
+        }
+
+        if (!string.IsNullOrEmpty(config.UserDir))
+        {
+            candidateDirs.Add(config.UserDir);
+            candidateDirs.Add(Path.Combine(config.UserDir, "ConfigFile"));
         }
 
         var standardRoots = new[]
@@ -322,7 +331,11 @@ public static class ResolutionKeymapService
             @"D:\GameLoop\ui",
             @"D:\GameLoop\ui\ConfigFile",
             @"C:\GameLoop\ui",
-            @"C:\GameLoop\ui\ConfigFile"
+            @"C:\GameLoop\ui\ConfigFile",
+            @"D:\GameLoop\TxGameAssistant\ui",
+            @"D:\GameLoop\TxGameAssistant\ui\ConfigFile",
+            @"C:\GameLoop\TxGameAssistant\ui",
+            @"C:\GameLoop\TxGameAssistant\ui\ConfigFile"
         };
 
         candidateDirs.AddRange(standardRoots);
@@ -333,9 +346,14 @@ public static class ResolutionKeymapService
         candidateDirs.Add(Path.Combine(localAppData, "Tencent", "TxGameAssistant"));
         candidateDirs.Add(Path.Combine(localAppData, "Tencent", "TxGameAssistant", "ConfigFile"));
         candidateDirs.Add(Path.Combine(localAppData, "Tencent", "MobileGamePC"));
+        candidateDirs.Add(Path.Combine(localAppData, "Tencent", "GameLoop"));
+        candidateDirs.Add(Path.Combine(localAppData, "Tencent", "GameLoop", "ConfigFile"));
         candidateDirs.Add(Path.Combine(appData, "Tencent", "TxGameAssistant"));
         candidateDirs.Add(Path.Combine(appData, "Tencent", "TxGameAssistant", "ConfigFile"));
         candidateDirs.Add(Path.Combine(appData, "Tencent", "MobileGamePC"));
+        candidateDirs.Add(Path.Combine(appData, "Tencent", "GameLoop"));
+        candidateDirs.Add(Path.Combine(appData, "Tencent", "GameLoop", "ConfigFile"));
+        candidateDirs.Add(Path.Combine(appData, "Tencent", "GameLoop", "config"));
 
         var targetFileNames = new[]
         {

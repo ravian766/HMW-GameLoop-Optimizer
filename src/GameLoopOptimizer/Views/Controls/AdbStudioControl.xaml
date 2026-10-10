@@ -26,7 +26,7 @@
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
                     <TextBox Text="{Binding CustomAdbPortText, UpdateSourceTrigger=PropertyChanged}"
-                             Width="110"
+                             Width="140"
                              FontSize="11.5"
                              FontFamily="Consolas"
                              Padding="8,6"

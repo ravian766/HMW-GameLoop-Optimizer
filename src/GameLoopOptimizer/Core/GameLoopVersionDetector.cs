@@ -88,16 +88,28 @@ public static class GameLoopVersionDetector
         // Detect configured/installed PUBG packages from registry
         try
         {
-            using var key = Registry.CurrentUser.OpenSubKey(@"Software\Tencent\MobileGamePC");
-            if (key != null)
+            var regCandidates = new[]
             {
-                var names = key.GetValueNames();
-                foreach (var apk in AllPubgPackages)
+                config.RegistryKeyPath,
+                @"Software\Tencent\MobileGamePC",
+                @"SOFTWARE\WOW6432Node\Tencent\MobileGamePC",
+                @"Software\Tencent\TxGameAssistant"
+            }.Where(p => !string.IsNullOrEmpty(p)).Distinct();
+
+            foreach (var regPath in regCandidates)
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(regPath) ?? Registry.LocalMachine.OpenSubKey(regPath);
+                if (key != null)
                 {
-                    if (names.Any(n => n.StartsWith(apk, StringComparison.OrdinalIgnoreCase)))
+                    var names = key.GetValueNames();
+                    foreach (var apk in AllPubgPackages)
                     {
-                        details.DetectedPubgPackages.Add(apk);
+                        if (names.Any(n => n.StartsWith(apk, StringComparison.OrdinalIgnoreCase)) && !details.DetectedPubgPackages.Contains(apk))
+                        {
+                            details.DetectedPubgPackages.Add(apk);
+                        }
                     }
+                    if (details.DetectedPubgPackages.Count > 0) break;
                 }
             }
         }

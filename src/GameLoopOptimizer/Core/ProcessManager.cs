@@ -269,7 +269,10 @@ public static class ProcessManager
         try
         {
             // 1. Try to focus running process with a visible window handle
-            var procs = Process.GetProcessesByName("AppMarket")
+            var procs = Process.GetProcessesByName("GameLoop")
+                .Concat(Process.GetProcessesByName("GameLoopEmulator"))
+                .Concat(Process.GetProcessesByName("GameLoopLauncher"))
+                .Concat(Process.GetProcessesByName("AppMarket"))
                 .Concat(Process.GetProcessesByName("AndroidEmulator"))
                 .Concat(Process.GetProcessesByName("AndroidEmulatorEn"))
                 .Concat(Process.GetProcessesByName("AndroidEmulatorEx"))
@@ -291,13 +294,31 @@ public static class ProcessManager
 
             if (string.IsNullOrEmpty(exePath) && !string.IsNullOrEmpty(config.InstallPath))
             {
-                var candidate1 = Path.Combine(config.InstallPath, "AppMarket.exe");
-                var candidate2 = Path.Combine(config.InstallPath, "AppMarket", "AppMarket.exe");
-                var candidate3 = Path.Combine(config.InstallPath, "ui", "AndroidEmulatorEn.exe");
+                var candidateLauncher = Path.Combine(config.InstallPath, "Application", "GameLoopLauncher.exe");
+                var candidateGl = Path.Combine(config.InstallPath, "Application", "GameLoop.exe");
 
-                if (File.Exists(candidate1)) exePath = candidate1;
-                else if (File.Exists(candidate2)) exePath = candidate2;
-                else if (File.Exists(candidate3)) exePath = candidate3;
+                var appDir = Path.Combine(config.InstallPath, "Application");
+                if (Directory.Exists(appDir))
+                {
+                    try
+                    {
+                        var glVersioned = Directory.GetFiles(appDir, "GameLoop.exe", SearchOption.AllDirectories).FirstOrDefault();
+                        if (glVersioned != null) candidateGl = glVersioned;
+                    }
+                    catch { }
+                }
+
+                var candidateAppMarket = Path.Combine(config.InstallPath, "AppMarket.exe");
+                var candidateAppMarket2 = Path.Combine(config.InstallPath, "AppMarket", "AppMarket.exe");
+                var candidateEmu = Path.Combine(config.InstallPath, "ui", "AndroidEmulatorEn.exe");
+                var candidateComp = Path.Combine(config.InstallPath, "..", "GameLoopData", "Component", "GameLoop", "GameLoop.exe");
+
+                if (File.Exists(candidateLauncher)) exePath = candidateLauncher;
+                else if (File.Exists(candidateGl)) exePath = candidateGl;
+                else if (File.Exists(candidateAppMarket)) exePath = candidateAppMarket;
+                else if (File.Exists(candidateAppMarket2)) exePath = candidateAppMarket2;
+                else if (File.Exists(candidateEmu)) exePath = candidateEmu;
+                else if (File.Exists(candidateComp)) exePath = candidateComp;
             }
 
             if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))

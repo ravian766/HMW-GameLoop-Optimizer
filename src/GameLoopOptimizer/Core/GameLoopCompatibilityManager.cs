@@ -36,6 +36,12 @@ public static class GameLoopCompatibilityManager
             config.CompatibilityTier = GameLoopCompatibilityTier.PartiallySupported;
             config.CompatibilityReason = $"Legacy GameLoop 3.x detected. Some modern DirectX+/Direct3D rendering optimizations may operate in legacy fallback mode.";
         }
+        else if (version.StartsWith("7.0.19.", StringComparison.OrdinalIgnoreCase))
+        {
+            // GameLoop 7.0.19.05+ with Vulkan/Smart Mode engine overhaul
+            config.CompatibilityTier = GameLoopCompatibilityTier.Supported;
+            config.CompatibilityReason = $"GameLoop ({config.ArchitectureBitness}) version '{version}' is fully supported. Enhanced engine: Vulkan/Smart Mode rendering, 120 FPS unlock, and advanced anti-aliasing.";
+        }
         else if (version.StartsWith("7.1", StringComparison.OrdinalIgnoreCase) ||
             version.StartsWith("7.0", StringComparison.OrdinalIgnoreCase) ||
             version.StartsWith("1.0", StringComparison.OrdinalIgnoreCase) || // Syzs 1.0.x

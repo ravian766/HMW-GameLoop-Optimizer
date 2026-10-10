@@ -95,9 +95,13 @@ public static class DeepCleanerService
         AddDir(shaderCat, Path.Combine(localApp, "Microsoft", "DirectX Shader Cache"));
         AddDir(shaderCat, Path.Combine(localApp, "NVIDIA", "DXCache"));
         AddDir(shaderCat, Path.Combine(localApp, "NVIDIA", "GLCache"));
+        AddDir(shaderCat, Path.Combine(localApp, "NVIDIA", "VKCache"));
         AddDir(shaderCat, Path.Combine(localApp, "AMD", "DxCache"));
         AddDir(shaderCat, Path.Combine(localApp, "AMD", "GLCache"));
+        AddDir(shaderCat, Path.Combine(localApp, "AMD", "VkCache"));
         AddDir(shaderCat, Path.Combine(localApp, "Intel", "ShaderCache"));
+        AddDir(shaderCat, Path.Combine(localApp, "Tencent", "MobileGamePC", "ShaderCache"));
+        AddDir(shaderCat, Path.Combine(localApp, "Tencent", "MobileGamePC", "VulkanCache"));
         result.Categories.Add(shaderCat);
 
         // 2. GameLoop Crash Dumps & MiniDumps
@@ -114,6 +118,7 @@ public static class DeepCleanerService
         {
             AddDir(dumpCat, Path.Combine(config.InstallPath, "ui", "CrashDumps"));
             AddDir(dumpCat, Path.Combine(config.InstallPath, "AppMarket", "CrashDumps"));
+            AddDir(dumpCat, Path.Combine(config.InstallPath, "TxGameAssistant", "ui", "CrashDumps"));
         }
         dumpCat.SearchPatterns.AddRange(new[] { "*.dmp", "*.mdmp", "*.hdmp" });
         result.Categories.Add(dumpCat);
@@ -132,6 +137,7 @@ public static class DeepCleanerService
         {
             AddDir(logCat, Path.Combine(config.InstallPath, "ui", "logs"));
             AddDir(logCat, Path.Combine(config.InstallPath, "AppMarket", "logs"));
+            AddDir(logCat, Path.Combine(config.InstallPath, "TxGameAssistant", "ui", "logs"));
         }
         logCat.SearchPatterns.AddRange(new[] { "*.log", "*.tlog", "*.txt" });
         result.Categories.Add(logCat);

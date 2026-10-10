@@ -29,13 +29,14 @@ public class GameLoopGraphicsModule : IOptimizationModule
         }
 
         var rec = RecommendationEngine.Calculate(hw);
-        string recRenderer = rec.RecommendedRenderer == GraphicsRenderer.DirectXPlus ? "DirectX+" : "OpenGL+";
+        string recRenderer = RecommendationEngine.GetRendererName(rec.RecommendedRenderer);
         RecommendedStateDisplay = $"{recRenderer} / Cache On / VSync Off";
 
         bool rendererMatches = gl.ActiveRenderer == rec.RecommendedRenderer;
         bool ok = rendererMatches && gl.LocalShaderCacheEnabled && gl.ShaderCacheEnabled && !gl.VSyncEnabled;
         IsOptimized = ok;
-        CurrentStateDisplay = ok ? $"{recRenderer} / Shader Cache Enabled" : $"{(gl.ForceDirectX ? "DirectX+" : "OpenGL+")}, Cache: {gl.LocalShaderCacheEnabled}, VSync: {gl.VSyncEnabled}";
+        string currentRenderer = RecommendationEngine.GetRendererName(gl.ActiveRenderer);
+        CurrentStateDisplay = ok ? $"{recRenderer} / Shader Cache Enabled" : $"{currentRenderer}, Cache: {gl.LocalShaderCacheEnabled}, VSync: {gl.VSyncEnabled}";
         State = ok ? OptimizationState.Optimized : OptimizationState.Recommended;
         return Task.FromResult(State);
     }
@@ -51,7 +52,9 @@ public class GameLoopGraphicsModule : IOptimizationModule
         {
             var rec = RecommendationEngine.Calculate(hw);
             int targetDirectXVal = rec.RecommendedForceDirectX ? 1 : 0;
-            string targetRendererName = rec.RecommendedRenderer == GraphicsRenderer.DirectXPlus ? "DirectX+" : "OpenGL+";
+            int targetVulkanVal = rec.RecommendedRenderer == GraphicsRenderer.Vulkan ? 1 : 0;
+            int targetSmartMode = rec.RecommendedRenderer == GraphicsRenderer.SmartMode ? 1 : 0;
+            string targetRendererName = RecommendationEngine.GetRendererName(rec.RecommendedRenderer);
 
             using var key = Registry.CurrentUser.CreateSubKey(gl.RegistryKeyPath);
             if (key == null) return Task.FromResult(OptimizationResult.Fail(Id, "Failed to open GameLoop registry key."));
@@ -66,6 +69,7 @@ public class GameLoopGraphicsModule : IOptimizationModule
 
             var targetPaths = new[]
             {
+                @"Software\Tencent\GameLoop",
                 @"Software\Tencent\MobileGamePC",
                 @"Software\Tencent\TxGameAssistant"
             };
@@ -83,27 +87,44 @@ public class GameLoopGraphicsModule : IOptimizationModule
                         subKey.SetValue("RenderOptimizeEnabled", 1, RegistryValueKind.DWord);
                         subKey.SetValue("VSyncEnabled", 0, RegistryValueKind.DWord);
                         subKey.SetValue("EnableGLESv3", 1, RegistryValueKind.DWord);
+
+                        // GameLoop 7.0.19.05+ rendering mode keys
+                        subKey.SetValue("ForceVulkan", targetVulkanVal, RegistryValueKind.DWord);
+                        subKey.SetValue("SmartModeEnabled", targetSmartMode, RegistryValueKind.DWord);
+                        subKey.SetValue("RenderingMode", rec.RecommendedRenderingMode, RegistryValueKind.DWord);
                     }
                 }
                 catch { }
 
-                try
+                var hklmPrefixes = new[] { $@"SOFTWARE\{path}", $@"SOFTWARE\WOW6432Node\{path}" };
+                foreach (var hklmPath in hklmPrefixes)
                 {
-                    using var hklmKey = Registry.LocalMachine.CreateSubKey($@"SOFTWARE\WOW6432Node\{path}");
-                    if (hklmKey != null)
+                    try
                     {
-                        hklmKey.SetValue("ForceDirectX", targetDirectXVal, RegistryValueKind.DWord);
-                        hklmKey.SetValue("LocalShaderCacheEnabled", 1, RegistryValueKind.DWord);
-                        hklmKey.SetValue("ShaderCacheEnabled", 1, RegistryValueKind.DWord);
-                        hklmKey.SetValue("RenderOptimizeEnabled", 1, RegistryValueKind.DWord);
-                        hklmKey.SetValue("VSyncEnabled", 0, RegistryValueKind.DWord);
-                        hklmKey.SetValue("EnableGLESv3", 1, RegistryValueKind.DWord);
+                        using var hklmKey = Registry.LocalMachine.CreateSubKey(hklmPath);
+                        if (hklmKey != null)
+                        {
+                            hklmKey.SetValue("ForceDirectX", targetDirectXVal, RegistryValueKind.DWord);
+                            hklmKey.SetValue("LocalShaderCacheEnabled", 1, RegistryValueKind.DWord);
+                            hklmKey.SetValue("ShaderCacheEnabled", 1, RegistryValueKind.DWord);
+                            hklmKey.SetValue("RenderOptimizeEnabled", 1, RegistryValueKind.DWord);
+                            hklmKey.SetValue("VSyncEnabled", 0, RegistryValueKind.DWord);
+                            hklmKey.SetValue("EnableGLESv3", 1, RegistryValueKind.DWord);
+
+                            // GameLoop 7.0.19.05+ rendering mode keys
+                            hklmKey.SetValue("ForceVulkan", targetVulkanVal, RegistryValueKind.DWord);
+                            hklmKey.SetValue("SmartModeEnabled", targetSmartMode, RegistryValueKind.DWord);
+                            hklmKey.SetValue("RenderingMode", rec.RecommendedRenderingMode, RegistryValueKind.DWord);
+                        }
                     }
+                    catch { }
                 }
-                catch { }
             }
 
             gl.ForceDirectX = rec.RecommendedForceDirectX;
+            gl.ForceVulkan = targetVulkanVal == 1;
+            gl.SmartModeEnabled = targetSmartMode == 1;
+            gl.RenderingMode = rec.RecommendedRenderingMode;
             gl.LocalShaderCacheEnabled = true;
             gl.ShaderCacheEnabled = true;
             gl.RenderOptimizeEnabled = true;

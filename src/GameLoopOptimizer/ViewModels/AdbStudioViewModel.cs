@@ -13,6 +13,7 @@ public class AdbStudioViewModel : ViewModelBase, IDisposable
     private readonly IAdbManager _adb;
     private readonly IEventAggregator _eventAggregator;
     private readonly System.Timers.Timer? _heartbeatTimer;
+    private readonly System.Timers.Timer? _telemetryTimer;
 
     private bool _isAdbAvailable;
     public bool IsAdbAvailable
@@ -712,6 +713,22 @@ public class AdbStudioViewModel : ViewModelBase, IDisposable
             _heartbeatTimer.Start();
         }
         catch { }
+
+        // Periodic Live In-VM Telemetry Polling (every 3s when connected)
+        try
+        {
+            _telemetryTimer = new System.Timers.Timer(3000);
+            _telemetryTimer.Elapsed += async (s, e) =>
+            {
+                if (IsAdbConnected && !IsAdbBusy)
+                {
+                    await RefreshTelemetryAsync();
+                }
+            };
+            _telemetryTimer.AutoReset = true;
+            _telemetryTimer.Start();
+        }
+        catch { }
     }
 
     public void PushCommandHistory(string cmd)
@@ -804,6 +821,10 @@ public class AdbStudioViewModel : ViewModelBase, IDisposable
             var gl = _getGl();
             var snap = await AdbTelemetryService.FetchTelemetryAsync(SelectedGamePackage?.PackageName, gl);
             AdbTelemetry = snap;
+            if (snap.VmPingMs > 0 && InVmPingResultText.Contains("Standby", StringComparison.OrdinalIgnoreCase))
+            {
+                InVmPingResultText = $"In-VM Ping: {snap.VmPingMs:F1}ms";
+            }
         }
         catch (Exception ex)
         {
@@ -948,20 +969,27 @@ public class AdbStudioViewModel : ViewModelBase, IDisposable
                 // 1. Batch execute all commands in one ADB process call
                 await _adb.ExecuteBatchShellCommandAsync(batchCmds, null, 12000, gl);
 
-                // 2. VM Reboot Persistence via local.prop
-                var propLines = batchCmds.Where(c => c.StartsWith("setprop")).Select(c => c.Replace("setprop ", "").Replace(" ", "=")).ToList();
-                if (propLines.Count > 0)
+                // 2. VM Reboot Persistence via local.prop (safe fallback if SELinux enforces read-only /data)
+                try
                 {
-                    string propFileContent = string.Join("\\n", propLines);
-                    await _adb.ExecuteShellCommandAsync($"echo -e \"{propFileContent}\" > /data/local.prop", null, 4000, gl);
-                    await _adb.ExecuteShellCommandAsync("chmod 644 /data/local.prop", null, 4000, gl);
+                    var propLines = batchCmds.Where(c => c.StartsWith("setprop")).Select(c => c.Replace("setprop ", "").Replace(" ", "=")).ToList();
+                    if (propLines.Count > 0)
+                    {
+                        string propFileContent = string.Join("\\n", propLines);
+                        await _adb.ExecuteShellCommandAsync($"echo -e \"{propFileContent}\" > /data/local.prop 2>/dev/null", null, 3000, gl);
+                    }
                 }
+                catch { }
 
-                // 3. Apply surfaceflinger graphics tweaks instantly
-                if (AdbGpuAcceleration || Adb120FpsUnlock || AdbGpuPipelineOptimize)
+                // 3. Apply surfaceflinger graphics tweaks (safe fallback if unprivileged shell cannot restart service)
+                try
                 {
-                    await _adb.ExecuteShellCommandAsync("setprop ctl.restart surfaceflinger", null, 4000, gl);
+                    if (AdbGpuAcceleration || Adb120FpsUnlock || AdbGpuPipelineOptimize)
+                    {
+                        await _adb.ExecuteShellCommandAsync("setprop ctl.restart surfaceflinger 2>/dev/null", null, 3000, gl);
+                    }
                 }
+                catch { }
             }
 
             // 4. Post-Apply Verification (Enhancement 5)
@@ -1058,5 +1086,7 @@ public class AdbStudioViewModel : ViewModelBase, IDisposable
     {
         _heartbeatTimer?.Stop();
         _heartbeatTimer?.Dispose();
+        _telemetryTimer?.Stop();
+        _telemetryTimer?.Dispose();
     }
 }

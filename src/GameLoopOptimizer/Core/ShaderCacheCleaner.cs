@@ -25,10 +25,12 @@ public static class ShaderCacheCleaner
         targetDirs.Add(Path.Combine(localAppData, "D3DSCache"));
         targetDirs.Add(Path.Combine(localAppData, "Tencent", "TxGameAssistant", "ShaderCache"));
         targetDirs.Add(Path.Combine(localAppData, "Tencent", "MobileGamePC", "ShaderCache"));
+        targetDirs.Add(Path.Combine(localAppData, "Tencent", "MobileGamePC", "VulkanCache"));
 
         // 2. NVIDIA GPU Driver Shader Caches
         targetDirs.Add(Path.Combine(localAppData, "NVIDIA", "DXCache"));
         targetDirs.Add(Path.Combine(localAppData, "NVIDIA", "GLCache"));
+        targetDirs.Add(Path.Combine(localAppData, "NVIDIA", "VKCache")); // Vulkan driver cache
         targetDirs.Add(Path.Combine(localAppData, "NVIDIA Corporation", "NV_Cache"));
         targetDirs.Add(Path.Combine(appData, "NVIDIA", "ComputeCache"));
 
@@ -36,6 +38,7 @@ public static class ShaderCacheCleaner
         targetDirs.Add(Path.Combine(localAppData, "AMD", "DxCache"));
         targetDirs.Add(Path.Combine(localAppData, "AMD", "DxcCache"));
         targetDirs.Add(Path.Combine(localAppData, "AMD", "OglCache"));
+        targetDirs.Add(Path.Combine(localAppData, "AMD", "VkCache")); // Vulkan driver cache
 
         // 4. Intel Graphics Driver Shader Caches
         targetDirs.Add(Path.Combine(localAppData, "Intel", "ShaderCache"));
@@ -52,6 +55,9 @@ public static class ShaderCacheCleaner
         {
             targetDirs.Add(Path.Combine(config.InstallPath, "ShaderCache"));
             targetDirs.Add(Path.Combine(config.InstallPath, "ui", "ShaderCache"));
+            targetDirs.Add(Path.Combine(config.InstallPath, "ui", "VulkanCache"));
+            targetDirs.Add(Path.Combine(config.InstallPath, "TxGameAssistant", "ui", "ShaderCache"));
+            targetDirs.Add(Path.Combine(config.InstallPath, "TxGameAssistant", "ShaderCache"));
         }
 
         return targetDirs;
