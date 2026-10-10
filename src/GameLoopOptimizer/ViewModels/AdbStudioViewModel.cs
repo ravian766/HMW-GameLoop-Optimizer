@@ -298,11 +298,21 @@ public class AdbStudioViewModel : ViewModelBase, IDisposable
             AdbStatusText = "Connecting to GameLoop Android VM via ADB...";
             try
             {
+                _adb.EnsureAdbEnabledInRegistry(out bool wasDisabled);
                 bool connected = await _adb.AutoConnectGameLoopAsync(_getGl());
                 await RefreshAdbStatusAsync();
-                StatusMessage = connected 
-                    ? $"ADB Connected successfully to {AdbDeviceName}!" 
-                    : "Failed to connect to GameLoop ADB. Ensure GameLoop is running.";
+                if (connected)
+                {
+                    StatusMessage = $"ADB Connected successfully to {AdbDeviceName}!";
+                }
+                else if (wasDisabled)
+                {
+                    StatusMessage = "GameLoop / TGB had ADB disabled (AdbDisable=1). It has now been enabled (AdbDisable=0). Please restart GameLoop/TGB to start the in-VM ADB daemon.";
+                }
+                else
+                {
+                    StatusMessage = "Failed to connect to GameLoop ADB. Ensure GameLoop emulator is running.";
+                }
             }
             finally
             {

@@ -428,5 +428,37 @@ Thermal status: 2
 
         vm.Dispose();
     }
+
+    [Fact]
+    public void AdbManager_KnownGameLoopPorts_ContainsTgbPorts()
+    {
+        Assert.Contains(5555, AdbManager.KnownGameLoopPorts);
+        Assert.Contains(6555, AdbManager.KnownGameLoopPorts);
+        Assert.Contains(11241, AdbManager.KnownGameLoopPorts);
+        Assert.Contains(21503, AdbManager.KnownGameLoopPorts);
+        Assert.Contains(20772, AdbManager.KnownGameLoopPorts);
+    }
+
+    [Fact]
+    public void AdbDeviceInfo_IdentifiesTgbEmulatorPorts()
+    {
+        var dev1 = new AdbDeviceInfo { Serial = "127.0.0.1:21503", State = "device" };
+        var dev2 = new AdbDeviceInfo { Serial = "127.0.0.1:20772", State = "device" };
+        var dev3 = new AdbDeviceInfo { Serial = "emulator-5554", State = "device" };
+        var physical = new AdbDeviceInfo { Serial = "R58M32ABCDE", State = "device" };
+
+        Assert.True(dev1.IsEmulator);
+        Assert.True(dev2.IsEmulator);
+        Assert.True(dev3.IsEmulator);
+        Assert.False(physical.IsEmulator);
+    }
+
+    [Fact]
+    public void AdbManager_EnsureAdbEnabledInRegistry_ExecutesSafely()
+    {
+        bool success = AdbManager.EnsureAdbEnabledInRegistry(out bool wasDisabled);
+        Assert.True(success);
+    }
 }
+
 

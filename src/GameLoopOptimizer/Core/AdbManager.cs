@@ -11,7 +11,7 @@ public class AdbDeviceInfo
     public string Serial { get; set; } = string.Empty;
     public string State { get; set; } = string.Empty;
     public string Model { get; set; } = string.Empty;
-    public bool IsEmulator => Serial.Contains("5555") || Serial.Contains("6555") || Serial.Contains("5554") || Serial.StartsWith("emulator-") || Serial.Contains("11241");
+    public bool IsEmulator => Serial.Contains("5555") || Serial.Contains("6555") || Serial.Contains("5554") || Serial.StartsWith("emulator-") || Serial.Contains("11241") || Serial.Contains("21503") || Serial.Contains("20772");
 }
 
 public class GamePackageInfo
@@ -55,7 +55,7 @@ public class InVmPingResult
 
 public static class AdbManager
 {
-    public static readonly int[] KnownGameLoopPorts = new[] { 5555, 6555, 5557, 5559, 11241 };
+    public static readonly int[] KnownGameLoopPorts = new[] { 5555, 6555, 5557, 5559, 11241, 21503, 20772 };
 
     public static readonly IReadOnlyList<GamePackageInfo> KnownGamePackages = new[]
     {
@@ -334,8 +334,19 @@ public static class AdbManager
         {
             try
             {
-                // Only scan AndroidEmulator / AndroidEmulatorEn processes
-                var procNames = new[] { "AndroidEmulator", "AndroidEmulatorEn" };
+                // Scan all known GameLoop, TGB (aow_exe), and Android virtualization processes
+                var procNames = new[] 
+                { 
+                    "AndroidEmulator", 
+                    "AndroidEmulatorEn", 
+                    "AndroidEmulatorEx", 
+                    "aow_exe", 
+                    "AndroidProcess", 
+                    "GameLoopEmulator", 
+                    "GameLoopVm", 
+                    "SyEngine", 
+                    "QMEmulatorService" 
+                };
                 var pids = new HashSet<int>();
                 var allProcs = Process.GetProcesses();
                 foreach (var p in allProcs)
@@ -392,9 +403,53 @@ public static class AdbManager
 
     private static bool IsLikelyAdbPort(int port)
     {
-        if (port == 5555 || port == 6555 || port == 11241) return true;
+        if (port == 5555 || port == 6555 || port == 11241 || port == 21503 || port == 20772) return true;
         if (port >= 5555 && port <= 5585 && port % 2 != 0) return true;
         return false;
+    }
+
+    /// <summary>
+    /// Checks and ensures GameLoop / TGB registry entries have ADB enabled (AdbDisable = 0).
+    /// In Tencent Gaming Buddy / GameLoop, AdbDisable=1 prevents in-VM adbd daemon from starting.
+    /// </summary>
+    public static bool EnsureAdbEnabledInRegistry(out bool wasDisabledBefore)
+    {
+        wasDisabledBefore = false;
+        try
+        {
+            var regPaths = new[]
+            {
+                @"Software\Tencent\MobileGamePC",
+                @"Software\Tencent\TxGameAssistant"
+            };
+
+            foreach (var relPath in regPaths)
+            {
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(relPath, true);
+                if (key != null)
+                {
+                    var val = key.GetValue("AdbDisable");
+                    if (val != null && Convert.ToInt32(val) != 0)
+                    {
+                        wasDisabledBefore = true;
+                        key.SetValue("AdbDisable", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                        Logger.Info("AdbManager", $"Enabled ADB in registry ({relPath}\\AdbDisable = 0).");
+                    }
+
+                    var rootVal = key.GetValue("RootEnabled");
+                    if (rootVal == null || Convert.ToInt32(rootVal) == 0)
+                    {
+                        key.SetValue("RootEnabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                    }
+                }
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn("AdbManager", $"Failed to check/update AdbDisable in registry: {ex.Message}");
+            return false;
+        }
     }
 
     private static void TryAddVboxForwardedPorts(HashSet<int> ports, GameLoopConfig? config)
@@ -433,6 +488,13 @@ public static class AdbManager
 
     public static async Task<bool> AutoConnectGameLoopAsync(GameLoopConfig? config = null)
     {
+        // 0. Ensure GameLoop / TGB registry entries have ADB enabled (AdbDisable = 0)
+        EnsureAdbEnabledInRegistry(out bool wasDisabled);
+        if (wasDisabled)
+        {
+            Logger.Warn("AdbManager", "GameLoop/TGB was configured with AdbDisable=1. GameLoop Optimizer has set AdbDisable=0 in registry. Restart GameLoop if already running to initialize in-VM adbd daemon.");
+        }
+
         // 1. Clean up stale/offline endpoints to prevent socket poisoning
         await CleanupOfflineDevicesAsync(config);
 

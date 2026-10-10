@@ -47,12 +47,14 @@ public interface IAdbManager
     Task<string> PrepareForMatchAsync(string? targetPackage = null, GameLoopConfig? config = null);
     Task<bool> MitigateVmThermalThrottleAsync(GameLoopConfig? config = null);
     Task<InVmPingResult> RunInVmPingDiagnosticAsync(string host = "1.1.1.1", GameLoopConfig? config = null);
+    bool EnsureAdbEnabledInRegistry(out bool wasDisabledBefore);
 }
 
 public class DefaultAdbManager : IAdbManager
 {
     public static DefaultAdbManager Instance { get; } = new();
 
+    public bool EnsureAdbEnabledInRegistry(out bool wasDisabledBefore) => AdbManager.EnsureAdbEnabledInRegistry(out wasDisabledBefore);
     public bool IsAvailable(GameLoopConfig? config = null) => AdbManager.IsAdbAvailable(config);
     public Task<string> ExecuteAdbCommandAsync(string arguments, int timeoutMs = 6000, GameLoopConfig? config = null) => AdbManager.ExecuteAdbCommandAsync(arguments, timeoutMs, config);
     public Task<string> ExecuteShellCommandAsync(string shellCommand, string? targetDevice = null, int timeoutMs = 6000, GameLoopConfig? config = null) => AdbManager.ExecuteShellCommandAsync(shellCommand, targetDevice, timeoutMs, config);
