@@ -7,20 +7,90 @@ namespace GameLoopOptimizer.Core;
 
 public static class BackupManager
 {
-    private static readonly string _backupDirectory;
-    private static readonly string _backupFilePath;
+    /// <summary>
+    /// Environment variable used to redirect the ledger away from the real user profile.
+    /// Tests set this (see TestLedgerFixture) so they never overwrite real user data.
+    /// </summary>
+    public const string LedgerDirectoryEnvVar = "GAMELOOPOPT_TEST_HOME";
+
     private static readonly List<BackupEntry> _entries = new();
     private static readonly object _lock = new();
 
-    public static event EventHandler? BackupsChanged;
+    private static string _backupDirectory;
+    private static string _backupFilePath;
 
     static BackupManager()
     {
-        _backupDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameLoopOptimizer");
+        _backupDirectory = ResolveBackupDirectory();
         _backupFilePath = Path.Combine(_backupDirectory, "backups.json");
 
         Load();
     }
+
+    /// <summary>
+    /// When true the manager keeps entries in memory only and never writes to disk.
+    /// Used by tests as a second safety net.
+    /// </summary>
+    public static bool InMemoryOnly { get; set; }
+
+    /// <summary>
+    /// Ledger directory currently in use.
+    /// </summary>
+    public static string BackupDirectory => _backupDirectory;
+
+    /// <summary>
+    /// Ledger file currently in use.
+    /// </summary>
+    public static string BackupFilePath => _backupFilePath;
+
+    public static event EventHandler? BackupsChanged;
+
+    /// <summary>
+    /// Resolves the ledger directory, honouring <see cref="LedgerDirectoryEnvVar"/> so that
+    /// test processes are isolated from the user's real %LocalAppData%\GameLoopOptimizer ledger.
+    /// </summary>
+    private static string ResolveBackupDirectory()
+    {
+        var overrideDir = Environment.GetEnvironmentVariable(LedgerDirectoryEnvVar);
+        if (!string.IsNullOrWhiteSpace(overrideDir))
+        {
+            return overrideDir;
+        }
+
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameLoopOptimizer");
+    }
+
+    /// <summary>
+    /// Repoints the ledger at a different directory and reloads from it.
+    /// Tests call this to isolate themselves from real user data.
+    /// </summary>
+    public static void UseDirectory(string directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            throw new ArgumentException("Ledger directory must not be empty.", nameof(directory));
+        }
+
+        lock (_lock)
+        {
+            _backupDirectory = directory;
+            _backupFilePath = Path.Combine(directory, "backups.json");
+            _entries.Clear();
+        }
+
+        Load();
+    }
+
+    /// <summary>
+    /// True when the ledger is pointed at the real user profile. Tests should assert this is false.
+    /// </summary>
+    public static bool IsRealUserLedger =>
+        !InMemoryOnly &&
+        string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(LedgerDirectoryEnvVar)) &&
+        string.Equals(
+            _backupDirectory,
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameLoopOptimizer"),
+            StringComparison.OrdinalIgnoreCase);
 
     public static IReadOnlyList<BackupEntry> GetEntries()
     {
@@ -111,6 +181,8 @@ public static class BackupManager
 
     private static void Save()
     {
+        if (InMemoryOnly) return;
+
         try
         {
             if (!Directory.Exists(_backupDirectory))
@@ -119,7 +191,12 @@ public static class BackupManager
             }
 
             var json = JsonSerializer.Serialize(_entries, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_backupFilePath, json);
+
+            // Write to a temp file then move into place so a crash mid-write cannot
+            // truncate or corrupt the user's only rollback record.
+            var tmpPath = _backupFilePath + ".tmp";
+            File.WriteAllText(tmpPath, json);
+            File.Move(tmpPath, _backupFilePath, overwrite: true);
         }
         catch (Exception ex)
         {

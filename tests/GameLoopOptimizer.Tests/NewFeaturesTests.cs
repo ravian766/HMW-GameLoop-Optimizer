@@ -5,6 +5,7 @@ using Xunit;
 
 namespace GameLoopOptimizer.Tests;
 
+[Collection("BackupTests")]
 public class NewFeaturesTests
 {
     [Fact]

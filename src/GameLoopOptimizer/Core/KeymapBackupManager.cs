@@ -18,17 +18,51 @@ public class KeymapBackupProfile
 
 public static class KeymapBackupManager
 {
-    private static readonly string VaultDirectory;
-    private static readonly string IndexFilePath;
+    private static string _vaultDirectory;
+    private static string _indexFilePath;
     private static readonly List<KeymapBackupProfile> _profiles = new();
     private static readonly object _lock = new();
+
+    /// <summary>
+    /// When true the vault is kept in memory only and never written to disk.
+    /// Used by tests so they cannot pollute the user's real Keymap Vault.
+    /// </summary>
+    public static bool InMemoryOnly { get; set; }
+
+    /// <summary>Vault directory currently in use.</summary>
+    public static string VaultDirectory => _vaultDirectory;
 
     public static event EventHandler? ProfilesChanged;
 
     static KeymapBackupManager()
     {
-        VaultDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameLoopOptimizer", "KeymapVault");
-        IndexFilePath = Path.Combine(VaultDirectory, "vault_index.json");
+        var overrideDir = Environment.GetEnvironmentVariable(BackupManager.LedgerDirectoryEnvVar);
+        var root = !string.IsNullOrWhiteSpace(overrideDir)
+            ? overrideDir
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameLoopOptimizer");
+
+        _vaultDirectory = Path.Combine(root, "KeymapVault");
+        _indexFilePath = Path.Combine(_vaultDirectory, "vault_index.json");
+
+        LoadProfiles();
+    }
+
+    /// <summary>
+    /// Repoints the vault at a different root directory and reloads from it.
+    /// </summary>
+    public static void UseDirectory(string rootDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(rootDirectory))
+        {
+            throw new ArgumentException("Vault directory must not be empty.", nameof(rootDirectory));
+        }
+
+        lock (_lock)
+        {
+            _vaultDirectory = Path.Combine(rootDirectory, "KeymapVault");
+            _indexFilePath = Path.Combine(_vaultDirectory, "vault_index.json");
+            _profiles.Clear();
+        }
 
         LoadProfiles();
     }
@@ -348,9 +382,9 @@ public static class KeymapBackupManager
     {
         try
         {
-            if (File.Exists(IndexFilePath))
+            if (File.Exists(_indexFilePath))
             {
-                var json = File.ReadAllText(IndexFilePath);
+                var json = File.ReadAllText(_indexFilePath);
                 var list = JsonSerializer.Deserialize<List<KeymapBackupProfile>>(json);
                 if (list != null)
                 {
@@ -472,12 +506,21 @@ public static class KeymapBackupManager
 
     private static void SaveProfiles()
     {
+        if (InMemoryOnly) return;
+
         try
         {
             if (!Directory.Exists(VaultDirectory)) Directory.CreateDirectory(VaultDirectory);
             var json = JsonSerializer.Serialize(_profiles, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(IndexFilePath, json);
+
+            // Write atomically so an interrupted save cannot corrupt the vault index.
+            var tmpPath = _indexFilePath + ".tmp";
+            File.WriteAllText(tmpPath, json);
+            File.Move(tmpPath, _indexFilePath, overwrite: true);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.Error("KeymapBackupManager", $"Failed to save vault index: {ex.Message}");
+        }
     }
 }
