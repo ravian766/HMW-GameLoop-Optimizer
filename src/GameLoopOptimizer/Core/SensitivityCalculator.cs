@@ -183,4 +183,83 @@ public static class SensitivityCalculator
         int val = (int)Math.Round(baseSens * factor);
         return Math.Clamp(val, 5, 120);
     }
+
+    /// <summary>
+    /// Live readout for the vertical multiplier (recoil-relief bias) tuner.
+    ///
+    /// This is a configuration helper: it tells the player what in-game vertical
+    /// sensitivity to use for a chosen bias, and how much physical downward hand
+    /// travel that removes. It does not read or modify a running game.
+    /// </summary>
+    public class VerticalBiasTunerResult
+    {
+        public double VerticalMultiplier { get; set; }
+        public int KeymapX { get; set; }
+        public int KeymapY { get; set; }
+        public double PhysicalTravelReductionPercent { get; set; }
+        public string ReliefLabel { get; set; } = string.Empty;
+        public string Warning { get; set; } = string.Empty;
+        public bool IsOverBiased { get; set; }
+    }
+
+    /// <summary>
+    /// Computes the vertical-bias tuner readout for a given DPI, playstyle and multiplier.
+    /// Mirrors the keymap math used by <see cref="Calculate(int, AimPlaystyle, double, int)"/>
+    /// so the live slider stays consistent with the saved profile.
+    /// </summary>
+    public static VerticalBiasTunerResult CalculateVerticalBias(
+        int mouseDpi,
+        AimPlaystyle playstyle,
+        double verticalMultiplier)
+    {
+        int dpi = Math.Clamp(mouseDpi, 400, 3200);
+        double vMult = Math.Clamp(verticalMultiplier, 1.0, 2.5);
+
+        double dpiFactor = 800.0 / dpi;
+        double playstyleBaseMultiplier = playstyle switch
+        {
+            AimPlaystyle.PrecisionLowSens => 0.85,
+            AimPlaystyle.BalancedCompetitive => 1.0,
+            AimPlaystyle.HighSensFastFlick => 1.25,
+            _ => 1.0
+        };
+
+        int keymapX = (int)Math.Round(Math.Clamp(50 * dpiFactor * playstyleBaseMultiplier, 15, 85));
+        int keymapY = (int)Math.Round(Math.Clamp(keymapX * vMult, 20, 100));
+
+        double travelReduction = (1.0 - (1.0 / vMult)) * 100.0;
+
+        string label = vMult switch
+        {
+            <= 1.05 => "Standard 1:1 (Neutral)",
+            <= 1.40 => "Balanced (Mild Relief)",
+            <= 1.75 => "Laser Spray (Recommended)",
+            _ => "Heavy Recoil Control (Max Relief)"
+        };
+
+        bool overBiased = vMult > 1.90;
+        string warning = string.Empty;
+
+        if (keymapY >= 100 && overBiased)
+        {
+            warning = "Vertical sensitivity is pinned at the 100% cap. Lower the multiplier or reduce DPI, " +
+                      "or tracking on downward transitions will feel sluggish.";
+        }
+        else if (overBiased)
+        {
+            warning = "Above ~1.90x most players report the crosshair lagging behind horizontal flicks. " +
+                      "Verify in-game before committing.";
+        }
+
+        return new VerticalBiasTunerResult
+        {
+            VerticalMultiplier = Math.Round(vMult, 2),
+            KeymapX = keymapX,
+            KeymapY = keymapY,
+            PhysicalTravelReductionPercent = Math.Round(travelReduction, 1),
+            ReliefLabel = label,
+            IsOverBiased = overBiased,
+            Warning = warning
+        };
+    }
 }

@@ -537,6 +537,71 @@
                                     </Border>
                                 </Grid>
 
+                                <!-- Competitive Sensitivity Metrics: eDPI and cm/360 -->
+                                <Border Background="{DynamicResource BrushBgInput}"
+                                        BorderBrush="{DynamicResource BrushBorderSubtle}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="14,10"
+                                        Margin="0,10,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                            <TextBlock Text="EFFECTIVE DPI" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                            <TextBlock Text="{Binding Metrics.EffectiveDpi, StringFormat='N0'}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,2,0,0" />
+                                            <TextBlock Text="DPI x In-Game Sens" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" Margin="3,0,3,0">
+                                            <TextBlock Text="CM / 360 TURN" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                            <TextBlock Text="{Binding Metrics.Cm360, StringFormat='{}{0:F2} cm'}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" Margin="0,2,0,0" />
+                                            <TextBlock Text="{Binding Metrics.FeelDescription}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2" Margin="3,0,10,0">
+                                            <TextBlock Text="TARGET CM/360" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Slider Grid.Column="0"
+                                                        Minimum="10"
+                                                        Maximum="100"
+                                                        SmallChange="1"
+                                                        LargeChange="5"
+                                                        VerticalAlignment="Center"
+                                                        Margin="0,0,8,0"
+                                                        Value="{Binding TargetCm360, UpdateSourceTrigger=PropertyChanged}" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding TargetCm360, StringFormat='{}{0:F0} cm'}"
+                                                           FontSize="13"
+                                                           FontWeight="Bold"
+                                                           Foreground="{DynamicResource BrushAccentViolet}"
+                                                           VerticalAlignment="Center" />
+                                            </Grid>
+                                            <TextBlock FontSize="10" Foreground="{DynamicResource BrushTextMuted}">
+                                                <Run Text="Set this sensitivity:" /><Run Text=" " />
+                                                <Run Text="{Binding SuggestedSensitivity, StringFormat='{}{0:F1}'}" Foreground="{DynamicResource BrushAccentViolet}" FontWeight="Bold" />
+                                            </TextBlock>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="3" VerticalAlignment="Center" MinWidth="150">
+                                            <TextBlock Text="HOW TO USE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,2" />
+                                            <TextBlock FontSize="10.5"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource BrushTextSecondary}"
+                                                       Text="eDPI and cm/360 are the standard way to compare setups across different mice and DPI. Lower cm/360 = slower, more precise aim." />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
                                 <!-- Scope Sensitivity Breakdown Table (10 Scopes in 5 Columns) -->
                                 <ItemsControl ItemsSource="{Binding SensitivityResult.ScopeSettings}">
                                     <ItemsControl.ItemsPanel>

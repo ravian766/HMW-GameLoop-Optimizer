@@ -252,6 +252,39 @@ public class KeymapResolutionViewModel : ViewModelBase
         set => SetProperty(ref _sensitivityResult, value);
     }
 
+    // eDPI / cm-360 metrics for the current setup (competitive comparison standard).
+    private SensitivityMetrics.SensitivityMetricsResult _metrics = SensitivityMetrics.Compute(800, 50);
+    public SensitivityMetrics.SensitivityMetricsResult Metrics
+    {
+        get => _metrics;
+        set => SetProperty(ref _metrics, value);
+    }
+
+    private double _targetCm360 = 45.0;
+    /// <summary>
+    /// Target centimetres per 360-degree turn. Drives the inverse conversion that
+    /// suggests the in-game sensitivity needed to hit this distance at the chosen DPI.
+    /// </summary>
+    public double TargetCm360
+    {
+        get => _targetCm360;
+        set
+        {
+            if (SetProperty(ref _targetCm360, Math.Round(Math.Clamp(value, 5.0, 150.0), 1)))
+            {
+                RecalculateSensitivity();
+            }
+        }
+    }
+
+    private double _suggestedSensitivity;
+    /// <summary>In-game camera sensitivity that yields <see cref="TargetCm360"/> at the current DPI.</summary>
+    public double SuggestedSensitivity
+    {
+        get => _suggestedSensitivity;
+        set => SetProperty(ref _suggestedSensitivity, value);
+    }
+
     // Mouse Benchmark Tool
     private MouseBenchmarkMetrics _mouseMetrics = new();
     public MouseBenchmarkMetrics MouseMetrics
@@ -484,6 +517,14 @@ public class KeymapResolutionViewModel : ViewModelBase
     public void RecalculateSensitivity()
     {
         SensitivityResult = SensitivityCalculator.Calculate(SelectedMouseDpi, SelectedPlaystyle, VerticalMultiplier, ResHeight);
+
+        // Competitive metrics based on the TPP No Scope camera value.
+        int baseSens = SensitivityResult.ScopeSettings.FirstOrDefault()?.CameraSensitivity ?? 50;
+        Metrics = SensitivityMetrics.Compute(SelectedMouseDpi, baseSens);
+
+        // Inverse conversion: what in-game sensitivity gives the requested cm/360?
+        SuggestedSensitivity = Math.Round(
+            SensitivityMetrics.SensitivityForCm360(SelectedMouseDpi, TargetCm360), 1);
     }
 
     public void RecordMouseSample()
