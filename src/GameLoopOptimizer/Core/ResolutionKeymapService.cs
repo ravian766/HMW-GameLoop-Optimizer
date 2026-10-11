@@ -231,11 +231,24 @@ public static class ResolutionKeymapService
         catch { }
 
         var result = await DeployResolutionKeymapAsync(targetW, targetH, config);
-        result.Message = isCurrentlyStretched
-            ? $"Toggled to Native 16:9 ({targetW}x{targetH}). Keymaps synchronized!"
-            : $"Toggled to Stretched Res ({targetW}x{targetH}). Keymaps synchronized!";
 
-        Logger.Success("ResolutionKeymap", result.Message);
+        // Never overwrite a failure with a success message. Previously this unconditionally
+        // reported "Keymaps synchronized!" even when the deploy had rejected the generated
+        // XML, which told the user their keymaps were written when they were not.
+        if (result.Success)
+        {
+            result.Message = isCurrentlyStretched
+                ? $"Toggled to Native 16:9 ({targetW}x{targetH}). Keymaps synchronized!"
+                : $"Toggled to Stretched Res ({targetW}x{targetH}). Keymaps synchronized!";
+
+            Logger.Success("ResolutionKeymap", result.Message);
+        }
+        else
+        {
+            result.Message = $"Toggled registry resolution to {targetW}x{targetH}, but keymap deployment FAILED: {result.Message}";
+            Logger.Error("ResolutionKeymap", result.Message);
+        }
+
         return result;
     }
 
@@ -261,7 +274,7 @@ public static class ResolutionKeymapService
                 var text = await File.ReadAllTextAsync(p);
                 if (!string.IsNullOrWhiteSpace(text) && text.Length > 10000)
                 {
-                    return text;
+                    return SanitizeStockBase(text, p);
                 }
             }
         }
@@ -275,19 +288,49 @@ public static class ResolutionKeymapService
                 var text = await File.ReadAllTextAsync(f);
                 if (!string.IsNullOrWhiteSpace(text))
                 {
+                    var repaired = SanitizeStockBase(text, f);
+
                     // Save as reference
                     try
                     {
                         var stockDest = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameLoopOptimizer", "stock_16_9_DefaultKeyMapping.xml");
-                        await File.WriteAllTextAsync(stockDest, text);
+                        await File.WriteAllTextAsync(stockDest, repaired);
                     }
-                    catch { }
-                    return text;
+                    catch (Exception ex)
+                    {
+                        Logger.Warn("ResolutionKeymap", $"Could not cache stock base: {ex.Message}");
+                    }
+
+                    return repaired;
                 }
             }
         }
 
         return string.Empty;
+    }
+
+    /// <summary>
+    /// Repairs known GameLoop-emitted keymap defects and verifies the result parses as XML
+    /// before it is allowed to become the cached "pristine stock base".
+    /// </summary>
+    private static string SanitizeStockBase(string text, string sourcePath)
+    {
+        var repaired = KeymapXmlSanitizer.Sanitize(text, out var info);
+
+        if (info.Changed)
+        {
+            Logger.Warn("ResolutionKeymap",
+                $"Repaired malformed keymap stock base from '{sourcePath}' ({info.Summary}).");
+        }
+
+        if (!KeymapXmlSanitizer.IsWellFormed(repaired))
+        {
+            Logger.Error("ResolutionKeymap",
+                $"Keymap stock base '{sourcePath}' is still malformed after repair and will be rejected.");
+            return string.Empty;
+        }
+
+        return repaired;
     }
 
     public static List<string> GetKeymapFilePaths(GameLoopConfig config)

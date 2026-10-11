@@ -28,6 +28,12 @@ public static class GameLoopMappingProvider
         @"(<KeyMapMode\s+[^>]*ModeID=""(?<modeId>\d+)""[^>]*>)(?<modeInner>[\s\S]*?)(</KeyMapMode>)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    /// <summary>
+    /// Attributes searched, in order, to determine a control's descriptive name for anchor
+    /// detection. Mirrors the original regex-based lookup order.
+    /// </summary>
+    private static readonly string[] ControlNameAttributes = { "ItemName", "Description", "comm", "Id" };
+
     private static readonly Regex PointXRegex = new(
         @"Point_X=""(?<x>[0-9\.]+)""",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -44,7 +50,7 @@ public static class GameLoopMappingProvider
     /// Transforms PUBG keybindings inside GameLoop XML for the target resolution safely,
     /// respecting individual KeyMapMode baselines (720p, 1080p, 2K) and preserving all XML attributes.
     /// </summary>
-    public static (string transformedXml, int calibratedCount) TransformKeymapXml(
+public static (string transformedXml, int calibratedCount) TransformKeymapXml(
         string xmlContent,
         int targetWidth,
         int targetHeight,
@@ -53,145 +59,194 @@ public static class GameLoopMappingProvider
     {
         if (string.IsNullOrWhiteSpace(xmlContent)) return (xmlContent, 0);
 
-        int count = 0;
+        // GameLoop emits multi-root XML, so wrap it in a synthetic root to parse it.
+        //
+        // NOTE: this method previously used regex rewriting, which cannot correctly handle
+        // GameLoop wrapping attribute values across physical lines. That corrupted the document
+        // (nearly doubling its size, dropping </KeyMapMode> tags and emitting stray digits such as
+        // "3" / "4"). This implementation parses the XML instead, so multi-line attribute values
+        // are handled natively and the document structure is guaranteed to be preserved.
+        string wrapped = $"<KeymapRoot>{xmlContent}</KeymapRoot>";
 
+        System.Xml.Linq.XDocument doc;
         try
         {
-            var result = ItemBlockRegex.Replace(xmlContent, itemMatch =>
-            {
-                var apk = itemMatch.Groups["apk"].Value;
-                bool isPubg = GameLoopVersionDetector.AllPubgPackages.Any(p => apk.StartsWith(p, StringComparison.OrdinalIgnoreCase));
-                if (!isPubg) return itemMatch.Value;
-
-                var openTag = itemMatch.Groups[1].Value;
-                var inner = itemMatch.Groups["inner"].Value;
-                var closeTag = itemMatch.Groups[3].Value;
-
-                // Function to transform tags inside any content block with given baseline resolution
-                string TransformBlockTags(string content, int baseW, int baseH, int hudModeOverride = 0)
-                {
-                    var tagPattern = new Regex(@"<(?<tag>[A-Za-z0-9_]+)\b(?<attrs>[^>]*)>", RegexOptions.IgnoreCase);
-
-                    return tagPattern.Replace(content, tagMatch =>
-                    {
-                        string tagName = tagMatch.Groups["tag"].Value;
-                        string attrs = tagMatch.Groups["attrs"].Value;
-
-                        var mx = PointXRegex.Match(attrs);
-                        var my = PointYRegex.Match(attrs);
-
-                        if (mx.Success && my.Success &&
-                            double.TryParse(mx.Groups["x"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double ox) &&
-                            double.TryParse(my.Groups["y"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double oy))
-                        {
-                            // Extract control name or description for anchor detection
-                            string controlName = string.Empty;
-                            var nameMatch = Regex.Match(attrs, @"(ItemName|Description|comm|Id)=""(?<name>[^""]+)""", RegexOptions.IgnoreCase);
-                            if (nameMatch.Success) controlName = nameMatch.Groups["name"].Value;
-
-                            var anchor = CoordinateTransformService.DetectAnchorType(controlName, ox, oy);
-
-                            // Respect HUD mode override if provided (1/2 = Vehicle, 3 = Swim)
-                            if (hudModeOverride is 1 or 2)
-                            {
-                                anchor = ox < 0.44 ? ControlAnchorType.Left : (ox > 0.56 ? ControlAnchorType.Right : ControlAnchorType.Center);
-                            }
-                            else if (hudModeOverride == 3)
-                            {
-                                anchor = ox < 0.35 ? ControlAnchorType.Left : (ox > 0.65 ? ControlAnchorType.Right : ControlAnchorType.Center);
-                            }
-
-                            var (nx, ny) = CoordinateTransformService.TransformCoordinate(ox, oy, targetWidth, targetHeight, anchor, baseW, baseH);
-
-                            count++;
-
-                            // Replace Point_X and Point_Y individually preserving all other attributes
-                            string updatedAttrs = PointXRegex.Replace(attrs, $"Point_X=\"{nx.ToString("F6", CultureInfo.InvariantCulture)}\"");
-                            updatedAttrs = PointYRegex.Replace(updatedAttrs, $"Point_Y=\"{ny.ToString("F6", CultureInfo.InvariantCulture)}\"");
-
-                            // Scale Offset if present on WASD or joystick
-                            if (attrs.Contains("Offset=", StringComparison.OrdinalIgnoreCase))
-                            {
-                                updatedAttrs = OffsetRegex.Replace(updatedAttrs, offMatch =>
-                                {
-                                    if (double.TryParse(offMatch.Groups["offset"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double origOffset))
-                                    {
-                                        double sx = CoordinateTransformService.CalculateHorizontalScaleFactor(targetWidth, targetHeight, baseW, baseH);
-                                        double newOffset = Math.Clamp(origOffset * sx, 0.04, 0.18);
-                                        return $"Offset=\"{newOffset.ToString("F6", CultureInfo.InvariantCulture)}\"";
-                                    }
-                                    return offMatch.Value;
-                                });
-                            }
-
-                            return $"<{tagName}{updatedAttrs}>";
-                        }
-
-                        return tagMatch.Value;
-                    });
-                }
-
-                // Check if inner content contains KeyMapMode blocks
-                bool hasKeyMapModes = KeyMapModeRegex.IsMatch(inner);
-
-                string transformedInner;
-                if (hasKeyMapModes)
-                {
-                    transformedInner = KeyMapModeRegex.Replace(inner, modeMatch =>
-                    {
-                        var modeOpen = modeMatch.Groups[1].Value;
-                        var modeInner = modeMatch.Groups["modeInner"].Value;
-                        var modeClose = modeMatch.Groups[3].Value;
-                        int modeId = int.TryParse(modeMatch.Groups["modeId"].Value, out int mid) ? mid : 3;
-
-                        // Determine baseline for this mode (ModeID 1/2 = 720p, ModeID 3 = 1080p, ModeID 4 = 2K)
-                        int baseW = modeId switch
-                        {
-                            1 or 2 => 1280,
-                            4 => 2560,
-                            _ => 1920
-                        };
-
-                        int baseH = modeId switch
-                        {
-                            1 or 2 => 720,
-                            4 => 1440,
-                            _ => 1080
-                        };
-
-                        string transformedModeInner = TransformBlockTags(modeInner, baseW, baseH);
-                        return modeOpen + transformedModeInner + modeClose;
-                    });
-                }
-                else
-                {
-                    // Item block directly contains Key/KeyMapping tags
-                    int itemMode = 0;
-                    var itemModeMatch = Regex.Match(openTag, @"Mode=""(?<mode>\d+)""", RegexOptions.IgnoreCase);
-                    if (itemModeMatch.Success && int.TryParse(itemModeMatch.Groups["mode"].Value, out int im))
-                    {
-                        itemMode = im;
-                    }
-
-                    transformedInner = TransformBlockTags(inner, 1920, 1080, itemMode);
-                }
-
-                return openTag + transformedInner + closeTag;
-            });
-
-            // Inject WASD response speed if requested
-            if (wasdSpeed > 0)
-            {
-                var (speedXml, _) = KeymapSpeedService.InjectWasdSpeed(result, wasdSpeed);
-                result = speedXml;
-            }
-
-            return (result, count);
+            doc = System.Xml.Linq.XDocument.Parse(wrapped, System.Xml.Linq.LoadOptions.PreserveWhitespace);
         }
         catch (Exception ex)
         {
-            Logger.Error("GameLoopMappingProvider", $"Error during XML keymap transformation: {ex.Message}");
+            Logger.Error("GameLoopMappingProvider", $"Keymap XML is not parseable, transformation aborted: {ex.Message}");
             return (xmlContent, 0);
+        }
+
+        var root = doc.Root;
+        if (root == null) return (xmlContent, 0);
+
+        int count = 0;
+
+        // Locate Item / ItemEx elements. Real GameLoop files are multi-root, so the items sit directly
+        // under the synthetic root; but callers (and tests) sometimes pass an already-wrapped
+        // document, so search one level of nesting as well.
+        var itemElements = root.Elements().Where(e =>
+                string.Equals(e.Name.LocalName, "Item", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(e.Name.LocalName, "ItemEx", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (itemElements.Count == 0)
+        {
+            itemElements = root.Elements()
+                .SelectMany(child => child.Elements().Where(e =>
+                    string.Equals(e.Name.LocalName, "Item", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(e.Name.LocalName, "ItemEx", StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+        }
+
+        foreach (var item in itemElements)
+        {
+            var apkAttr = item.Attribute("ApkName");
+            if (apkAttr == null) continue;
+
+            string apk = apkAttr.Value;
+            bool isPubg = GameLoopVersionDetector.AllPubgPackages.Any(p => apk.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+            if (!isPubg) continue;
+
+            var keyMapModes = item.Elements().Where(e =>
+                string.Equals(e.Name.LocalName, "KeyMapMode", StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (keyMapModes.Count > 0)
+            {
+                foreach (var mode in keyMapModes)
+                {
+                    int modeId = 3;
+                    var modeAttr = mode.Attribute("ModeID");
+                    if (modeAttr != null && int.TryParse(modeAttr.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+                    {
+                        modeId = parsed;
+                    }
+
+                    // Determine baseline for this mode (ModeID 1/2 = 720p, 3 = 1080p, 4 = 2K)
+                    int baseW = modeId switch { 1 or 2 => 1280, 4 => 2560, _ => 1920 };
+                    int baseH = modeId switch { 1 or 2 => 720, 4 => 1440, _ => 1080 };
+
+                    TransformElement(mode, targetWidth, targetHeight, baseW, baseH, modeId, ref count);
+                }
+            }
+            else
+            {
+                // Item block directly contains KeyMapping tags.
+                int itemMode = 0;
+                var itemModeAttr = item.Attribute("Mode");
+                if (itemModeAttr != null && int.TryParse(itemModeAttr.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int im))
+                {
+                    itemMode = im;
+                }
+
+                TransformElement(item, targetWidth, targetHeight, 1920, 1080, itemMode, ref count);
+            }
+        }
+
+        string result;
+
+        try
+        {
+            // Serialize without an XML declaration and without re-indenting so the output stays
+            // as close as possible to the original layout.
+            var sb = new System.Text.StringBuilder();
+            var settings = new System.Xml.XmlWriterSettings
+            {
+                OmitXmlDeclaration = true,
+                Indent = false,
+                ConformanceLevel = System.Xml.ConformanceLevel.Fragment
+            };
+
+            using (var writer = System.Xml.XmlWriter.Create(sb, settings))
+            {
+                foreach (var node in root.Nodes())
+                {
+                    node.WriteTo(writer);
+                }
+            }
+
+            result = sb.ToString();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("GameLoopMappingProvider", $"Failed to serialize transformed keymap: {ex.Message}");
+            return (xmlContent, 0);
+        }
+
+        // Inject WASD response speed if requested
+        if (wasdSpeed > 0)
+        {
+            var (speedXml, _) = KeymapSpeedService.InjectWasdSpeed(result, wasdSpeed);
+            result = speedXml;
+        }
+
+        return (result, count);
+    }
+
+    /// <summary>
+    /// Applies the anchor-aware coordinate transform to every element beneath
+    /// <paramref name="element"/> that carries both Point_X and Point_Y attributes.
+    /// </summary>
+    private static void TransformElement(
+        System.Xml.Linq.XElement element,
+        int targetWidth,
+        int targetHeight,
+        int baseW,
+        int baseH,
+        int hudModeOverride,
+        ref int count)
+    {
+        foreach (var node in element.DescendantsAndSelf().ToList())
+        {
+            var xAttr = node.Attribute("Point_X");
+            var yAttr = node.Attribute("Point_Y");
+
+            if (xAttr == null || yAttr == null) continue;
+
+            if (!double.TryParse(xAttr.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double ox)) continue;
+            if (!double.TryParse(yAttr.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double oy)) continue;
+
+            // Extract control name or description for anchor detection.
+            string controlName = string.Empty;
+            foreach (string attrName in ControlNameAttributes)
+            {
+                var a = node.Attribute(attrName);
+                if (a != null && !string.IsNullOrWhiteSpace(a.Value))
+                {
+                    controlName = a.Value;
+                    break;
+                }
+            }
+
+            var anchor = CoordinateTransformService.DetectAnchorType(controlName, ox, oy);
+
+            // Respect HUD mode override if provided (1/2 = Vehicle, 3 = Swim)
+            if (hudModeOverride is 1 or 2)
+            {
+                anchor = ox < 0.44 ? ControlAnchorType.Left : (ox > 0.56 ? ControlAnchorType.Right : ControlAnchorType.Center);
+            }
+            else if (hudModeOverride == 3)
+            {
+                anchor = ox < 0.35 ? ControlAnchorType.Left : (ox > 0.65 ? ControlAnchorType.Right : ControlAnchorType.Center);
+            }
+
+            var (nx, ny) = CoordinateTransformService.TransformCoordinate(ox, oy, targetWidth, targetHeight, anchor, baseW, baseH);
+            count++;
+
+            xAttr.Value = nx.ToString("F6", CultureInfo.InvariantCulture);
+            yAttr.Value = ny.ToString("F6", CultureInfo.InvariantCulture);
+
+            // Scale Offset if present on WASD or joystick.
+            var offsetAttr = node.Attribute("Offset");
+            if (offsetAttr != null &&
+                double.TryParse(offsetAttr.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double origOffset))
+            {
+                double sx = CoordinateTransformService.CalculateHorizontalScaleFactor(targetWidth, targetHeight, baseW, baseH);
+                double newOffset = Math.Clamp(origOffset * sx, 0.04, 0.18);
+                offsetAttr.Value = newOffset.ToString("F6", CultureInfo.InvariantCulture);
+            }
         }
     }
 
@@ -307,7 +362,7 @@ public static class GameLoopMappingProvider
                 var text = await File.ReadAllTextAsync(c);
                 if (!string.IsNullOrWhiteSpace(text) && text.Length > 10000)
                 {
-                    return text;
+                    return SanitizeStockBase(text, c);
                 }
             }
         }
@@ -321,17 +376,50 @@ public static class GameLoopMappingProvider
                 var text = await File.ReadAllTextAsync(f);
                 if (!string.IsNullOrWhiteSpace(text) && text.Length > 10000)
                 {
+                    var repaired = SanitizeStockBase(text, f);
+
                     try
                     {
                         var stockDest = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameLoopOptimizer", "stock_16_9_DefaultKeyMapping.xml");
-                        await File.WriteAllTextAsync(stockDest, text);
+                        await File.WriteAllTextAsync(stockDest, repaired);
                     }
-                    catch { }
-                    return text;
+                    catch (Exception ex)
+                    {
+                        Logger.Warn("GameLoopMappingProvider", $"Could not cache stock base: {ex.Message}");
+                    }
+
+                    return repaired;
                 }
             }
         }
 
         return string.Empty;
+    }
+
+    /// <summary>
+    /// Repairs known GameLoop-emitted keymap defects and verifies the result parses as XML
+    /// before it is allowed to become the cached "pristine stock base".
+    ///
+    /// Without this, a single malformed capture is cached permanently and every subsequent
+    /// calibration fails validation - which is exactly what happened on 2026-10-11.
+    /// </summary>
+    private static string SanitizeStockBase(string text, string sourcePath)
+    {
+        var repaired = KeymapXmlSanitizer.Sanitize(text, out var info);
+
+        if (info.Changed)
+        {
+            Logger.Warn("GameLoopMappingProvider",
+                $"Repaired malformed keymap stock base from '{sourcePath}' ({info.Summary}).");
+        }
+
+        if (!KeymapXmlSanitizer.IsWellFormed(repaired))
+        {
+            Logger.Error("GameLoopMappingProvider",
+                $"Keymap stock base '{sourcePath}' is still malformed after repair and will be rejected.");
+            return string.Empty;
+        }
+
+        return repaired;
     }
 }
