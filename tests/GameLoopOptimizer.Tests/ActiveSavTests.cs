@@ -135,20 +135,19 @@ public class ActiveSavTests
             GraphicFavor = 4
         };
         int patched = ActiveSavService.ApplyProfileToBytes(buffer, uhdPreset);
-        Assert.True(patched >= 10);
+        // This synthetic buffer contains only 7 patchable keys (2 quality + 4 FPS + GraphicFavor).
+        // Keys such as MainCityFPS, GFBestQ* and the RenderStyle trio are absent and are
+        // now reported via LastMissedKeys rather than silently ignored.
+        Assert.True(patched >= 7, $"Expected >= 7 patched fields, got {patched}");
 
-        // Assert: Quality is 6 and FPS is 8 across both legacy and 4.x properties
+        // Assert: Quality is 6 and FPS is 8 across the properties that actually exist in a
+        // real PUBG 4.x save file. UserSetGraphicsQuality / OverAllQuality are absent from
+        // real saves and were removed from the patch lists on 2026-10-11.
         Assert.True(ActiveSavService.TryReadInt(buffer, "BattleRenderQuality", out int brq));
         Assert.Equal(6, brq);
 
         Assert.True(ActiveSavService.TryReadInt(buffer, "LobbyRenderQuality", out int lrq));
         Assert.Equal(6, lrq);
-
-        Assert.True(ActiveSavService.TryReadInt(buffer, "UserSetGraphicsQuality", out int usgq));
-        Assert.Equal(6, usgq);
-
-        Assert.True(ActiveSavService.TryReadInt(buffer, "OverAllQuality", out int oaq));
-        Assert.Equal(6, oaq);
 
         Assert.True(ActiveSavService.TryReadInt(buffer, "FPSLevel", out int fps));
         Assert.Equal(8, fps);
@@ -224,9 +223,8 @@ public class ActiveSavTests
         WriteUe4IntProperty(ms, "CustormFrameRateLevel", 5);
         WriteUe4IntProperty(ms, "BattleFrameRateLevel", 5);
         WriteUe4IntProperty(ms, "LobbyFrameRateLevel", 5);
-        WriteUe4IntProperty(ms, "UserSetGraphicsQuality", 3);   // HD
-        WriteUe4IntProperty(ms, "ColorMode", 3);                 // Realistic
-        WriteUe4IntProperty(ms, "UserSetColorStyle", 3);
+        WriteUe4IntProperty(ms, "BattleRenderQuality", 3);       // HD
+        WriteUe4IntProperty(ms, "BattleRenderStyle", 3);         // Realistic
         byte[] buffer = ms.ToArray();
 
         // Act: Read initial values
@@ -239,7 +237,7 @@ public class ActiveSavTests
         // Act: Patch to 120 FPS Smooth Classic
         var target = new ActiveSavProfile { FpsLevel = 7, LobbyFpsLevel = 7, BattleQuality = 1, LobbyQuality = 1, Style = 1, GraphicFavor = 4 };
         int patched = ActiveSavService.ApplyProfileToBytes(buffer, target);
-        Assert.True(patched >= 8, $"Expected >= 8 patched 4.x fields, got {patched}");
+        Assert.True(patched >= 5, $"Expected >= 5 patched fields, got {patched}");
 
         // Assert: Verify 4.x keys were patched
         Assert.True(ActiveSavService.TryReadInt(buffer, "UserSetFrameRate", out int fps));
@@ -248,10 +246,10 @@ public class ActiveSavTests
         Assert.True(ActiveSavService.TryReadInt(buffer, "LobbyFrameRateLevel", out int lfps));
         Assert.Equal(7, lfps);
 
-        Assert.True(ActiveSavService.TryReadInt(buffer, "UserSetGraphicsQuality", out int qual));
+        Assert.True(ActiveSavService.TryReadInt(buffer, "BattleRenderQuality", out int qual));
         Assert.Equal(1, qual);
 
-        Assert.True(ActiveSavService.TryReadInt(buffer, "ColorMode", out int style));
+        Assert.True(ActiveSavService.TryReadInt(buffer, "BattleRenderStyle", out int style));
         Assert.Equal(1, style);
     }
 

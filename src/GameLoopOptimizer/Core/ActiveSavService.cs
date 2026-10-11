@@ -30,7 +30,13 @@ public static class ActiveSavService
         "LobbyFrameRateLevel"
     };
 
-    // --- Render quality keys (legacy + PUBG 4.x) ---
+    // --- Render quality keys ---
+    // Verified against a real Active.sav (PUBG Mobile 4.x, 2026-10). Only names that
+    // actually exist in the save file are listed here. The previous list contained
+    // "BattleQuality", "LobbyQuality", "ShadowLevel", "AntiAliasingLevel" and
+    // "UserSetGraphicsQuality", none of which exist in the file: those patches silently
+    // no-op'd, which is why HDR/UHD appeared not to apply.
+    // "LobbyQuality" was additionally harmful - it matched inside "nEnhancedLobbyQuality".
     public static readonly string[] QualityKeys = new[]
     {
         "BattleRenderQuality",
@@ -38,26 +44,19 @@ public static class ActiveSavService
         "MainCityRenderQuality",
         "ManorRenderQuality",
         "nEnhancedLobbyQuality",
-        "BattleQuality",
-        "LobbyQuality",
-        // PUBG 4.x keys
-        "UserSetGraphicsQuality",
-        "ShadowLevel",
-        "AntiAliasingLevel",
         // Graphic Favor quality targets
         "GFBestQBattle",
         "GFBestQLobby"
     };
 
     // --- Visual style keys (legacy + PUBG 4.x) ---
+    // NOTE: bare "Style" was removed - it matched inside "BattleRenderStyle" and both
+    // resolved to the same offset, so one overwrote the other.
     public static readonly string[] StyleKeys = new[]
     {
         "BattleRenderStyle",
         "LobbyRenderStyle",
-        "Style",
-        // PUBG 4.x keys
-        "ColorMode",
-        "UserSetColorStyle"
+        "MainCityRenderStyle"
     };
 
     public static readonly string[] GraphicFavorKeys = new[]
@@ -172,6 +171,15 @@ public static class ActiveSavService
 
             if (match)
             {
+                // Guard against matching INSIDE a longer identifier. Searching for
+                // "LobbyQuality" previously matched "nEnhancedLobbyQuality" and overwrote an
+                // unrelated property, while "Style" matched inside "BattleRenderStyle".
+                // A real property name always starts after a non-identifier byte.
+                if (i > 0 && IsIdentifierByte(buf[i - 1]))
+                {
+                    continue;
+                }
+
                 int hdrOffset = i + exactPattern.Length;
                 int typeLen = BitConverter.ToInt32(buf, hdrOffset);
                 if (typeLen == 12 && hdrOffset + 16 <= buf.Length)
@@ -194,6 +202,9 @@ public static class ActiveSavService
         byte[] pattern = Encoding.ASCII.GetBytes(name);
         for (int i = 0; i <= buf.Length - pattern.Length - 8; i++)
         {
+            // Same word-boundary guard as the exact path above.
+            if (i > 0 && IsIdentifierByte(buf[i - 1])) continue;
+
             bool match = true;
             for (int j = 0; j < pattern.Length; j++)
             {
@@ -206,7 +217,14 @@ public static class ActiveSavService
 
             if (match)
             {
-                int nextOffset = i + pattern.Length;
+                // The character after the name must not continue an identifier either.
+                int after = i + pattern.Length;
+                if (after < buf.Length && IsIdentifierByte(buf[after]) && buf[after] != (byte)'\0')
+                {
+                    continue;
+                }
+
+                int nextOffset = after;
                 // If followed by 4 null bytes (legacy synthetic mock format)
                 if (nextOffset + 8 <= buf.Length &&
                     buf[nextOffset] == 0 && buf[nextOffset + 1] == 0 &&
@@ -218,6 +236,18 @@ public static class ActiveSavService
         }
 
         return -1;
+    }
+
+    /// <summary>
+    /// True when the byte can be part of a property identifier (letters, digits, underscore).
+    /// Used to ensure a key name only matches at a real identifier boundary.
+    /// </summary>
+    private static bool IsIdentifierByte(byte b)
+    {
+        return (b >= (byte)'a' && b <= (byte)'z') ||
+               (b >= (byte)'A' && b <= (byte)'Z') ||
+               (b >= (byte)'0' && b <= (byte)'9') ||
+               b == (byte)'_';
     }
 
     public static int FindValueOffset(byte[] buf, string name)
@@ -270,21 +300,17 @@ public static class ActiveSavService
         else if (TryReadInt(buf, "LobbyFPS", out int lFps)) profile.LobbyFpsLevel = lFps;
         else profile.LobbyFpsLevel = profile.FpsLevel;
 
-        // Render Quality — try PUBG 4.x keys first, fall back to legacy
-        if (TryReadInt(buf, "UserSetGraphicsQuality", out int usgq)) profile.BattleQuality = usgq;
-        else if (TryReadInt(buf, "BattleRenderQuality", out int bq)) profile.BattleQuality = bq;
-        else if (TryReadInt(buf, "BattleQuality", out int bq2)) profile.BattleQuality = bq2;
+        // Render Quality — keys verified to exist in a real PUBG 4.x Active.sav.
+        if (TryReadInt(buf, "BattleRenderQuality", out int bq)) profile.BattleQuality = bq;
+        else if (TryReadInt(buf, "GFBestQBattle", out int gfq)) profile.BattleQuality = gfq;
 
         if (TryReadInt(buf, "LobbyRenderQuality", out int lq)) profile.LobbyQuality = lq;
-        else if (TryReadInt(buf, "LobbyQuality", out int lq2)) profile.LobbyQuality = lq2;
+        else if (TryReadInt(buf, "nEnhancedLobbyQuality", out int nelq)) profile.LobbyQuality = nelq;
         else profile.LobbyQuality = profile.BattleQuality;
 
-        // Style — try PUBG 4.x keys first, fall back to legacy
-        if (TryReadInt(buf, "ColorMode", out int cm)) profile.Style = cm;
-        else if (TryReadInt(buf, "UserSetColorStyle", out int ucs)) profile.Style = ucs;
-        else if (TryReadInt(buf, "BattleRenderStyle", out int st)) profile.Style = st;
+        // Style — keys verified to exist in a real PUBG 4.x Active.sav.
+        if (TryReadInt(buf, "BattleRenderStyle", out int st)) profile.Style = st;
         else if (TryReadInt(buf, "LobbyRenderStyle", out int lst)) profile.Style = lst;
-        else if (TryReadInt(buf, "Style", out int st2)) profile.Style = st2;
 
         // Graphic Favor
         if (TryReadInt(buf, "GraphicFavor", out int gf)) profile.GraphicFavor = gf;
@@ -297,68 +323,69 @@ public static class ActiveSavService
         HealCorruptedIntPropertyHeaders(buf);
         int patchedCount = 0;
 
-        // --- Patch FPS keys (legacy + PUBG 4.x) ---
+        // Track keys that were requested but are absent from this save file, so a partial
+        // apply is never reported as a success. Previously PatchInt's false return was
+        // discarded, which is how HDR/UHD appeared to "apply" while changing nothing.
+        var missedKeys = new List<string>();
+
+        // --- Patch FPS keys ---
         foreach (var k in FpsKeys)
         {
             int targetVal = k.Contains("Lobby", StringComparison.OrdinalIgnoreCase)
                 ? profile.LobbyFpsLevel
                 : profile.FpsLevel;
-            if (PatchInt(buf, k, targetVal)) patchedCount++;
+            if (PatchInt(buf, k, targetVal)) patchedCount++; else missedKeys.Add(k);
         }
 
-        // --- Patch Quality keys (legacy + PUBG 4.x) ---
-        // ShadowLevel and AntiAliasingLevel are driven by quality tier
+        // --- Patch Quality keys ---
         foreach (var k in QualityKeys)
         {
-            int targetVal;
-            if (k.Contains("Lobby", StringComparison.OrdinalIgnoreCase))
-            {
-                targetVal = profile.LobbyQuality;
-            }
-            else if (k.Equals("ShadowLevel", StringComparison.OrdinalIgnoreCase))
-            {
-                // Shadows: 0 for Smooth/Balanced (lowest latency), scale up for HD+
-                targetVal = profile.BattleQuality >= 3 ? profile.BattleQuality - 2 : 0;
-            }
-            else if (k.Equals("AntiAliasingLevel", StringComparison.OrdinalIgnoreCase))
-            {
-                // AA: 0 for Smooth (competitive), 1 for Balanced+
-                targetVal = profile.BattleQuality >= 2 ? 1 : 0;
-            }
-            else
-            {
-                targetVal = profile.BattleQuality;
-            }
-            if (PatchInt(buf, k, targetVal)) patchedCount++;
+            int targetVal = k.Contains("Lobby", StringComparison.OrdinalIgnoreCase)
+                ? profile.LobbyQuality
+                : profile.BattleQuality;
+            if (PatchInt(buf, k, targetVal)) patchedCount++; else missedKeys.Add(k);
         }
 
-        // --- Patch Style keys (legacy + PUBG 4.x) ---
+        // --- Patch Style keys ---
         foreach (var k in StyleKeys)
         {
-            if (PatchInt(buf, k, profile.Style)) patchedCount++;
+            if (PatchInt(buf, k, profile.Style)) patchedCount++; else missedKeys.Add(k);
         }
 
         // --- GraphicFavor = 4 (Customize) prevents game from overriding individual settings ---
         int favorVal = profile.GraphicFavor <= 0 ? 4 : profile.GraphicFavor;
-        if (PatchInt(buf, "GraphicFavor", favorVal)) patchedCount++;
+        if (PatchInt(buf, "GraphicFavor", favorVal)) patchedCount++; else missedKeys.Add("GraphicFavor");
 
-        // --- PUBG 4.x: OverAllQuality must match the selected battle quality preset (1=Smooth, 2=Balanced, 3=HD, 4=HDR, 5=Ultra HD) ---
+        // --- OverAllQuality mirrors the battle quality preset (absent in current saves; harmless) ---
         foreach (var k in OverAllQualityKeys)
         {
             if (PatchInt(buf, k, profile.BattleQuality)) patchedCount++;
         }
 
-        // --- PUBG 4.x: Set user confirmation flags so the game honors custom selections ---
+        // --- User confirmation flags so the game honours custom selections ---
         foreach (var k in UserFlagKeys)
         {
             if (PatchInt(buf, k, 1)) patchedCount++;
         }
 
-        // bIsCustomQuality: 0 for presets to ensure smooth preset-tab binding in-game, 1 for custom
+        // bIsCustomQuality: 0 for presets so preset-tab binding stays smooth, 1 for custom
         if (PatchInt(buf, "bIsCustomQuality", profile.IsCustom ? 1 : 0)) patchedCount++;
+
+        LastMissedKeys = missedKeys;
+        if (missedKeys.Count > 0)
+        {
+            Logger.Warn("ActiveSavService",
+                $"{missedKeys.Count} setting(s) not present in this save file and were skipped: {string.Join(", ", missedKeys)}");
+        }
 
         return patchedCount;
     }
+
+    /// <summary>
+    /// Keys requested by the most recent <see cref="ApplyProfileToBytes"/> call that were not
+    /// found in the save file. Surfaced to the caller so partial application is visible.
+    /// </summary>
+    public static IReadOnlyList<string> LastMissedKeys { get; private set; } = Array.Empty<string>();
 
     #endregion
 
