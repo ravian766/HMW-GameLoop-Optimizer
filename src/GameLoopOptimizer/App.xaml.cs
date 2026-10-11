@@ -34,8 +34,14 @@ public partial class App : Application
         services.AddSingleton<MainViewModel>();
         services.AddTransient<DashboardViewModel>();
         services.AddTransient<OptimizerViewModel>();
-        services.AddTransient<GameLoopViewModel>();
-        services.AddTransient<KeymapResolutionViewModel>();
+        services.AddTransient(sp => new GameLoopViewModel(
+            () => HardwareDetector.DetectHardware(),
+            () => GameLoopDetector.DetectGameLoop(),
+            sp.GetService<IEventAggregator>()));
+        services.AddTransient(sp => new KeymapResolutionViewModel(
+            () => HardwareDetector.DetectHardware(),
+            () => GameLoopDetector.DetectGameLoop(),
+            sp.GetService<IEventAggregator>()));
         services.AddTransient<MonitorViewModel>();
         services.AddTransient<GamingSessionViewModel>();
         services.AddTransient<BackupViewModel>();

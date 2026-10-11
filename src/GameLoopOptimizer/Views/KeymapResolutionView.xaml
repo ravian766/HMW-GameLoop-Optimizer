@@ -27,11 +27,58 @@
                                    FontSize="12.5" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" />
                     </StackPanel>
 
-                    <!-- Active Aspect Ratio Badge -->
-                    <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="10" Padding="16,10" VerticalAlignment="Center" Margin="16,0,0,0">
-                        <StackPanel HorizontalAlignment="Center">
-                            <TextBlock Text="ACTIVE ASPECT RATIO" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" Margin="0,0,0,2" />
-                            <TextBlock Text="{Binding AspectRatioDescription}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyanBright}" HorizontalAlignment="Center" />
+                    <!-- Revamped Active Engine Resolution HUD Card -->
+                    <Border Grid.Column="1" 
+                            Background="{DynamicResource BrushBgInput}" 
+                            BorderBrush="{DynamicResource BrushBorderLight}" 
+                            BorderThickness="1" 
+                            CornerRadius="12" 
+                            Padding="16,12" 
+                            VerticalAlignment="Center" 
+                            Margin="16,0,0,0"
+                            MinWidth="290">
+                        <StackPanel>
+                            <!-- Top Status & DPI Row -->
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Ellipse Width="7" Height="7" Fill="#10B981" Margin="0,0,6,0">
+                                        <Ellipse.Effect>
+                                            <DropShadowEffect BlurRadius="6" Color="#10B981" Opacity="0.85" ShadowDepth="0" />
+                                        </Ellipse.Effect>
+                                    </Ellipse>
+                                    <TextBlock Text="ACTIVE ENGINE RESOLUTION" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
+                                </StackPanel>
+
+                                <Border Grid.Column="1" Background="{DynamicResource BrushNavActiveGradient}" BorderBrush="{DynamicResource BrushAccentCyan}" BorderThickness="1" CornerRadius="5" Padding="7,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding ActiveDpiText}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyanBright}" />
+                                </Border>
+                            </Grid>
+
+                            <!-- Big Bold Active Resolution Text -->
+                            <TextBlock Text="{Binding ActiveResolutionDisplay}" 
+                                       FontSize="20" 
+                                       FontWeight="ExtraBold" 
+                                       Foreground="{DynamicResource BrushTextPrimary}" 
+                                       Margin="0,0,0,6" />
+
+                            <!-- Aspect Ratio & Format Tag Badge -->
+                            <Border Background="{DynamicResource BrushBgCard}" 
+                                    BorderBrush="{DynamicResource BrushBorderSubtle}" 
+                                    BorderThickness="1" 
+                                    CornerRadius="6" 
+                                    Padding="8,3"
+                                    HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding ActiveFormatTag}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="•" FontSize="9.5" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding ActiveAspectRatioDisplay}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </Border>
                 </Grid>

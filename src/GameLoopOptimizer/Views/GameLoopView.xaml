@@ -20,12 +20,12 @@
 
                     <StackPanel VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                            <TextBlock Text="🎮 GameLoop Virtualization &amp; ADB Studio" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                            <TextBlock Text="🎮 GameLoop Engine &amp; Allocation Studio" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
                             <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Config.Brand, FallbackValue='GameLoop'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
                             </Border>
                         </StackPanel>
-                        <TextBlock Text="Direct hardware-aware emulator engine allocation, Direct3D rasterization, and in-VM ADB Android tuning." FontSize="12.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,4" />
+                        <TextBlock Text="Direct hardware-aware emulator engine allocation, Direct3D rasterization, high-refresh graphics, and regional server latency tuning." FontSize="12.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,4" />
                         <TextBlock Text="{Binding Config.InstallPath, StringFormat='Root: {0}', FallbackValue='Root: Auto-Detected'}" FontSize="11" Foreground="{DynamicResource BrushTextMuted}" />
                     </StackPanel>
 
@@ -104,12 +104,31 @@
                 </UniformGrid>
             </Grid>
 
-            <!-- ==================== SEGMENTED WORKSPACE TABS ==================== -->
-            <TabControl Style="{StaticResource SegmentedTabControl}">
-
-                <!-- ==================== TAB 1: ENGINE & ALLOCATION ==================== -->
-                <TabItem Header="🎛️  Engine &amp; Allocation" Style="{StaticResource SegmentedTabItem}">
-                    <StackPanel>
+            <!-- ==================== QUICK JUMP TO DEDICATED ANDROID ADB STUDIO ==================== -->
+            <Border Background="{DynamicResource BrushCardGradient}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="10" Padding="16,12" Margin="0,0,0,18">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                            <TextBlock Text="🤖 IN-VM SUBSYSTEM DEDICATED WORKSPACE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" Margin="0,0,8,0" />
+                            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
+                                <TextBlock Text="SEPARATE PAGE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="AOT DEX compilation, low-latency 240Hz input dispatch, In-VM memory profiling, and interactive ADB shell have moved to their own dedicated studio." FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" />
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Content="Open Android ADB Studio ➔"
+                            Command="{Binding OpenAdbStudioCommand}"
+                            Style="{StaticResource PrimaryButton}"
+                            Padding="16,8"
+                            VerticalAlignment="Center"
+                            Margin="14,0,0,0" />
+                </Grid>
+            </Border>
                         <!-- Virtual Engine & Hardware Allocation -->
                         <Border Style="{StaticResource GlassCard}" Margin="0,0,0,18">
                             <StackPanel>
@@ -316,23 +335,7 @@
                                 </ItemsControl>
                             </StackPanel>
                         </Border>
-                    </StackPanel>
-                </TabItem>
 
-                <!-- ==================== TAB 2: ANDROID VM & ADB STUDIO ==================== -->
-                <TabItem Header="🤖  Android VM &amp; ADB Studio" Style="{StaticResource SegmentedTabItem}">
-                    <controls:AdbStudioControl DataContext="{Binding AdbStudio}" />
-                </TabItem>
-
-                <!-- ==================== TAB 3: ACTIVE.SAV & 120 FPS (Temporarily Hidden & Disabled) ==================== -->
-                <TabItem Header="🎯  UE4 Graphics &amp; Active.sav (120 FPS)"
-                         Style="{StaticResource SegmentedTabItem}"
-                         Visibility="Collapsed"
-                         IsEnabled="False">
-                    <controls:ActiveSavControl IsEnabled="False" />
-                </TabItem>
-
-            </TabControl>
 
         </StackPanel>
     </ScrollViewer>

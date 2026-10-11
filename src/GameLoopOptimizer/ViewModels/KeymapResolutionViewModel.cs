@@ -14,8 +14,60 @@ public class KeymapResolutionViewModel : ViewModelBase
 
     public GameLoopConfig Config => _getGl();
 
-    // Resolution & Display Properties
-    private int _resWidth = 1440;
+    // Active Emulator Engine Resolution State (decoupled from pending preset selections)
+    private int _activeResWidth = 1920;
+    public int ActiveResWidth
+    {
+        get => _activeResWidth;
+        private set
+        {
+            if (SetProperty(ref _activeResWidth, value))
+            {
+                OnPropertyChanged(nameof(ActiveResolutionDisplay));
+                OnPropertyChanged(nameof(ActiveAspectRatioDisplay));
+                OnPropertyChanged(nameof(IsStretchedActive));
+                OnPropertyChanged(nameof(ActiveFormatTag));
+            }
+        }
+    }
+
+    private int _activeResHeight = 1080;
+    public int ActiveResHeight
+    {
+        get => _activeResHeight;
+        private set
+        {
+            if (SetProperty(ref _activeResHeight, value))
+            {
+                OnPropertyChanged(nameof(ActiveResolutionDisplay));
+                OnPropertyChanged(nameof(ActiveAspectRatioDisplay));
+                OnPropertyChanged(nameof(IsStretchedActive));
+                OnPropertyChanged(nameof(ActiveFormatTag));
+            }
+        }
+    }
+
+    private int _activeDpi = 320;
+    public int ActiveDpi
+    {
+        get => _activeDpi;
+        private set
+        {
+            if (SetProperty(ref _activeDpi, value))
+            {
+                OnPropertyChanged(nameof(ActiveDpiText));
+            }
+        }
+    }
+
+    public string ActiveResolutionDisplay => $"{ActiveResWidth} × {ActiveResHeight}";
+    public string ActiveAspectRatioDisplay => GameLoopViewModel.CalculateAspectRatio(ActiveResWidth, ActiveResHeight);
+    public string ActiveDpiText => $"{ActiveDpi} DPI";
+    public bool IsStretchedActive => !(ActiveResWidth == 1920 && ActiveResHeight == 1080) && !(ActiveResWidth == 2560 && ActiveResHeight == 1440) && (ActiveResWidth > 0 && ActiveResHeight > 0);
+    public string ActiveFormatTag => IsStretchedActive ? "COMPETITIVE STRETCHED" : "NATIVE FHD STANDARD";
+
+    // Target / Pending Resolution Settings for Stretched Presets
+    private int _resWidth = 1920;
     public int ResWidth
     {
         get => _resWidth;
@@ -273,10 +325,19 @@ public class KeymapResolutionViewModel : ViewModelBase
 
     public event EventHandler? SettingsSaved;
 
-    public KeymapResolutionViewModel(Func<HardwareInfo> getHw, Func<GameLoopConfig> getGl)
+    public KeymapResolutionViewModel(Func<HardwareInfo> getHw, Func<GameLoopConfig> getGl, IEventAggregator? eventAggregator = null)
     {
         _getHw = getHw;
         _getGl = getGl;
+
+        LoadActiveResolution();
+
+        if (eventAggregator != null)
+        {
+            eventAggregator.Subscribe<SystemDataRefreshedMessage>(_ => LoadActiveResolution());
+            eventAggregator.Subscribe<OptimizationsChangedMessage>(_ => LoadActiveResolution());
+            eventAggregator.Subscribe<BackupRestoredMessage>(_ => LoadActiveResolution());
+        }
 
         KeymapBackupManager.ProfilesChanged += (s, e) => RefreshKeymaps();
 
@@ -495,6 +556,18 @@ public class KeymapResolutionViewModel : ViewModelBase
                 }
             }
 
+            // 4. Update active resolution properties and cached config
+            ActiveResWidth = ResWidth;
+            ActiveResHeight = ResHeight;
+            ActiveDpi = StretchedDpi;
+
+            if (gl != null)
+            {
+                gl.VmResWidth = ResWidth;
+                gl.VmResHeight = ResHeight;
+                gl.VmDpi = StretchedDpi;
+            }
+
             StatusMessage = $"Applied {ResWidth}x{ResHeight} ({AspectRatioDescription}) to Registry, VM & Keymap!";
             Logger.Success("StretchedRes", $"Applied {ResWidth}x{ResHeight} (DPI: {StretchedDpi}) stretched resolution.");
             SettingsSaved?.Invoke(this, EventArgs.Empty);
@@ -576,6 +649,20 @@ public class KeymapResolutionViewModel : ViewModelBase
             StatusMessage = res.Success ? "Restored stock 16:9 1080P keymap layout!" : res.Message;
             if (res.Success)
             {
+                ActiveResWidth = 1920;
+                ActiveResHeight = 1080;
+                ActiveDpi = 320;
+                ResWidth = 1920;
+                ResHeight = 1080;
+                StretchedDpi = 320;
+
+                if (gl != null)
+                {
+                    gl.VmResWidth = 1920;
+                    gl.VmResHeight = 1080;
+                    gl.VmDpi = 320;
+                }
+
                 KeymapCalibrationStatus = "Keymaps aligned with native 16:9 standard.";
                 RefreshKeymaps();
             }
@@ -636,6 +723,56 @@ public class KeymapResolutionViewModel : ViewModelBase
         catch (Exception ex)
         {
             Logger.Error("KeymapDiagnostics", $"Failed refreshing diagnostics: {ex.Message}");
+        }
+    }
+
+    public void LoadActiveResolution()
+    {
+        try
+        {
+            int regW = 0, regH = 0, regDpi = 0;
+            var targetPaths = new[]
+            {
+                @"Software\Tencent\MobileGamePC",
+                @"Software\Tencent\TxGameAssistant"
+            };
+
+            foreach (var path in targetPaths)
+            {
+                try
+                {
+                    using var subKey = Registry.CurrentUser.OpenSubKey(path);
+                    if (subKey != null)
+                    {
+                        if (regW <= 0 && subKey.GetValue("VMResWidth") is int w && w > 0) regW = w;
+                        if (regH <= 0 && subKey.GetValue("VMResHeight") is int h && h > 0) regH = h;
+                        if (regDpi <= 0 && subKey.GetValue("VMDPI") is int d && d > 0) regDpi = d;
+                    }
+                }
+                catch { }
+            }
+
+            var gl = _getGl();
+            int finalW = regW > 0 ? regW : (gl?.VmResWidth > 0 ? gl.VmResWidth : 1920);
+            int finalH = regH > 0 ? regH : (gl?.VmResHeight > 0 ? gl.VmResHeight : 1080);
+            int finalDpi = regDpi > 0 ? regDpi : (gl?.VmDpi > 0 ? gl.VmDpi : 320);
+
+            ActiveResWidth = finalW;
+            ActiveResHeight = finalH;
+            ActiveDpi = finalDpi;
+
+            // Synchronize pending inputs to active resolution
+            _resWidth = finalW;
+            _resHeight = finalH;
+            _stretchedDpi = finalDpi;
+            OnPropertyChanged(nameof(ResWidth));
+            OnPropertyChanged(nameof(ResHeight));
+            OnPropertyChanged(nameof(StretchedDpi));
+            OnPropertyChanged(nameof(AspectRatioDescription));
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("KeymapResolutionVM", $"Failed to load active resolution: {ex.Message}");
         }
     }
 }

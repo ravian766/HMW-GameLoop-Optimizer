@@ -128,42 +128,55 @@
 
                                 <RadioButton Content="📊  System Cockpit"
                                              Style="{StaticResource NavTabButton}"
-                                             IsChecked="True"
+                                             IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=Dashboard}"
                                              Command="{Binding NavigateCommand}"
                                              CommandParameter="Dashboard" />
 
                                 <RadioButton Content="⚡  Optimizer Matrix"
                                              Style="{StaticResource NavTabButton}"
+                                             IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=Optimizer}"
                                              Command="{Binding NavigateCommand}"
                                              CommandParameter="Optimizer" />
 
-                                <RadioButton Content="🎮  GameLoop &amp; ADB Studio"
+                                <RadioButton Content="🎮  GameLoop Engine Studio"
                                              Style="{StaticResource NavTabButton}"
+                                             IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=GameLoop}"
                                              Command="{Binding NavigateCommand}"
                                              CommandParameter="GameLoop" />
 
-                                <RadioButton Content="🎯  Stretched Res &amp; Keymaps"
+                                <RadioButton Content="🤖  Android ADB Studio"
                                              Style="{StaticResource NavTabButton}"
+                                             IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=AdbStudio}"
+                                             Command="{Binding NavigateCommand}"
+                                             CommandParameter="AdbStudio" />
+
+                                <RadioButton Content="🎯  Stretched Res &amp; Keymap Studio"
+                                             Style="{StaticResource NavTabButton}"
+                                             IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=KeymapResolution}"
                                              Command="{Binding NavigateCommand}"
                                              CommandParameter="KeymapResolution" />
 
                                 <RadioButton Content="📈  Live Telemetry Monitor"
                                              Style="{StaticResource NavTabButton}"
+                                             IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=Monitor}"
                                              Command="{Binding NavigateCommand}"
                                              CommandParameter="Monitor" />
 
                                 <RadioButton Content="🚀  Turbo Gaming Session"
                                              Style="{StaticResource NavTabButton}"
+                                             IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=GamingSession}"
                                              Command="{Binding NavigateCommand}"
                                              CommandParameter="GamingSession" />
 
                                 <RadioButton Content="🔄  Backup &amp; Rollback"
                                              Style="{StaticResource NavTabButton}"
+                                             IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=Backup}"
                                              Command="{Binding NavigateCommand}"
                                              CommandParameter="Backup" />
 
                                 <RadioButton Content="📋  Audit Event Logs"
                                              Style="{StaticResource NavTabButton}"
+                                             IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=Logs}"
                                              Command="{Binding NavigateCommand}"
                                              CommandParameter="Logs" />
                             </StackPanel>

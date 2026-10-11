@@ -27,6 +27,7 @@ public class MainViewModel : ViewModelBase
     public DashboardViewModel DashboardVM { get; }
     public OptimizerViewModel OptimizerVM { get; }
     public GameLoopViewModel GameLoopVM { get; }
+    public AdbStudioViewModel AdbStudioVM { get; }
     public KeymapResolutionViewModel KeymapResolutionVM { get; }
     public MonitorViewModel MonitorVM { get; }
     public GamingSessionViewModel GamingSessionVM { get; }
@@ -178,9 +179,12 @@ public class MainViewModel : ViewModelBase
             () => _gameLoop,
             EventAggregator);
 
+        AdbStudioVM = GameLoopVM.AdbStudio;
+
         KeymapResolutionVM = new KeymapResolutionViewModel(
             () => _hardware,
-            () => _gameLoop);
+            () => _gameLoop,
+            EventAggregator);
 
         MonitorVM = new MonitorViewModel(MonitorService);
 
@@ -200,6 +204,7 @@ public class MainViewModel : ViewModelBase
         Navigation.RegisterView("Dashboard", () => DashboardVM);
         Navigation.RegisterView("Optimizer", () => OptimizerVM);
         Navigation.RegisterView("GameLoop", () => GameLoopVM);
+        Navigation.RegisterView("AdbStudio", () => AdbStudioVM);
         Navigation.RegisterView("KeymapResolution", () => KeymapResolutionVM);
         Navigation.RegisterView("Monitor", () => MonitorVM);
         Navigation.RegisterView("GamingSession", () => GamingSessionVM);
@@ -223,6 +228,7 @@ public class MainViewModel : ViewModelBase
             DashboardVM.RefreshDashboard();
             GameLoopVM.RefreshData();
             KeymapResolutionVM.RefreshKeymaps();
+            KeymapResolutionVM.LoadActiveResolution();
         });
 
         EventAggregator.Subscribe<BackupRestoredMessage>(async _ =>
@@ -232,6 +238,15 @@ public class MainViewModel : ViewModelBase
             await OptimizerVM.AnalyzeAllAsync();
             GameLoopVM.RefreshData();
             KeymapResolutionVM.RefreshKeymaps();
+            KeymapResolutionVM.LoadActiveResolution();
+        });
+
+        EventAggregator.Subscribe<NavigateTabMessage>(msg =>
+        {
+            if (!string.IsNullOrEmpty(msg.TargetTab))
+            {
+                Navigation.NavigateTo(msg.TargetTab);
+            }
         });
 
         // Direct VM event bridge to publish messages
@@ -334,6 +349,7 @@ public class MainViewModel : ViewModelBase
             RefreshSystemData();
             DashboardVM.RefreshDashboard();
             GameLoopVM.RefreshData();
+            KeymapResolutionVM.LoadActiveResolution();
             await OptimizerVM.AnalyzeAllAsync();
             DashboardVM.RefreshDashboard();
 

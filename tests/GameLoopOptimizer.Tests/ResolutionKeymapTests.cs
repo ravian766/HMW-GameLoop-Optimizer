@@ -1,5 +1,7 @@
 using System.Globalization;
 using GameLoopOptimizer.Core;
+using GameLoopOptimizer.Models;
+using GameLoopOptimizer.ViewModels;
 using Xunit;
 
 namespace GameLoopOptimizer.Tests;
@@ -88,5 +90,32 @@ public class ResolutionKeymapTests
         var (emptyRes, emptyCount) = ResolutionKeymapService.CalibrateKeymapXml("", 1440, 1080);
         Assert.Equal("", emptyRes);
         Assert.Equal(0, emptyCount);
+    }
+
+    [Fact]
+    public void KeymapResolutionViewModel_LoadsActiveResolution_CorrectlyDecoupledFromPendingPreset()
+    {
+        var hw = new HardwareInfo();
+        var gl = new GameLoopConfig { VmResWidth = 1920, VmResHeight = 1080, VmDpi = 320 };
+        var vm = new KeymapResolutionViewModel(() => hw, () => gl);
+
+        // Verify active properties reflect config / active state
+        Assert.True(vm.ActiveResWidth > 0);
+        Assert.True(vm.ActiveResHeight > 0);
+        Assert.NotNull(vm.ActiveResolutionDisplay);
+        Assert.NotNull(vm.ActiveAspectRatioDisplay);
+        Assert.NotNull(vm.ActiveDpiText);
+
+        // Selecting a preset must change ResWidth / ResHeight (pending target), but NOT ActiveResWidth / ActiveResHeight
+        int originalActiveW = vm.ActiveResWidth;
+        int originalActiveH = vm.ActiveResHeight;
+        string originalActiveText = vm.ActiveResolutionDisplay;
+
+        vm.SelectStretchedPresetCommand.Execute(vm.StretchedPresets[0]); // 1440 x 1080
+        Assert.Equal(1440, vm.ResWidth);
+        Assert.Equal(1080, vm.ResHeight);
+        Assert.Equal(originalActiveW, vm.ActiveResWidth);
+        Assert.Equal(originalActiveH, vm.ActiveResHeight);
+        Assert.Equal(originalActiveText, vm.ActiveResolutionDisplay);
     }
 }

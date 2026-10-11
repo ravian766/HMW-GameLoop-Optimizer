@@ -1,0 +1,81 @@
+<UserControl x:Class="GameLoopOptimizer.Views.AdbStudioView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:controls="clr-namespace:GameLoopOptimizer.Views.Controls"
+             mc:Ignorable="d" 
+             d:DesignHeight="1000" d:DesignWidth="1020">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="28,24,28,28">
+
+            <!-- ==================== HERO COMMAND BANNER ==================== -->
+            <Border Style="{StaticResource GlowingHeroCard}" Margin="0,0,0,18">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="🤖 Android VM &amp; ADB Studio" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                                <TextBlock Text="IN-VM SUBSYSTEM" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="Hardware-accelerated Android container bridge, AOT DEX pre-compilation, low-latency 240Hz input dispatch, and runtime heap optimization."
+                                   FontSize="12.5" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <!-- Bridge Status Badge -->
+                    <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="10" Padding="16,10" VerticalAlignment="Center" Margin="16,0,0,0">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="BRIDGE STATUS" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" Margin="0,0,2,0" />
+                            <TextBlock Text="{Binding AdbStatusText}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- ==================== 4-COLUMN IN-VM METRIC BADGE GRID ==================== -->
+            <UniformGrid Columns="4" Margin="0,0,0,18">
+                <!-- Port & Connection -->
+                <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,6,0">
+                    <StackPanel>
+                        <TextBlock Text="ENDPOINT ADDRESS" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
+                        <TextBlock Text="{Binding CustomAdbPortText, FallbackValue='127.0.0.1:5555'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" FontFamily="Consolas" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Memory Usage -->
+                <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="3,0,3,0">
+                    <StackPanel>
+                        <TextBlock Text="TOTAL PSS RAM" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
+                        <TextBlock Text="{Binding AdbTelemetry.Memory.TotalPssMb, StringFormat='{}{0:F1} MB', FallbackValue='Telemetry Standby'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Ping Probe -->
+                <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="3,0,3,0">
+                    <StackPanel>
+                        <TextBlock Text="IN-VM NAT LATENCY" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
+                        <TextBlock Text="{Binding InVmPingResultText, FallbackValue='Standby'}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Viewport & GPU -->
+                <Border Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="6,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="VM VIEWPORT RES" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,3" />
+                        <TextBlock Text="{Binding AdbTelemetry.Display.EffectiveResolution, FallbackValue='Standard (Auto)'}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <!-- ==================== ADB STUDIO COMPONENT BODY ==================== -->
+            <controls:AdbStudioControl />
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -34,6 +34,27 @@ public class ArchitectureTests
         Assert.NotNull(mainVm.DashboardVM);
         Assert.NotNull(mainVm.OptimizerVM);
         Assert.NotNull(mainVm.GameLoopVM);
+        Assert.NotNull(mainVm.AdbStudioVM);
+    }
+
+    [Fact]
+    public void MainViewModel_AdbStudioWorkspace_IsSegregatedAndNavigable()
+    {
+        var mainVm = new MainViewModel();
+        Assert.NotNull(mainVm.AdbStudioVM);
+
+        // Verify navigation to dedicated AdbStudio workspace
+        mainVm.NavigateCommand.Execute("AdbStudio");
+        Assert.Equal("AdbStudio", mainVm.ActiveTab);
+        Assert.Same(mainVm.AdbStudioVM, mainVm.CurrentView);
+
+        // Verify OpenAdbStudioCommand from GameLoopVM switches workspace
+        mainVm.NavigateCommand.Execute("GameLoop");
+        Assert.Equal("GameLoop", mainVm.ActiveTab);
+
+        mainVm.GameLoopVM.OpenAdbStudioCommand.Execute(null);
+        Assert.Equal("AdbStudio", mainVm.ActiveTab);
+        Assert.Same(mainVm.AdbStudioVM, mainVm.CurrentView);
     }
 
     [Fact]

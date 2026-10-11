@@ -28,7 +28,12 @@ if ($PublishSingleFile) {
     $publishDir = "d:/SourceCode/Gameloop_Opt/publish"
     
     # Terminate any running GameLoopOptimizer process before publish
-    Get-Process -Name GameLoopOptimizer -ErrorAction SilentlyContinue | Stop-Process -Force
+    try {
+        Get-Process -Name GameLoopOptimizer -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    } catch {}
+    try {
+        Get-CimInstance Win32_Process -Filter "Name = 'GameLoopOptimizer.exe'" -ErrorAction SilentlyContinue | Invoke-CimMethod -MethodName Terminate -ErrorAction SilentlyContinue | Out-Null
+    } catch {}
 
     dotnet publish src/GameLoopOptimizer/GameLoopOptimizer.csproj -c $Configuration -r win-x64 --self-contained false -o $publishDir
 

@@ -468,6 +468,7 @@ public class GameLoopViewModel : ViewModelBase
     public ICommand RestoreKeymapCommand { get; }
     public ICommand BenchmarkPingCommand { get; }
     public ICommand FlushDnsCommand { get; }
+    public ICommand OpenAdbStudioCommand { get; }
 
     // Delegated Commands to Sub-ViewModels
     public ICommand ConnectAdbCommand => AdbStudio.ConnectAdbCommand;
@@ -608,6 +609,8 @@ public class GameLoopViewModel : ViewModelBase
             bool ok = await DnsOptimizerService.FlushDnsCacheAsync();
             StatusMessage = ok ? "DNS Resolver cache flushed successfully." : "Failed to flush DNS cache.";
         });
+
+        OpenAdbStudioCommand = new RelayCommand(() => _eventAggregator.Publish(new NavigateTabMessage("AdbStudio")));
 
         SetInVmResolutionCommand = new AsyncRelayCommand(async () =>
         {

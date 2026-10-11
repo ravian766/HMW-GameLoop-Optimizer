@@ -58,6 +58,10 @@
                 <views:GameLoopView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type vm:AdbStudioViewModel}">
+                <views:AdbStudioView />
+            </DataTemplate>
+
             <DataTemplate DataType="{x:Type vm:KeymapResolutionViewModel}">
                 <views:KeymapResolutionView />
             </DataTemplate>

@@ -11,3 +11,5 @@ public record BackupRestoredMessage;
 public record VmSettingsChangedMessage;
 
 public record StatusNotificationMessage(string Message, bool IsError = false);
+
+public record NavigateTabMessage(string TargetTab);
