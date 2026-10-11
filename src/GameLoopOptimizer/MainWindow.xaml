@@ -150,6 +150,12 @@
                                              Command="{Binding NavigateCommand}"
                                              CommandParameter="AdbStudio" />
 
+                                <RadioButton Content="🎮  In-Game Graphics &amp; FPS"
+                                             Style="{StaticResource NavTabButton}"
+                                             IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=InGameGraphics}"
+                                             Command="{Binding NavigateCommand}"
+                                             CommandParameter="InGameGraphics" />
+
                                 <RadioButton Content="🎯  Stretched Res &amp; Keymap Studio"
                                              Style="{StaticResource NavTabButton}"
                                              IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=KeymapResolution}"

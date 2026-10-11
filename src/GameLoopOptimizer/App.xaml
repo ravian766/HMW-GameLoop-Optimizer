@@ -62,6 +62,10 @@
                 <views:AdbStudioView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type vm:InGameGraphicsViewModel}">
+                <views:InGameGraphicsView />
+            </DataTemplate>
+
             <DataTemplate DataType="{x:Type vm:KeymapResolutionViewModel}">
                 <views:KeymapResolutionView />
             </DataTemplate>

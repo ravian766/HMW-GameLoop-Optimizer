@@ -1,0 +1,78 @@
+<UserControl x:Class="GameLoopOptimizer.Views.InGameGraphicsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:controls="clr-namespace:GameLoopOptimizer.Views.Controls"
+             mc:Ignorable="d"
+             d:DesignHeight="900" d:DesignWidth="1020">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="28,24,28,28">
+
+            <!-- ==================== HERO COMMAND BANNER ==================== -->
+            <Border Style="{StaticResource GlowingHeroCard}" Margin="0,0,0,18">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="🎮 In-Game Graphics &amp; Frame Pacing" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                                <TextBlock Text="ACTIVE.SAV PATCHER" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="Applies true 90/120 FPS limits and Smooth / HD / HDR / Ultra HD quality directly into the PUBG Mobile save file inside the running Android VM, then relaunches the game."
+                                   FontSize="12.5" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <Border Grid.Column="1" Style="{StaticResource GlassCard}" Padding="14,10" VerticalAlignment="Center" Margin="14,0,0,0" MinWidth="210">
+                        <StackPanel>
+                            <TextBlock Text="ADB BRIDGE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                            <TextBlock Text="{Binding AdbBridgeStatus}" FontSize="13" FontWeight="Bold"
+                                       Foreground="{DynamicResource BrushAccentGreen}" Margin="0,3,0,0" />
+                            <TextBlock Text="{Binding AdbBridgeDetail}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- ==================== ADB GATE ==================== -->
+            <Border x:Name="AdbGateBanner"
+                    Background="{DynamicResource BrushBgInput}"
+                    BorderBrush="{DynamicResource BrushAccentRed}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="14,10"
+                    Margin="0,0,0,18"
+                    Visibility="{Binding AdbGateVisibility}">
+                <StackPanel>
+                    <TextBlock Text="⚠️  ADB CONNECTION REQUIRED" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushAccentRed}" Margin="0,0,0,4" />
+                    <TextBlock Text="This feature patches Active.sav inside the running Android VM, which requires a live ADB bridge to GameLoop. Open the Android ADB Studio tab and connect, then return here."
+                               FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <!-- ==================== ACTIVE.SAV PATCHER ==================== -->
+            <controls:ActiveSavControl IsEnabled="{Binding IsAdbBridgeReady}" />
+
+            <!-- ==================== SAFETY NOTES ==================== -->
+            <Border Style="{StaticResource GlassCard}" Margin="0,18,0,0">
+                <StackPanel>
+                    <TextBlock Text="⚠️  Before You Apply" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentRed}" Margin="0,0,0,8" />
+                    <TextBlock FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,4"
+                               Text="• PUBG Mobile only shows the 90 and 120 FPS options when Graphics is set to HD or higher. Pick the quality first, then the frame rate." />
+                    <TextBlock FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,4"
+                               Text="• Never press OK / Save inside the in-game Graphics menu after applying. The game rewrites Active.sav and discards the patch." />
+                    <TextBlock FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,4"
+                               Text="• A snapshot is taken automatically before every write. Use Restore Snapshot to roll back." />
+                    <TextBlock FontSize="11.5" Foreground="{DynamicResource BrushTextMuted}" TextWrapping="Wrap"
+                               Text="• Some keys are absent from certain save revisions. The result panel names any setting that could not be applied instead of failing silently." />
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

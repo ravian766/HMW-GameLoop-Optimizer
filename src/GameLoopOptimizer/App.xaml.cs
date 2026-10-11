@@ -51,6 +51,7 @@ public partial class App : Application
             sp.GetRequiredService<IAdbManager>(),
             sp.GetRequiredService<IEventAggregator>()));
         services.AddTransient<ActiveSavViewModel>();
+        services.AddTransient<InGameGraphicsViewModel>();
         services.AddTransient<AimSensitivityViewModel>();
 
         return services.BuildServiceProvider();

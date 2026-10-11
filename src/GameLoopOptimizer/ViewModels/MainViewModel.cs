@@ -28,6 +28,7 @@ public class MainViewModel : ViewModelBase
     public OptimizerViewModel OptimizerVM { get; }
     public GameLoopViewModel GameLoopVM { get; }
     public AdbStudioViewModel AdbStudioVM { get; }
+    public InGameGraphicsViewModel InGameGraphicsVM { get; }
     public KeymapResolutionViewModel KeymapResolutionVM { get; }
     public MonitorViewModel MonitorVM { get; }
     public GamingSessionViewModel GamingSessionVM { get; }
@@ -180,6 +181,7 @@ public class MainViewModel : ViewModelBase
             EventAggregator);
 
         AdbStudioVM = GameLoopVM.AdbStudio;
+        InGameGraphicsVM = new InGameGraphicsViewModel(GameLoopVM);
 
         KeymapResolutionVM = new KeymapResolutionViewModel(
             () => _hardware,
@@ -205,6 +207,7 @@ public class MainViewModel : ViewModelBase
         Navigation.RegisterView("Optimizer", () => OptimizerVM);
         Navigation.RegisterView("GameLoop", () => GameLoopVM);
         Navigation.RegisterView("AdbStudio", () => AdbStudioVM);
+        Navigation.RegisterView("InGameGraphics", () => InGameGraphicsVM);
         Navigation.RegisterView("KeymapResolution", () => KeymapResolutionVM);
         Navigation.RegisterView("Monitor", () => MonitorVM);
         Navigation.RegisterView("GamingSession", () => GamingSessionVM);
@@ -258,8 +261,24 @@ public class MainViewModel : ViewModelBase
             if (param is string tabName)
             {
                 Navigation.NavigateTo(tabName);
+
+                // The In-Game Graphics tab gates itself on a live ADB bridge, so its state
+                // must be re-read whenever the user switches to it.
+                if (tabName == "InGameGraphics")
+                {
+                    InGameGraphicsVM.Refresh();
+                }
             }
         });
+
+        // Keep the ADB gate accurate even when the tab is reached via NavigateTabMessage.
+        Navigation.Navigated += (_, tab) =>
+        {
+            if (tab == "InGameGraphics")
+            {
+                InGameGraphicsVM.Refresh();
+            }
+        };
 
         ElevateCommand = new RelayCommand(() =>
         {

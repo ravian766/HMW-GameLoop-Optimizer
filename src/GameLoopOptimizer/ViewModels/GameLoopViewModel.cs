@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Windows;
 using System.Windows.Input;
 using GameLoopOptimizer.Core;
 using GameLoopOptimizer.Models;
@@ -500,6 +501,50 @@ public class GameLoopViewModel : ViewModelBase
     public ICommand PullActiveSavCommand => ActiveSav.PullActiveSavCommand;
     public ICommand RestoreActiveSavCommand => ActiveSav.RestoreActiveSavCommand;
     public ICommand SelectActiveSavPresetCommand => ActiveSav.SelectActiveSavPresetCommand;
+
+    // ── ADB gate for the In-Game Graphics tab ──
+    // The Active.sav patcher edits a file inside the running Android VM, so it needs a live
+    // ADB bridge. Without one the buttons would only produce an opaque failure, so the host
+    // view greys them out and shows an explanation instead.
+
+    /// <summary>True when ADB is available and currently connected to the VM.</summary>
+    public bool IsAdbBridgeReady
+    {
+        get => AdbStudio.IsAdbAvailable && AdbStudio.IsAdbConnected;
+        set
+        {
+            if (value == IsAdbBridgeReady) return;
+            OnPropertyChanged(nameof(IsAdbBridgeReady));
+            OnPropertyChanged(nameof(AdbGateVisibility));
+            OnPropertyChanged(nameof(AdbBridgeStatus));
+            OnPropertyChanged(nameof(AdbBridgeDetail));
+        }
+    }
+
+    /// <summary>Collapsed while ADB is connected, visible otherwise.</summary>
+    public Visibility AdbGateVisibility => IsAdbBridgeReady ? Visibility.Collapsed : Visibility.Visible;
+
+    public string AdbBridgeStatus => AdbStudio.IsAdbAvailable
+        ? (AdbStudio.IsAdbConnected ? "CONNECTED" : "NOT CONNECTED")
+        : "UNAVAILABLE";
+
+    public string AdbBridgeDetail => AdbStudio.IsAdbAvailable
+        ? (AdbStudio.IsAdbConnected
+            ? "Ready to patch the in-VM save file."
+            : "Open the Android ADB Studio tab and connect.")
+        : "No ADB bridge detected for this GameLoop install.";
+
+    /// <summary>
+    /// Refreshes the ADB-gate properties. Called when the In-Game Graphics tab is shown and
+    /// after any ADB status change.
+    /// </summary>
+    public void RefreshAdbBridgeState()
+    {
+        OnPropertyChanged(nameof(IsAdbBridgeReady));
+        OnPropertyChanged(nameof(AdbGateVisibility));
+        OnPropertyChanged(nameof(AdbBridgeStatus));
+        OnPropertyChanged(nameof(AdbBridgeDetail));
+    }
 
     public ICommand RecalculateSensitivityCommand => AimSens.RecalculateSensitivityCommand;
     public ICommand StartMouseBenchmarkCommand => AimSens.StartMouseBenchmarkCommand;

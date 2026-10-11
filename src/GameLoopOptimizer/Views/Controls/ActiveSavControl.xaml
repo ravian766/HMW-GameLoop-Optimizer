@@ -6,8 +6,10 @@
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="980">
-    <!-- PUBG Mobile UE4 Active.sav Direct Patcher (Temporarily Disabled) -->
-    <Border Style="{StaticResource GlassCard}" IsEnabled="False">
+    <!-- PUBG Mobile UE4 Active.sav Direct Patcher
+         Re-enabled 2026-10-11 after the binary patcher was fixed (see commit ebc135b).
+         The host view gates this control on a live ADB bridge. -->
+    <Border Style="{StaticResource GlassCard}">
         <StackPanel>
             <Grid Margin="0,0,0,14">
                 <Grid.ColumnDefinitions>
