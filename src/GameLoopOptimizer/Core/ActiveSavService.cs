@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Text;
 using GameLoopOptimizer.Models;
@@ -301,11 +302,12 @@ public static class ActiveSavService
         else profile.LobbyFpsLevel = profile.FpsLevel;
 
         // Render Quality — keys verified to exist in a real PUBG 4.x Active.sav.
-        if (TryReadInt(buf, "BattleRenderQuality", out int bq)) profile.BattleQuality = bq;
-        else if (TryReadInt(buf, "GFBestQBattle", out int gfq)) profile.BattleQuality = gfq;
+        // These store 0-indexed values; convert back to the 1-indexed UI preset.
+        if (TryReadInt(buf, "BattleRenderQuality", out int bq)) profile.BattleQuality = PubgQualityMapping.FromEngineQuality(bq);
+        else if (TryReadInt(buf, "GFBestQBattle", out int gfq)) profile.BattleQuality = PubgQualityMapping.FromEngineQuality(gfq);
 
-        if (TryReadInt(buf, "LobbyRenderQuality", out int lq)) profile.LobbyQuality = lq;
-        else if (TryReadInt(buf, "nEnhancedLobbyQuality", out int nelq)) profile.LobbyQuality = nelq;
+        if (TryReadInt(buf, "LobbyRenderQuality", out int lq)) profile.LobbyQuality = PubgQualityMapping.FromEngineQuality(lq);
+        else if (TryReadInt(buf, "nEnhancedLobbyQuality", out int nelq)) profile.LobbyQuality = PubgQualityMapping.FromEngineQuality(nelq);
         else profile.LobbyQuality = profile.BattleQuality;
 
         // Style — keys verified to exist in a real PUBG 4.x Active.sav.
@@ -338,11 +340,17 @@ public static class ActiveSavService
         }
 
         // --- Patch Quality keys ---
+        // CRITICAL: these keys use PUBG Mobile's 0-indexed quality ladder, while the UI
+        // preset is 1-indexed. Writing the preset straight through made the game apply
+        // the WRONG tier (selecting HDR produced Balanced). Convert via PubgQualityMapping.
+        int engineQuality = PubgQualityMapping.ToEngineQuality(profile.BattleQuality);
+        int engineLobbyQuality = PubgQualityMapping.ToEngineQuality(profile.LobbyQuality);
+
         foreach (var k in QualityKeys)
         {
             int targetVal = k.Contains("Lobby", StringComparison.OrdinalIgnoreCase)
-                ? profile.LobbyQuality
-                : profile.BattleQuality;
+                ? engineLobbyQuality
+                : engineQuality;
             if (PatchInt(buf, k, targetVal)) patchedCount++; else missedKeys.Add(k);
         }
 
@@ -726,15 +734,17 @@ public static class ActiveSavService
             var lines = await File.ReadAllLinesAsync(localIni);
             var updatedLines = new List<string>();
 
-            // In UE4 CVars: 0=Smooth, 1=Balanced, 2=HD, 3=HDR, 4=Ultra HD / UHD
-            int cvarQuality = Math.Clamp(profile.BattleQuality - 1, 0, 4);
+            // All quality CVars below use PUBG Mobile's 0-indexed ladder; route every conversion
+            // through PubgQualityMapping so the .sav and the CVars can never disagree.
+            int cvarQuality = PubgQualityMapping.ToEngineQuality(profile.BattleQuality);
+            int maxSupportQuality = PubgQualityMapping.ToMaxSupportQuality(profile.BattleQuality);
             int targetStyle = profile.Style;
 
-            // In UE4 CVars: r.UserHDRSetting is 0 for SDR (Smooth/Balanced/HD), 1 for HDR, 2 for Ultra HD / UHD
-            int hdrSetting = profile.BattleQuality == 4 ? 1 : (profile.BattleQuality >= 5 ? 2 : 0);
-            string targetHdr = profile.BattleQuality >= 4 ? "1.0" : "0.0";
-            int shadowQuality = profile.BattleQuality >= 3 ? 1 : 0;
-            int scaleFactor = profile.BattleQuality <= 1 ? 1 : 2;
+            // r.UserHDRSetting has its own 3-value enum (0 = SDR, 1 = HDR, 2 = Ultra HD).
+            int hdrSetting = PubgQualityMapping.ToHdrSetting(profile.BattleQuality);
+            string targetHdr = PubgQualityMapping.ToMobileHdr(profile.BattleQuality).ToString(CultureInfo.InvariantCulture);
+            int shadowQuality = profile.BattleQuality >= PubgQualityMapping.Hd ? 1 : 0;
+            int scaleFactor = profile.BattleQuality <= PubgQualityMapping.Smooth ? 1 : 2;
 
             // Determine max FPS target from profile (8/7=120 FPS, 6=90 FPS, 5=60 FPS, 4=40 FPS)
             int targetMaxFps = profile.FpsLevel switch
@@ -760,6 +770,18 @@ public static class ActiveSavService
                     {
                         updatedLines.Add(EncodeCVar($"r.UserQualitySetting={cvarQuality}"));
                         seenCVars.Add("r.UserQualitySetting");
+                    }
+                    else if (dec.StartsWith("r.PUBGQualityLevel=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // The dominant quality control - the game honours this one over the others.
+                        updatedLines.Add(EncodeCVar($"r.PUBGQualityLevel={cvarQuality}"));
+                        seenCVars.Add("r.PUBGQualityLevel");
+                    }
+                    else if (dec.StartsWith("r.PUBGMaxSupportQualityLevel=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Must be >= the requested quality or the game downgrades the preset.
+                        updatedLines.Add(EncodeCVar($"r.PUBGMaxSupportQualityLevel={maxSupportQuality}"));
+                        seenCVars.Add("r.PUBGMaxSupportQualityLevel");
                     }
                     else if (dec.StartsWith("r.UserHDRSetting=", StringComparison.OrdinalIgnoreCase))
                     {
@@ -872,6 +894,13 @@ public static class ActiveSavService
                 missingCVars.Add(EncodeCVar($"r.UserQualitySetting={cvarQuality}"));
             if (!seenCVars.Contains("r.UserHDRSetting"))
                 missingCVars.Add(EncodeCVar($"r.UserHDRSetting={hdrSetting}"));
+
+            // The dominant quality control - must exist even when the save file omits it,
+            // otherwise the game falls back to Balanced.
+            if (!seenCVars.Contains("r.PUBGQualityLevel"))
+                missingCVars.Add(EncodeCVar($"r.PUBGQualityLevel={cvarQuality}"));
+            if (!seenCVars.Contains("r.PUBGMaxSupportQualityLevel"))
+                missingCVars.Add(EncodeCVar($"r.PUBGMaxSupportQualityLevel={maxSupportQuality}"));
 
             // PUBG 4.x quality override CVar
             if (!seenCVars.Contains("r.PUBGDeviceDefaultQuality"))

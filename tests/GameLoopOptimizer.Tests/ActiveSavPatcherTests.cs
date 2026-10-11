@@ -149,11 +149,42 @@ public class ActiveSavPatcherTests
 
         Assert.True(patched > 0, "At least the present keys must be patched.");
 
-        Assert.Equal(battleQuality, ReadInt(buf, "BattleRenderQuality"));
-        Assert.Equal(battleQuality, ReadInt(buf, "LobbyRenderQuality"));
-        Assert.Equal(battleQuality, ReadInt(buf, "MainCityRenderQuality"));
+        // Active.sav uses PUBG Mobile's 0-indexed quality ladder, while the UI preset is
+        // 1-indexed. Writing the preset straight through made the game apply the wrong tier
+        // (selecting HDR produced Balanced), so the engine value must be preset - 1.
+        int expectedEngine = PubgQualityMapping.ToEngineQuality(battleQuality);
+
+        Assert.Equal(expectedEngine, ReadInt(buf, "BattleRenderQuality"));
+        Assert.Equal(expectedEngine, ReadInt(buf, "LobbyRenderQuality"));
+        Assert.Equal(expectedEngine, ReadInt(buf, "MainCityRenderQuality"));
         Assert.Equal(8, ReadInt(buf, "BattleFPS"));
         Assert.Equal(8, ReadInt(buf, "FPSLevel"));
+    }
+
+    [Theory]
+    [InlineData(1, 0)]  // Smooth -> 0
+    [InlineData(2, 1)]  // Balanced -> 1
+    [InlineData(3, 2)]  // HD -> 2
+    [InlineData(4, 3)]  // HDR -> 3
+    [InlineData(5, 4)]  // Ultra HD -> 4
+    public void ApplyProfile_WritesCorrectZeroIndexedEngineValue(int preset, int expected)
+    {
+        byte[] buf = BuildRealisticSave();
+
+        var profile = new ActiveSavProfile
+        {
+            BattleQuality = preset,
+            LobbyQuality = preset,
+            FpsLevel = 8,
+            LobbyFpsLevel = 8,
+            Style = 1,
+            IsCustom = false
+        };
+
+        ActiveSavService.ApplyProfileToBytes(buf, profile);
+
+        // This is the regression that caused "I picked HDR, the game showed Balanced".
+        Assert.Equal(expected, ReadInt(buf, "BattleRenderQuality"));
     }
 
     [Fact]
@@ -178,10 +209,10 @@ public class ActiveSavPatcherTests
         // The original bug was "Style" and "BattleRenderStyle" sharing one offset.
         Assert.Equal(3, ReadInt(buf, "BattleRenderStyle"));
         Assert.Equal(3, ReadInt(buf, "LobbyRenderStyle"));
-        Assert.Equal(5, ReadInt(buf, "BattleRenderQuality"));
+        Assert.Equal(PubgQualityMapping.ToEngineQuality(5), ReadInt(buf, "BattleRenderQuality"));
 
         // nEnhancedLobbyQuality is a lobby-quality target and is expected to follow LobbyQuality.
-        Assert.Equal(5, ReadInt(buf, "nEnhancedLobbyQuality"));
+        Assert.Equal(PubgQualityMapping.ToEngineQuality(5), ReadInt(buf, "nEnhancedLobbyQuality"));
     }
 
     [Fact]
@@ -261,8 +292,39 @@ public class ActiveSavPatcherTests
 
         var readBack = ActiveSavService.ReadProfileFromBytes(buf, "verify");
 
+        // Reading must convert the 0-indexed engine value back to the 1-indexed UI preset.
         Assert.Equal(4, readBack.BattleQuality);
         Assert.Equal(8, readBack.FpsLevel);
+    }
+
+    [Theory]
+    [InlineData(4, 1)]   // HDR  -> r.UserHDRSetting 1
+    [InlineData(5, 2)]   // UHD  -> r.UserHDRSetting 2
+    [InlineData(1, 0)]   // Smooth -> SDR
+    [InlineData(3, 0)]   // HD -> SDR
+    public void HdrSetting_UsesItsOwnThreeValueEnum(int preset, int expected)
+    {
+        Assert.Equal(expected, PubgQualityMapping.ToHdrSetting(preset));
+    }
+
+    [Fact]
+    public void MaxSupportQuality_IsNeverBelowRequestedQuality()
+    {
+        foreach (int preset in new[] { 1, 2, 3, 4, 5 })
+        {
+            Assert.True(
+                PubgQualityMapping.ToMaxSupportQuality(preset) >= PubgQualityMapping.ToEngineQuality(preset),
+                $"Preset {preset}: max support must be >= the requested quality or the game downgrades.");
+        }
+    }
+
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(3, 4)]
+    [InlineData(4, 5)]
+    public void FromEngineQuality_RoundTripsToUserPreset(int engine, int preset)
+    {
+        Assert.Equal(preset, PubgQualityMapping.FromEngineQuality(engine));
     }
 
     private static int ReadInt(byte[] buf, string name)

@@ -82,13 +82,15 @@ public class ActiveSavTests
 
         byte[] buffer = ms.ToArray();
 
-        // Act 1: Verify Initial Read (should pick PUBG 4.x keys first)
+        // Act 1: Verify Initial Read
+        // Quality keys are read from BattleRenderQuality (the key verified to exist in a real
+        // PUBG 4.x save) and converted from the 0-indexed engine value to the 1-indexed UI preset.
         var initial = ActiveSavService.ReadProfileFromBytes(buffer, "Authentic Read");
         Assert.Equal(6, initial.FpsLevel);      // UserSetFrameRate=6 (4.x key takes priority)
         Assert.Equal(6, initial.LobbyFpsLevel); // LobbyFrameRateLevel=6 (4.x key takes priority)
-        Assert.Equal(2, initial.BattleQuality);  // UserSetGraphicsQuality=2 (4.x key takes priority)
-        Assert.Equal(2, initial.LobbyQuality);
-        Assert.Equal(2, initial.Style);          // ColorMode=2 (4.x key takes priority)
+        Assert.Equal(3, initial.BattleQuality);  // engine 2 (HD) -> UI preset 3
+        Assert.Equal(3, initial.LobbyQuality);
+        Assert.Equal(2, initial.Style);          // BattleRenderStyle=2
         Assert.Equal(1, initial.GraphicFavor);
 
         // Act 2: Apply 120 FPS Ultra-Low Latency Esports Preset (FpsLevel = 8, BattleQuality = 1, Style = 1)
@@ -143,11 +145,14 @@ public class ActiveSavTests
         // Assert: Quality is 6 and FPS is 8 across the properties that actually exist in a
         // real PUBG 4.x save file. UserSetGraphicsQuality / OverAllQuality are absent from
         // real saves and were removed from the patch lists on 2026-10-11.
+        // Assert: Quality and FPS are applied. The .sav uses PUBG's 0-indexed quality ladder,
+        // so a 1-indexed UI preset of 6 clamps to the maximum engine value of 4.
+        // (PUBG Mobile exposes 5 presets: Smooth..Ultra HD; the test uses 6 to prove clamping.)
         Assert.True(ActiveSavService.TryReadInt(buffer, "BattleRenderQuality", out int brq));
-        Assert.Equal(6, brq);
+        Assert.Equal(4, brq);
 
         Assert.True(ActiveSavService.TryReadInt(buffer, "LobbyRenderQuality", out int lrq));
-        Assert.Equal(6, lrq);
+        Assert.Equal(4, lrq);
 
         Assert.True(ActiveSavService.TryReadInt(buffer, "FPSLevel", out int fps));
         Assert.Equal(8, fps);
@@ -223,16 +228,16 @@ public class ActiveSavTests
         WriteUe4IntProperty(ms, "CustormFrameRateLevel", 5);
         WriteUe4IntProperty(ms, "BattleFrameRateLevel", 5);
         WriteUe4IntProperty(ms, "LobbyFrameRateLevel", 5);
-        WriteUe4IntProperty(ms, "BattleRenderQuality", 3);       // HD
+        WriteUe4IntProperty(ms, "BattleRenderQuality", 3);       // engine 3 = HDR
         WriteUe4IntProperty(ms, "BattleRenderStyle", 3);         // Realistic
         byte[] buffer = ms.ToArray();
 
-        // Act: Read initial values
+        // Act: Read initial values (engine stores 0-indexed; the API returns 1-indexed presets)
         var initial = ActiveSavService.ReadProfileFromBytes(buffer, "V4 Read");
         Assert.Equal(5, initial.FpsLevel);      // 60 FPS
         Assert.Equal(5, initial.LobbyFpsLevel); // LobbyFrameRateLevel=5
-        Assert.Equal(3, initial.BattleQuality); // HD
-        Assert.Equal(3, initial.Style);         // Realistic
+        Assert.Equal(4, initial.BattleQuality); // engine 3 (HDR) -> UI preset 4
+        Assert.Equal(3, initial.Style);         // style ladder is 1-indexed and is NOT shifted
 
         // Act: Patch to 120 FPS Smooth Classic
         var target = new ActiveSavProfile { FpsLevel = 7, LobbyFpsLevel = 7, BattleQuality = 1, LobbyQuality = 1, Style = 1, GraphicFavor = 4 };
@@ -247,7 +252,7 @@ public class ActiveSavTests
         Assert.Equal(7, lfps);
 
         Assert.True(ActiveSavService.TryReadInt(buffer, "BattleRenderQuality", out int qual));
-        Assert.Equal(1, qual);
+        Assert.Equal(0, qual);   // UI preset 1 (Smooth) -> engine 0
 
         Assert.True(ActiveSavService.TryReadInt(buffer, "BattleRenderStyle", out int style));
         Assert.Equal(1, style);
