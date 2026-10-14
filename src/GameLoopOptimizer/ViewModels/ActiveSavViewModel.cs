@@ -26,7 +26,9 @@ public class ActiveSavViewModel : ViewModelBase
                     _activeSavFpsLevel = value.FpsLevel;
                     _activeSavBattleQuality = value.BattleQuality;
                     _activeSavLobbyFpsLevel = value.LobbyFpsLevel;
-                    _activeSavLobbyQuality = value.LobbyQuality;
+                    // Lobby quality always mirrors battle quality, even if a preset
+                    // somehow carried a different value.
+                    _activeSavLobbyQuality = value.BattleQuality;
                     _activeSavStyle = value.Style;
                     _activeSavGraphicFavor = value.GraphicFavor;
                     OnPropertyChanged(nameof(ActiveSavFpsLevel));
@@ -41,7 +43,62 @@ public class ActiveSavViewModel : ViewModelBase
         }
     }
 
+    private string _emulatorCapWarning = string.Empty;
+    /// <summary>
+    /// Warning shown when GameLoop's own registry cap is below the tier the user selected.
+    /// The emulator enforces this cap and will silently downgrade the in-game setting, which
+    /// is the cause of "HDR shows Balanced". Empty string means the cap is sufficient.
+    /// </summary>
+    public string EmulatorCapWarning
+    {
+        get => _emulatorCapWarning;
+        private set => SetProperty(ref _emulatorCapWarning, value);
+    }
+
+    /// <summary>
+    /// Reads GameLoop's enforced graphics/FPS cap and reports whether it would downgrade the
+    /// current selection.
+    /// </summary>
+    public void CheckEmulatorCap()
+    {
+        var (quality, fps) = ActiveSavService.ReadEmulatorGraphicsCaps();
+
+        if (quality < 0)
+        {
+            EmulatorCapWarning = string.Empty;
+            return;
+        }
+
+        int selectedPreset = ActiveSavBattleQuality;
+        int requiredRegistry = PubgQualityMapping.ToRegistryQuality(selectedPreset);
+        int selectedFps = PubgFpsMapping.ToFps(ActiveSavFpsLevel);
+
+        var problems = new List<string>();
+
+        if (quality < requiredRegistry)
+        {
+            problems.Add(
+                $"GameLoop is set to '{PubgQualityMapping.Describe(quality + 1)}' but you chose " +
+                $"'{PubgQualityMapping.Describe(selectedPreset)}'. The emulator caps the game, so it will fall back.");
+        }
+
+        if (fps > 0 && fps < selectedFps)
+        {
+            problems.Add($"GameLoop is limited to {fps} FPS but you chose {selectedFps} FPS. The emulator will cap it.");
+        }
+
+        EmulatorCapWarning = problems.Count > 0
+            ? string.Join("  ", problems) +
+              "  Fix in GameLoop: open its Settings Center, go to Game Settings > Game Quality, " +
+              "set it to your chosen level, press Save, then run the sync again."
+            : string.Empty;
+    }
+
     private int _activeSavFpsLevel = 8;
+    /// <summary>
+    /// Battle (in-match) FPS level, 1-indexed: 5=60, 6=90, 7=120 (Legacy), 8=120 (Ultra Extreme).
+    /// Changing this also updates <see cref="ActiveSavLobbyFpsLevel"/> so both stay matched.
+    /// </summary>
     public int ActiveSavFpsLevel
     {
         get => _activeSavFpsLevel;
@@ -49,12 +106,25 @@ public class ActiveSavViewModel : ViewModelBase
         {
             if (SetProperty(ref _activeSavFpsLevel, value))
             {
+                // Keep the lobby FPS in step with the battle FPS.
+                if (_activeSavLobbyFpsLevel != value)
+                {
+                    _activeSavLobbyFpsLevel = value;
+                    OnPropertyChanged(nameof(ActiveSavLobbyFpsLevel));
+                }
+
                 OnPropertyChanged(nameof(ActiveSavFpsLabel));
             }
         }
     }
 
     private int _activeSavBattleQuality = 1;
+    /// <summary>
+    /// Battle (in-match) graphics quality preset, 1-indexed: 1=Smooth .. 5=Ultra HD.
+    /// Changing this also updates <see cref="ActiveSavLobbyQuality"/>, because the lobby and
+    /// battle quality are expected to match. They previously drifted apart, which left the
+    /// lobby on a different preset than the user selected.
+    /// </summary>
     public int ActiveSavBattleQuality
     {
         get => _activeSavBattleQuality;
@@ -62,6 +132,13 @@ public class ActiveSavViewModel : ViewModelBase
         {
             if (SetProperty(ref _activeSavBattleQuality, value))
             {
+                // Keep the lobby in step with the battle quality.
+                if (_activeSavLobbyQuality != value)
+                {
+                    _activeSavLobbyQuality = value;
+                    OnPropertyChanged(nameof(ActiveSavLobbyQuality));
+                }
+
                 OnPropertyChanged(nameof(ActiveSavQualityLabel));
             }
         }
@@ -71,14 +148,42 @@ public class ActiveSavViewModel : ViewModelBase
     public int ActiveSavLobbyFpsLevel
     {
         get => _activeSavLobbyFpsLevel;
-        set => SetProperty(ref _activeSavLobbyFpsLevel, value);
+        set
+        {
+            if (SetProperty(ref _activeSavLobbyFpsLevel, value))
+            {
+                // Keep the battle FPS in step with the lobby FPS.
+                if (_activeSavFpsLevel != value)
+                {
+                    _activeSavFpsLevel = value;
+                    OnPropertyChanged(nameof(ActiveSavFpsLevel));
+                    OnPropertyChanged(nameof(ActiveSavFpsLabel));
+                }
+            }
+        }
     }
 
     private int _activeSavLobbyQuality = 1;
+    /// <summary>
+    /// Lobby graphics quality preset, 1-indexed. Kept in sync with
+    /// <see cref="ActiveSavBattleQuality"/>; exposed so a save read can report it.
+    /// </summary>
     public int ActiveSavLobbyQuality
     {
         get => _activeSavLobbyQuality;
-        set => SetProperty(ref _activeSavLobbyQuality, value);
+        set
+        {
+            if (SetProperty(ref _activeSavLobbyQuality, value))
+            {
+                // Mirror back so the two never disagree.
+                if (_activeSavBattleQuality != value)
+                {
+                    _activeSavBattleQuality = value;
+                    OnPropertyChanged(nameof(ActiveSavBattleQuality));
+                    OnPropertyChanged(nameof(ActiveSavQualityLabel));
+                }
+            }
+        }
     }
 
     private int _activeSavStyle = 1;
@@ -94,7 +199,12 @@ public class ActiveSavViewModel : ViewModelBase
         }
     }
 
-    private int _activeSavGraphicFavor = 4;
+    private int _activeSavGraphicFavor = 0;
+    /// <summary>
+    /// PUBG's Graphics-screen mode selector. 0 means "leave whatever the game already has",
+    /// which is the default and the correct behaviour: forcing a value (notably 4 = Customize)
+    /// makes the game ignore the preset-linked quality keys and display Balanced instead.
+    /// </summary>
     public int ActiveSavGraphicFavor
     {
         get => _activeSavGraphicFavor;
@@ -125,11 +235,37 @@ public class ActiveSavViewModel : ViewModelBase
     public ICommand RestoreActiveSavCommand { get; }
     public ICommand SelectActiveSavPresetCommand { get; }
 
+    /// <summary>Deploys the bundled save file chosen in <see cref="SelectedBundledSave"/>.</summary>
+    public ICommand DeployBundledSaveCommand { get; }
+
+    private ObservableCollection<BundledSaveFile> _bundledSaves = new();
+    /// <summary>
+    /// Known-good save files found in the Assets folder. Populated by scanning the disk at
+    /// construction, so dropping a new .sav in makes it appear without a code change.
+    /// </summary>
+    public ObservableCollection<BundledSaveFile> BundledSaves
+    {
+        get => _bundledSaves;
+        private set => SetProperty(ref _bundledSaves, value);
+    }
+
+    private BundledSaveFile? _selectedBundledSave;
+    public BundledSaveFile? SelectedBundledSave
+    {
+        get => _selectedBundledSave;
+        set => SetProperty(ref _selectedBundledSave, value);
+    }
+
+    /// <summary>True when at least one bundled save file was found to deploy.</summary>
+    public bool HasBundledSaves => BundledSaves.Count > 0;
+
     public ActiveSavViewModel(Func<GameLoopConfig> getGl, Func<DeviceProfile?> getDeviceProfile, IEventAggregator? eventAggregator = null)
     {
         _getGl = getGl;
         _getDeviceProfile = getDeviceProfile;
         _eventAggregator = eventAggregator ?? EventAggregator.Default;
+
+        RefreshBundledSaves();
 
         SelectActiveSavPresetCommand = new RelayCommand(p =>
         {
@@ -139,9 +275,71 @@ public class ActiveSavViewModel : ViewModelBase
             }
         });
 
-        SyncActiveSavCommand = new AsyncRelayCommand(SyncActiveSavAsync);
+        SyncActiveSavCommand = new AsyncRelayCommand(async () =>
+        {
+            await SyncActiveSavAsync();
+            CheckEmulatorCap();
+        });
         PullActiveSavCommand = new AsyncRelayCommand(PullActiveSavAsync);
         RestoreActiveSavCommand = new AsyncRelayCommand(RestoreActiveSavAsync);
+
+        DeployBundledSaveCommand = new AsyncRelayCommand(async () =>
+        {
+            if (SelectedBundledSave is null)
+            {
+                ActiveSavStatusMessage = "No save file selected.";
+                return;
+            }
+
+            await DeployBundledSaveAsync(SelectedBundledSave);
+        });
+
+        CheckEmulatorCap();
+    }
+
+    /// <summary>Re-scans the Assets folder. Called at construction.</summary>
+    public void RefreshBundledSaves()
+    {
+        var found = ActiveSavService.DiscoverBundledSaves();
+        BundledSaves = new ObservableCollection<BundledSaveFile>(found);
+        OnPropertyChanged(nameof(HasBundledSaves));
+
+        // Prefer the newest version of whichever preset sorts first, so a v3 automatically
+        // supersedes a v2 without the user having to pick between them.
+        SelectedBundledSave ??= found.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Pushes the selected bundled save to the VM and reports exactly what happened.
+    /// </summary>
+    public async Task DeployBundledSaveAsync(BundledSaveFile save)
+    {
+        IsSyncingActiveSav = true;
+        ActiveSavStatusMessage = $"Deploying '{save.DisplayName}' to PUBG Mobile...";
+
+        try
+        {
+            var res = await ActiveSavService.DeployBundledSaveAsync(save, _getGl());
+            ActiveSavStatusMessage = res.Message;
+
+            if (res.Success)
+            {
+                Logger.Success("ActiveSavViewModel", res.Message);
+            }
+            else
+            {
+                Logger.Error("ActiveSavViewModel", res.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            ActiveSavStatusMessage = $"Deploy failed: {ex.Message}";
+            Logger.Error("ActiveSavViewModel", ActiveSavStatusMessage);
+        }
+        finally
+        {
+            IsSyncingActiveSav = false;
+        }
     }
 
     public async Task SyncActiveSavAsync()
@@ -199,7 +397,7 @@ public class ActiveSavViewModel : ViewModelBase
                 ActiveSavLobbyFpsLevel = res.CurrentProfile.LobbyFpsLevel;
                 ActiveSavLobbyQuality = res.CurrentProfile.LobbyQuality;
                 ActiveSavStyle = res.CurrentProfile.Style;
-                ActiveSavGraphicFavor = res.CurrentProfile.GraphicFavor <= 0 ? 4 : res.CurrentProfile.GraphicFavor;
+                ActiveSavGraphicFavor = res.CurrentProfile.GraphicFavor;
 
                 var match = ActiveSavPresets.FirstOrDefault(p => !p.IsCustom && p.FpsLevel == res.CurrentProfile.FpsLevel && p.BattleQuality == res.CurrentProfile.BattleQuality && p.Style == res.CurrentProfile.Style);
                 SelectedActiveSavPreset = match ?? ActiveSavPresets.First(p => p.IsCustom);

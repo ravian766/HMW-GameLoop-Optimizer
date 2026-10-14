@@ -16,7 +16,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="Assets\**" />
+    <!-- Icons/images are consumed by XAML, so they stay WPF Resources. The .sav files are
+         opaque binary payloads that WPF's Resource build action does not understand, so they
+         ship as loose files next to the executable instead. Drop a new .sav into Assets\ and
+         it is picked up automatically by ActiveSavService.DiscoverBundledSaves(). -->
+    <Resource Include="Assets\**" Exclude="Assets\*.sav" />
+    <None Include="Assets\*.sav" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

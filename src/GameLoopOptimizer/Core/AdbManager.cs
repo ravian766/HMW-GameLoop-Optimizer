@@ -957,27 +957,116 @@ public static class AdbManager
         return res;
     }
 
+    /// <summary>
+    /// Returns the device serial to use for -s, re-resolving it if the cached value has gone
+    /// stale.
+    ///
+    /// WHY THIS IS NEEDED
+    /// The serial is cached in the static <c>_activeDeviceSerial</c>, but GameLoop does not keep
+    /// the same serial across restarts. The same emulator has been observed as ':5555',
+    /// '127.0.0.1:5555' and 'emulator-5554' on different days. Once the cached value stops
+    /// matching a connected device, every 'adb -s &lt;stale&gt; pull/push' fails with
+    /// "error: device not found", and because the callers used to ignore the push result the run
+    /// still reported success.
+    ///
+    /// Verified 2026-10-11: the live serial was '127.0.0.1:5555' while the app was using ':5555'.
+    /// </summary>
+    private static async Task<string> ResolveSerialAsync(GameLoopConfig? config)
+    {
+        var devices = await GetConnectedDevicesAsync(config);
+        var ready = devices.Where(d => d.State.Equals("device", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        // Cached serial still valid - keep using it so a multi-device setup stays stable.
+        string? cached = _activeDeviceSerial;
+        if (!string.IsNullOrEmpty(cached)
+            && ready.Any(d => d.Serial.Equals(cached, StringComparison.OrdinalIgnoreCase)))
+        {
+            return cached;
+        }
+
+        if (cached != null && ready.Count > 0 && !ready.Any(d => d.Serial.Equals(cached, StringComparison.OrdinalIgnoreCase)))
+        {
+            Logger.Warn("AdbManager",
+                $"Cached device serial '{cached}' is no longer connected; re-resolving to the live device.");
+        }
+
+        // Prefer an emulator, then anything else that is ready.
+        var picked = ready.FirstOrDefault(d => d.IsEmulator) ?? ready.FirstOrDefault();
+        if (picked != null)
+        {
+            _activeDeviceSerial = picked.Serial;
+            return picked.Serial;
+        }
+
+        // Nothing connected. Fall back to the cached value so the caller gets a real adb error
+        // message rather than a confusing "no -s flag, multiple devices" failure.
+        return cached ?? string.Empty;
+    }
+
     public static async Task<bool> PullFileFromVmAsync(string remotePath, string localPath, GameLoopConfig? config = null)
     {
-        string serial = _activeDeviceSerial ?? string.Empty;
+        string serial = await ResolveSerialAsync(config);
         string args = string.IsNullOrEmpty(serial)
             ? $"pull \"{remotePath}\" \"{localPath}\""
             : $"-s {serial} pull \"{remotePath}\" \"{localPath}\"";
 
+        // Remove any previous copy FIRST.
+        //
+        // `adb pull` does not truncate the destination when the transfer fails, so a failed
+        // pull would otherwise leave the previous run's file sitting on disk. Callers treat a
+        // "true" result as authoritative, patch that stale copy, and push it back over the
+        // real save - silently replacing a 15 KB save with a stale one from an older session.
+        // Observed on 2026-10-11: the app patched and pushed an 18,599-byte leftover while the
+        // real Active.sav was 15,387 bytes.
+        try
+        {
+            if (File.Exists(localPath))
+            {
+                File.Delete(localPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn("AdbManager", $"Could not remove previous copy of '{localPath}': {ex.Message}");
+        }
+
         var res = await ExecuteAdbCommandAsync(args, 15000, config);
-        return !res.Contains("error:", StringComparison.OrdinalIgnoreCase) && !res.Contains("failed", StringComparison.OrdinalIgnoreCase);
+
+        bool failed = res.Contains("error:", StringComparison.OrdinalIgnoreCase)
+                   || res.Contains("failed", StringComparison.OrdinalIgnoreCase)
+                   || res.Contains("No such file", StringComparison.OrdinalIgnoreCase);
+
+        if (failed || !File.Exists(localPath))
+        {
+            Logger.Error("AdbManager", $"Pull failed for '{remotePath}' (adb said: {res.Trim()})");
+            return false;
+        }
+
+        return true;
     }
 
     public static async Task<bool> PushFileToVmAsync(string localPath, string remotePath, GameLoopConfig? config = null)
     {
         if (!File.Exists(localPath)) return false;
-        string serial = _activeDeviceSerial ?? string.Empty;
+        string serial = await ResolveSerialAsync(config);
         string args = string.IsNullOrEmpty(serial)
             ? $"push \"{localPath}\" \"{remotePath}\""
             : $"-s {serial} push \"{localPath}\" \"{remotePath}\"";
 
         var res = await ExecuteAdbCommandAsync(args, 15000, config);
-        return !res.Contains("error:", StringComparison.OrdinalIgnoreCase) && !res.Contains("failed", StringComparison.OrdinalIgnoreCase);
+
+        bool failed = res.Contains("error:", StringComparison.OrdinalIgnoreCase)
+                   || res.Contains("failed", StringComparison.OrdinalIgnoreCase)
+                   || res.Contains("No such file", StringComparison.OrdinalIgnoreCase)
+                   || res.Contains("device not found", StringComparison.OrdinalIgnoreCase);
+
+        if (failed)
+        {
+            Logger.Error("AdbManager", $"Push failed for '{localPath}' -> '{remotePath}' (adb said: {res.Trim()})");
+            return false;
+        }
+
+        return true;
     }
 
     public static async Task<bool> ElevateGameProcessPriorityAsync(string packageName = "com.tencent.ig", GameLoopConfig? config = null)

@@ -8,20 +8,57 @@ public class ActiveSavProfile
 
     // In-game FPS Cap (matches PanelLoop/PUBG engine values):
     // 1=Low (20 FPS), 2=Medium (25 FPS), 3=High (30 FPS), 4=Ultra (40 FPS),
-    // 5=Extreme (60 FPS), 6=90 FPS, 7=120 FPS
-    public int FpsLevel { get; set; } = 7;
-    public int LobbyFpsLevel { get; set; } = 7;
+    // 5=Extreme (60 FPS), 6=90 FPS, 7=120 FPS (Legacy), 8=120 FPS (Ultra Extreme)
+    // LobbyFpsLevel is kept equal to FpsLevel for the same reason as the quality pair.
+    private int _fpsLevel = 8;
+    public int FpsLevel
+    {
+        get => _fpsLevel;
+        set
+        {
+            _fpsLevel = value;
+            _lobbyFpsLevel = value;
+        }
+    }
+
+    private int _lobbyFpsLevel = 8;
+    public int LobbyFpsLevel
+    {
+        get => _lobbyFpsLevel;
+        set => _lobbyFpsLevel = value;
+    }
 
     // In-game Render Quality: 1=Smooth, 2=Balanced, 3=HD, 4=HDR, 5=Ultra HD
-    public int BattleQuality { get; set; } = 1;
-    public int LobbyQuality { get; set; } = 1;
+    // LobbyQuality is kept equal to BattleQuality: the lobby and the match must show the
+    // same preset, otherwise the player sees a different tier in the lobby than in-game.
+    private int _battleQuality = 1;
+    public int BattleQuality
+    {
+        get => _battleQuality;
+        set
+        {
+            _battleQuality = value;
+            _lobbyQuality = value;
+        }
+    }
+
+    private int _lobbyQuality = 1;
+    public int LobbyQuality
+    {
+        get => _lobbyQuality;
+        set => _lobbyQuality = value;
+    }
 
     // Visual Style: 1=Classic, 2=Colorful, 3=Realistic, 4=Soft, 5=Movie
     public int Style { get; set; } = 1;
 
     // Graphic Favor: 4=Customize (Bypasses game preset overrides), 1=Better Graphics, 2=Balanced, 3=Better Frame Rate
-    public int GraphicFavor { get; set; } = 4;
+    public int GraphicFavor { get; set; } = 0;
 
+    /// <summary>
+    /// Label for a save-file FPS level. The levels 6/7/8 were measured live on 2026-10-11
+    /// (120 in battle, 90 in the lobby). Lower levels are retained for older saves.
+    /// </summary>
     public static string GetFpsLabel(int fps) => fps switch
     {
         1 => "Low (20 FPS)",
@@ -29,30 +66,29 @@ public class ActiveSavProfile
         3 => "High (30 FPS)",
         4 => "Ultra (40 FPS)",
         5 => "Extreme (60 FPS)",
-        6 => "90 FPS",
-        7 => "120 FPS (Legacy)",
-        8 => "120 FPS (Ultra Extreme)",
+        6 => "60 FPS",
+        7 => "90 FPS",
+        8 => "120 FPS",
         _ => $"{fps} Level"
     };
 
     public static string GetQualityLabel(int q) => q switch
     {
-        1 => "Smooth (流畅 - Lowest Latency)",
-        2 => "Balanced (均衡)",
-        3 => "HD (高清)",
-        4 => "HDR (高清高动态)",
-        5 => "Ultra HD / UHD (超高清 - Level 5)",
-        >= 6 => "Ultra HD / UHD (超高清)",
-        _ => $"{q} Level"
+        1 => "Smooth - Lowest Latency",
+        2 => "Balanced",
+        3 => "HD",
+        4 => "HDR - High Dynamic Range",
+        5 => "Ultra HD / UHD - Maximum",
+        _ => $"Quality {q}"
     };
 
     public static string GetStyleLabel(int s) => s switch
     {
-        1 => "Classic (经典 - Crisp Player Visibility)",
-        2 => "Colorful (鲜艳 - High Vibrancy)",
-        3 => "Realistic (写实)",
-        4 => "Soft (柔和)",
-        5 => "Movie (电影)",
+        1 => "Classic - Crisp Player Visibility",
+        2 => "Colorful - High Vibrancy",
+        3 => "Realistic",
+        4 => "Soft",
+        5 => "Movie",
         _ => $"{s} Style"
     };
 
@@ -67,7 +103,6 @@ public class ActiveSavProfile
             BattleQuality = 1,
             LobbyQuality = 1,
             Style = 1,
-            GraphicFavor = 4,
             IsCustom = false
         },
         new ActiveSavProfile
@@ -79,19 +114,17 @@ public class ActiveSavProfile
             BattleQuality = 5,
             LobbyQuality = 5,
             Style = 2,
-            GraphicFavor = 4,
             IsCustom = false
         },
         new ActiveSavProfile
         {
             Name = "Competitive 90 FPS Smooth",
-            Description = "Optimized 90 FPS frame ceiling (FPS Level 6) with zero motion blur and soft shadows for smooth competitive ranked matches.",
-            FpsLevel = 6,
-            LobbyFpsLevel = 6,
+            Description = "Optimized 90 FPS frame ceiling with zero motion blur and soft shadows for smooth competitive ranked matches.",
+            FpsLevel = 7,
+            LobbyFpsLevel = 7,
             BattleQuality = 1,
             LobbyQuality = 1,
             Style = 2,
-            GraphicFavor = 4,
             IsCustom = false
         },
         new ActiveSavProfile
@@ -103,31 +136,28 @@ public class ActiveSavProfile
             BattleQuality = 4,
             LobbyQuality = 4,
             Style = 2,
-            GraphicFavor = 4,
             IsCustom = false
         },
         new ActiveSavProfile
         {
             Name = "Balanced 90 FPS HD",
-            Description = "Sharp 90 FPS visual clarity with HD textures (Level 3) and balanced shadows for mid-range gaming systems.",
-            FpsLevel = 6,
-            LobbyFpsLevel = 6,
+            Description = "Sharp 90 FPS visual clarity with HD textures and balanced shadows for mid-range gaming systems.",
+            FpsLevel = 7,
+            LobbyFpsLevel = 7,
             BattleQuality = 3,
-            LobbyQuality = 2,
+            LobbyQuality = 3,
             Style = 1,
-            GraphicFavor = 4,
             IsCustom = false
         },
         new ActiveSavProfile
         {
             Name = "Anti-Stutter Potato Mode (Max Frame Pacing)",
-            Description = "Stripped-down visual overhead with lowest texture complexity, uncapped 120 FPS in battle and 60 FPS in lobby for maximum frame stability on entry-level PCs.",
+            Description = "Stripped-down visual overhead with lowest texture complexity and a matched 120 FPS target in both battle and lobby for maximum frame stability on entry-level PCs.",
             FpsLevel = 8,
-            LobbyFpsLevel = 5,
+            LobbyFpsLevel = 8,
             BattleQuality = 1,
             LobbyQuality = 1,
             Style = 1,
-            GraphicFavor = 4,
             IsCustom = false
         },
         new ActiveSavProfile
@@ -139,7 +169,6 @@ public class ActiveSavProfile
             BattleQuality = 1,
             LobbyQuality = 1,
             Style = 1,
-            GraphicFavor = 4,
             IsCustom = true
         }
     };

@@ -3,11 +3,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="980">
-    <!-- PUBG Mobile UE4 Active.sav Direct Patcher
-         Re-enabled 2026-10-11 after the binary patcher was fixed (see commit ebc135b).
+    <!-- PUBG Mobile graphics save deployment.
+         Replaced the byte-patching UI on 2026-10-11: patching the graphics fields into the
+         existing save was not reliably adopted by the game, whereas deploying a complete save
+         file that the game already accepts is verified to work in-game.
          The host view gates this control on a live ADB bridge. -->
     <Border Style="{StaticResource GlassCard}">
         <StackPanel>
@@ -17,8 +18,8 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="PUBG Mobile UE4 In-Engine Graphics &amp; 120 FPS Patcher" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
-                    <TextBlock Text="Injects true 90/120 FPS limits, Smooth/HDR quality, and styles directly into the active VM game save (Active.sav)." FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,3,0,0" />
+                    <TextBlock Text="PUBG Mobile In-Game Graphics" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                    <TextBlock Text="Deploy a verified graphics save (Ultra HD / 120 FPS) directly into the emulator." FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,3,0,0" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
                     <Button Content="📥 Read Live"
@@ -35,181 +36,69 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Presets Strip -->
-            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,14">
-                <StackPanel>
-                    <TextBlock Text="SELECT COMPETITIVE GRAPHICS PRESET" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,0,8" />
-                    <ItemsControl ItemsSource="{Binding ActiveSavPresets}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button Content="{Binding Name}"
-                                        Command="{Binding DataContext.SelectActiveSavPresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        CommandParameter="{Binding}"
-                                        Style="{StaticResource SecondaryButton}"
-                                        Padding="12,7"
-                                        FontSize="11"
-                                        Margin="0,0,8,6" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <TextBlock Text="{Binding SelectedActiveSavPreset.Description}" FontSize="11.5" Foreground="{DynamicResource BrushAccentCyan}" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap" />
-                </StackPanel>
-            </Border>
-
-            <!-- Device Model & 120 FPS Spoofing Fingerprint -->
+            <!-- Known-good save deployment.
+                 This is the only supported way to change in-game graphics for now. The previous
+                 byte-patching UI was removed because the patch was not reliably adopted by the
+                 game; deploying a complete save that the game already accepts is verified to work. -->
             <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,14">
                 <StackPanel>
-                    <TextBlock Text="DEVICE FINGERPRINT SPOOFING (90 / 120 FPS WHITELIST)" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,0,6" />
+                    <TextBlock Text="GRAPHICS PRESET FILE" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,0,0,4" />
+                    <TextBlock Text="Deploys a verified save file to the emulator. PUBG Mobile must be CLOSED - a running game overwrites the save when it exits."
+                               FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,10" />
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
+
                         <ComboBox Grid.Column="0"
-                                  ItemsSource="{Binding DeviceProfiles}"
-                                  SelectedItem="{Binding SelectedDeviceProfile}"
+                                  ItemsSource="{Binding BundledSaves}"
+                                  SelectedItem="{Binding SelectedBundledSave}"
                                   DisplayMemberPath="DisplayName"
                                   FontSize="11.5"
-                                  Padding="8,6" />
-                        <Border Grid.Column="1" Background="{DynamicResource BrushBgCard}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,6" Margin="10,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding SelectedDeviceProfile.Description}" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" />
-                        </Border>
+                                  Padding="8,6"
+                                  IsEnabled="{Binding HasBundledSaves}" />
+
+                        <Button Grid.Column="1"
+                                Content="⚡ Deploy Selected Save"
+                                Command="{Binding DeployBundledSaveCommand}"
+                                Style="{StaticResource SuccessButton}"
+                                Padding="16,8"
+                                FontSize="12"
+                                FontWeight="Bold"
+                                Margin="10,0,0,0"
+                                IsEnabled="{Binding HasBundledSaves}" />
                     </Grid>
+
+                    <Border Background="{DynamicResource BrushBgCardSubtle}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,10,0,0">
+                        <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource BrushTextSecondary}">
+                            <Run Text="Adding a preset: " FontWeight="Bold" />
+                            <Run Text="drop a .sav file into the Assets folder next to the executable and restart the app. It appears in the list automatically - no code change needed." />
+                        </TextBlock>
+                    </Border>
                 </StackPanel>
             </Border>
 
-            <!-- 4 ComboBoxes Deck -->
-            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,16">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Battle FPS -->
-                    <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                        <TextBlock Text="Battle In-Game FPS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,4" />
-                        <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ActiveSavFpsLevel}">
-                            <ComboBoxItem Content="60 FPS (Extreme - Level 5)">
-                                <ComboBoxItem.Tag><sys:Int32>5</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="90 FPS (Extreme+ - Level 6)">
-                                <ComboBoxItem.Tag><sys:Int32>6</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="120 FPS (Ultra Extreme - Level 8)">
-                                <ComboBoxItem.Tag><sys:Int32>8</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="120 FPS (Legacy - Level 7)">
-                                <ComboBoxItem.Tag><sys:Int32>7</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                        </ComboBox>
-                    </StackPanel>
-
-                    <!-- Battle Quality -->
-                    <StackPanel Grid.Column="1" Margin="3,0,3,0">
-                        <TextBlock Text="Battle Quality" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,4" />
-                        <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ActiveSavBattleQuality}">
-                            <ComboBoxItem Content="Smooth (Lowest Lag)">
-                                <ComboBoxItem.Tag><sys:Int32>1</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="Balanced">
-                                <ComboBoxItem.Tag><sys:Int32>2</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="HD">
-                                <ComboBoxItem.Tag><sys:Int32>3</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="HDR">
-                                <ComboBoxItem.Tag><sys:Int32>4</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="Ultra HD / UHD (Level 5 - Max)">
-                                <ComboBoxItem.Tag><sys:Int32>5</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                        </ComboBox>
-                    </StackPanel>
-
-                    <!-- Visual Style -->
-                    <StackPanel Grid.Column="2" Margin="3,0,3,0">
-                        <TextBlock Text="Visual Style" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,4" />
-                        <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ActiveSavStyle}">
-                            <ComboBoxItem Content="Classic (High Contrast)">
-                                <ComboBoxItem.Tag><sys:Int32>1</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="Colorful (Vibrant)">
-                                <ComboBoxItem.Tag><sys:Int32>2</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="Realistic">
-                                <ComboBoxItem.Tag><sys:Int32>3</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="Soft">
-                                <ComboBoxItem.Tag><sys:Int32>4</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="Movie">
-                                <ComboBoxItem.Tag><sys:Int32>5</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                        </ComboBox>
-                    </StackPanel>
-
-                    <!-- Lobby FPS -->
-                    <StackPanel Grid.Column="3" Margin="6,0,0,0">
-                        <TextBlock Text="Lobby FPS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,4" />
-                        <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ActiveSavLobbyFpsLevel}">
-                            <ComboBoxItem Content="60 FPS (Level 5)">
-                                <ComboBoxItem.Tag><sys:Int32>5</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="90 FPS (Level 6)">
-                                <ComboBoxItem.Tag><sys:Int32>6</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="120 FPS (Level 8)">
-                                <ComboBoxItem.Tag><sys:Int32>8</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                            <ComboBoxItem Content="120 FPS (Level 7)">
-                                <ComboBoxItem.Tag><sys:Int32>7</sys:Int32></ComboBoxItem.Tag>
-                            </ComboBoxItem>
-                        </ComboBox>
-                    </StackPanel>
-                </Grid>
+            <Border
+                Visibility="{Binding HasBundledSaves, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Collapsed}"
+                Background="{DynamicResource BrushBgInput}"
+                BorderBrush="{DynamicResource BrushAccentRed}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="14"
+                Margin="0,0,0,14">
+                <TextBlock FontSize="11.5" TextWrapping="Wrap" Foreground="{DynamicResource BrushAccentRed}"
+                           Text="No save files were found in the Assets folder next to the executable." />
             </Border>
 
-            <!-- Sync Action Footer -->
-            <Grid Margin="0,0,0,12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Button Grid.Column="0"
-                        Content="⚡ Inject &amp; Sync In-Game (ADB Live)"
-                        Command="{Binding SyncActiveSavCommand}"
-                        Style="{StaticResource SuccessButton}"
-                        Padding="18,9"
-                        FontSize="12"
-                        FontWeight="Bold"
-                        Margin="0,0,14,0" />
-                <TextBlock Grid.Column="1"
-                           Text="{Binding ActiveSavStatusMessage}"
+            <!-- Status -->
+            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,12">
+                <TextBlock Text="{Binding ActiveSavStatusMessage}"
                            FontSize="11.5"
                            FontWeight="SemiBold"
                            Foreground="{DynamicResource BrushAccentGreen}"
-                           VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis" />
-            </Grid>
-
-            <!-- In-game UI Note Banner -->
-            <Border Background="{DynamicResource BrushBgCardSubtle}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10">
-                <TextBlock TextWrapping="Wrap" FontSize="11" LineHeight="16" Foreground="{DynamicResource BrushTextSecondary}">
-                    <Run Text="💡 In-Game UI Note: " FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" />
-                    <Run Text="Tencent's in-game settings UI only displays 90 FPS &amp; 120 FPS buttons when Graphics is set to " />
-                    <Run Text="Smooth" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" />
-                    <Run Text=". When you inject HDR or UHD with 120 FPS via this Optimizer, Unreal Engine runs at full 120 FPS HDR, but the in-game UI hides those buttons. " />
-                    <Run Text="⚠️ Never press 'OK/Save' inside the in-game Graphics menu" FontWeight="Bold" Foreground="{DynamicResource BrushAccentRed}" />
-                    <Run Text=", or PUBG Mobile will revert you back to 60 FPS!" />
-                </TextBlock>
+                           TextWrapping="Wrap" />
             </Border>
         </StackPanel>
     </Border>

@@ -33,6 +33,21 @@ public class InGameGraphicsViewModel : ViewModelBase
                 RaiseAdbState();
             }
         };
+
+        // Forward change notifications from the delegated Active.sav VM for the bundled-save
+        // members, so the preset list and the "no files found" banner stay in sync if the
+        // Assets folder is rescanned while the app is running.
+        _gameLoop.ActiveSav.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(ActiveSavViewModel.BundledSaves)
+                or nameof(ActiveSavViewModel.SelectedBundledSave)
+                or nameof(ActiveSavViewModel.HasBundledSaves))
+            {
+                OnPropertyChanged(nameof(BundledSaves));
+                OnPropertyChanged(nameof(SelectedBundledSave));
+                OnPropertyChanged(nameof(HasBundledSaves));
+            }
+        };
     }
 
     // ── ADB gate ──
@@ -61,6 +76,15 @@ public class InGameGraphicsViewModel : ViewModelBase
     public string ActiveSavStyleLabel => _gameLoop.ActiveSav.ActiveSavStyleLabel;
     public bool IsCustomActiveSav => _gameLoop.ActiveSav.IsCustomActiveSav;
     public bool IsSyncingActiveSav => _gameLoop.ActiveSav.IsSyncingActiveSav;
+
+    /// <summary>Warning shown when GameLoop's registry cap is below the selected tier.</summary>
+    public string EmulatorCapWarning
+    {
+        get => _gameLoop.ActiveSav.EmulatorCapWarning;
+        set => SetProperty(ref _emulatorCapWarning, value);
+    }
+
+    private string _emulatorCapWarning = string.Empty;
 
     public int ActiveSavFpsLevel
     {
@@ -104,8 +128,31 @@ public class InGameGraphicsViewModel : ViewModelBase
     public ICommand RestoreActiveSavCommand => _gameLoop.RestoreActiveSavCommand;
     public ICommand SelectActiveSavPresetCommand => _gameLoop.SelectActiveSavPresetCommand;
 
-    /// <summary>
-    /// Re-reads the ADB bridge state and re-raises every delegated property. Called when the
+    // ── Bundled save deployment ──
+    //
+    // These must be delegated explicitly. The XAML for this tab binds to
+    // InGameGraphicsViewModel, not to ActiveSavViewModel, so anything added to the latter is
+    // invisible here unless it is forwarded. That is exactly how the preset dropdown came up
+    // empty while the files were sitting in Assets\ - the bindings resolved to nothing and WPF
+    // failed silently.
+
+    public ObservableCollection<BundledSaveFile> BundledSaves => _gameLoop.ActiveSav.BundledSaves;
+
+    public BundledSaveFile? SelectedBundledSave
+    {
+        get => _gameLoop.ActiveSav.SelectedBundledSave;
+        set
+        {
+            _gameLoop.ActiveSav.SelectedBundledSave = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool HasBundledSaves => _gameLoop.ActiveSav.HasBundledSaves;
+
+    public ICommand DeployBundledSaveCommand => _gameLoop.ActiveSav.DeployBundledSaveCommand;
+
+    /// <summary>Re-reads the ADB bridge state and re-raises every delegated property. Called when the
     /// tab becomes visible so the gate banner reflects the current connection.
     /// </summary>
     public void Refresh()
@@ -139,5 +186,9 @@ public class InGameGraphicsViewModel : ViewModelBase
         OnPropertyChanged(nameof(ActiveSavLobbyQuality));
         OnPropertyChanged(nameof(ActiveSavStyle));
         OnPropertyChanged(nameof(ActiveSavGraphicFavor));
+        OnPropertyChanged(nameof(EmulatorCapWarning));
+        OnPropertyChanged(nameof(BundledSaves));
+        OnPropertyChanged(nameof(SelectedBundledSave));
+        OnPropertyChanged(nameof(HasBundledSaves));
     }
 }
