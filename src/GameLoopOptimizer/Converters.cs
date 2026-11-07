@@ -73,6 +73,29 @@ public class InverseBooleanConverter : IValueConverter
     }
 }
 
+/// <summary>
+/// Shows an element when its boolean binding is FALSE (true → Collapsed).
+///
+/// WPF's built-in BooleanToVisibilityConverter ignores ConverterParameter entirely, so the
+/// "no save files found" banner that bound
+/// <c>Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Collapsed</c>
+/// was actually VISIBLE when files WERE found - the exact opposite of its text. That is how the
+/// tab showed a populated dropdown alongside "No save files were found". Use this converter for
+/// any show-on-empty state; the MainWindow admin banner had the same inverted-visibility bug.
+/// </summary>
+public class InverseBooleanToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return value is bool b && b ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
 public class BooleanToStatusBrushConverter : IValueConverter
 {
     private static readonly System.Windows.Media.SolidColorBrush FallbackGreen = new(System.Windows.Media.Color.FromRgb(0x10, 0xB9, 0x81));

@@ -24,7 +24,7 @@
                                 <TextBlock Text="ACTIVE.SAV PATCHER" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
                             </Border>
                         </StackPanel>
-                        <TextBlock Text="Applies true 90/120 FPS limits and Smooth / HD / HDR / Ultra HD quality directly into the PUBG Mobile save file inside the running Android VM, then relaunches the game."
+                        <TextBlock Text="Applies true 90/120 FPS limits and Smooth / HD / HDR / Ultra HD quality directly into the PUBG Mobile save file inside the running Android VM - you launch the game yourself afterwards to confirm the change."
                                    FontSize="12.5" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" />
                     </StackPanel>
 

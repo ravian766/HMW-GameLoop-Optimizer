@@ -217,7 +217,7 @@
                                             Style="{StaticResource SecondaryButton}"
                                             Padding="8,3"
                                             FontSize="10"
-                                            Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Invert}" />
+                                            Visibility="{Binding IsAdmin, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
                                 </Grid>
 
                                 <Separator Background="{DynamicResource BrushBorderSubtle}" Margin="0,0,0,8" />

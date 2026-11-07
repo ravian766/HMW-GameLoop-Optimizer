@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows.Input;
 using GameLoopOptimizer.Core;
 using GameLoopOptimizer.Models;
@@ -10,7 +11,6 @@ public class ActiveSavViewModel : ViewModelBase
     private readonly Func<GameLoopConfig> _getGl;
     private readonly Func<DeviceProfile?> _getDeviceProfile;
     private readonly IEventAggregator _eventAggregator;
-
     public ObservableCollection<ActiveSavProfile> ActiveSavPresets { get; } = new(ActiveSavProfile.BuiltInPresets);
 
     private ActiveSavProfile _selectedActiveSavPreset = ActiveSavProfile.BuiltInPresets.First();
@@ -230,6 +230,17 @@ public class ActiveSavViewModel : ViewModelBase
         set => SetProperty(ref _isSyncingActiveSav, value);
     }
 
+    private bool _lastOperationSucceeded = true;
+    /// <summary>
+    /// Outcome of the most recent operation. Drives the status panel color: previously it was
+    /// hardwired green, so a verification failure read as success until the user read the text.
+    /// </summary>
+    public bool LastOperationSucceeded
+    {
+        get => _lastOperationSucceeded;
+        private set => SetProperty(ref _lastOperationSucceeded, value);
+    }
+
     public ICommand SyncActiveSavCommand { get; }
     public ICommand PullActiveSavCommand { get; }
     public ICommand RestoreActiveSavCommand { get; }
@@ -237,6 +248,22 @@ public class ActiveSavViewModel : ViewModelBase
 
     /// <summary>Deploys the bundled save file chosen in <see cref="SelectedBundledSave"/>.</summary>
     public ICommand DeployBundledSaveCommand { get; }
+
+    /// <summary>Re-scans the Assets folder for .sav presets without restarting the app.</summary>
+    public ICommand RescanCommand { get; }
+
+    /// <summary>Opens the Assets folder in Explorer so a .sav can be dropped in.</summary>
+    public ICommand OpenAssetsFolderCommand { get; }
+
+    /// <summary>Force-stops PUBG Mobile in the VM (remedy for the "game is running" refusal).</summary>
+    public ICommand ForceStopGameCommand { get; }
+
+    /// <summary>Launches PUBG Mobile in the VM (verification step after a deploy).</summary>
+    public ICommand LaunchGameCommand { get; }
+
+    /// <summary>The folder that DiscoverBundledSaves scans - shown in the UI so "no files found"
+    /// is instantly diagnosable.</summary>
+    public string BundledSaveScanPath => ActiveSavService.BundledSaveDirectory;
 
     private ObservableCollection<BundledSaveFile> _bundledSaves = new();
     /// <summary>
@@ -294,19 +321,112 @@ public class ActiveSavViewModel : ViewModelBase
             await DeployBundledSaveAsync(SelectedBundledSave);
         });
 
+        RescanCommand = new RelayCommand(_ =>
+        {
+            RefreshBundledSaves();
+            ActiveSavStatusMessage = BundledSaves.Count > 0
+                ? $"Found {BundledSaves.Count} preset file(s) in {BundledSaveScanPath}."
+                : $"No .sav files found in {BundledSaveScanPath}. Drop one there and rescan.";
+        });
+
+        OpenAssetsFolderCommand = new RelayCommand(_ =>
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = BundledSaveScanPath,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                ActiveSavStatusMessage = $"Could not open '{BundledSaveScanPath}': {ex.Message}";
+                Logger.Error("ActiveSavViewModel", ActiveSavStatusMessage);
+            }
+        });
+
+        ForceStopGameCommand = new AsyncRelayCommand(async () =>
+        {
+            IsSyncingActiveSav = true;
+            ActiveSavStatusMessage = "Stopping PUBG Mobile in the VM...";
+            try
+            {
+                var res = await ActiveSavService.ForceStopPUBGAsync(_getGl());
+                LastOperationSucceeded = res.Success;
+                ActiveSavStatusMessage = res.Message;
+            }
+            finally
+            {
+                IsSyncingActiveSav = false;
+            }
+        });
+
+        LaunchGameCommand = new AsyncRelayCommand(async () =>
+        {
+            IsSyncingActiveSav = true;
+            ActiveSavStatusMessage = "Starting PUBG Mobile in the VM...";
+            try
+            {
+                var res = await ActiveSavService.LaunchPUBGAsync(_getGl());
+                LastOperationSucceeded = res.Success;
+                ActiveSavStatusMessage = res.Message;
+            }
+            finally
+            {
+                IsSyncingActiveSav = false;
+            }
+        });
+
         CheckEmulatorCap();
     }
 
-    /// <summary>Re-scans the Assets folder. Called at construction.</summary>
+    /// <summary>Re-scans the Assets folder. Called at construction and by <see cref="RescanCommand"/>.</summary>
     public void RefreshBundledSaves()
     {
+        string? previousName = SelectedBundledSave?.FileName;
         var found = ActiveSavService.DiscoverBundledSaves();
-        BundledSaves = new ObservableCollection<BundledSaveFile>(found);
+        BundledSaves = new ObservableCollection<BundledSaveFile>(OrderByPresetFamilyThenNewest(found));
         OnPropertyChanged(nameof(HasBundledSaves));
 
-        // Prefer the newest version of whichever preset sorts first, so a v3 automatically
-        // supersedes a v2 without the user having to pick between them.
-        SelectedBundledSave ??= found.FirstOrDefault();
+        // Group by preset family (file name minus the "_vN" version suffix) and order families
+        // alphabetically with the newest version first, so a v3 automatically supersedes a v2 in
+        // both the list and the default selection. The previous code took First() over plain
+        // alphabetical order, which selected the OLDEST file ("Active_X.sav" sorts before
+        // "Active_X_v2.sav").
+        SelectedBundledSave =
+            found.FirstOrDefault(f => f.FileName == previousName) ??   // keep the user's pick on rescan
+            found.FirstOrDefault();                                   // newest version of first family
+    }
+
+    /// <summary>
+    /// Parse the trailing "_v&lt;number&gt;" version marker from a bundled save file name.
+    /// Returns -1 when the name carries no version marker, which sorts before any version.
+    /// </summary>
+    public static int BundledSaveVersion(string fileName)
+    {
+        string stem = Path.GetFileNameWithoutExtension(fileName);
+        int vIdx = stem.LastIndexOf("_v", StringComparison.OrdinalIgnoreCase);
+        return vIdx > 0 && int.TryParse(stem[(vIdx + 2)..], out int vNum) ? vNum : -1;
+    }
+
+    /// <summary>
+    /// Orders bundled saves: preset family (alphabetical) first, then newest version first,
+    /// so the best-known revision of each preset is at the top of its group.
+    /// </summary>
+    public static IEnumerable<BundledSaveFile> OrderByPresetFamilyThenNewest(IEnumerable<BundledSaveFile> saves)
+    {
+        static string FamilyName(BundledSaveFile f)
+        {
+            string stem = Path.GetFileNameWithoutExtension(f.FileName);
+            if (stem.StartsWith("Active_", StringComparison.OrdinalIgnoreCase)) stem = stem["Active_".Length..];
+            int vIdx = stem.LastIndexOf("_v", StringComparison.OrdinalIgnoreCase);
+            return vIdx > 0 && int.TryParse(stem[(vIdx + 2)..], out _) ? stem[..vIdx] : stem;
+        }
+
+        return saves
+            .OrderBy(f => FamilyName(f), StringComparer.OrdinalIgnoreCase)
+            .ThenByDescending(f => BundledSaveVersion(f.FileName));
     }
 
     /// <summary>
@@ -320,11 +440,15 @@ public class ActiveSavViewModel : ViewModelBase
         try
         {
             var res = await ActiveSavService.DeployBundledSaveAsync(save, _getGl());
+            LastOperationSucceeded = res.Success;
             ActiveSavStatusMessage = res.Message;
 
+            // The registry cap still governs whether the game keeps the deployed tier on exit,
+            // so re-evaluate it now that the new save is on the device.
             if (res.Success)
             {
                 Logger.Success("ActiveSavViewModel", res.Message);
+                CheckEmulatorCap();
             }
             else
             {
@@ -369,6 +493,7 @@ public class ActiveSavViewModel : ViewModelBase
             var devProfile = _getDeviceProfile() ?? DeviceProfile.Profiles.FirstOrDefault(p => p.MaxSupportedFps >= 120) ?? DeviceProfile.Profiles.First();
 
             var res = await ActiveSavService.PushActiveSavProfileAsync(profileToApply, gl, devProfile);
+            LastOperationSucceeded = res.Success;
             ActiveSavStatusMessage = res.Message;
             if (res.Success)
             {
@@ -389,6 +514,7 @@ public class ActiveSavViewModel : ViewModelBase
         {
             var gl = _getGl();
             var res = await ActiveSavService.PullActiveSavAsync(gl);
+            LastOperationSucceeded = res.Success;
             ActiveSavStatusMessage = res.Message;
             if (res.Success && res.CurrentProfile != null)
             {
@@ -417,6 +543,7 @@ public class ActiveSavViewModel : ViewModelBase
         {
             var gl = _getGl();
             var res = await ActiveSavService.RestoreLatestBackupAsync(gl);
+            LastOperationSucceeded = res.Success;
             ActiveSavStatusMessage = res.Message;
             if (res.Success)
             {

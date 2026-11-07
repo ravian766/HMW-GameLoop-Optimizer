@@ -37,6 +37,23 @@ if ($PublishSingleFile) {
 
     dotnet publish src/GameLoopOptimizer/GameLoopOptimizer.csproj -c $Configuration -r win-x64 --self-contained false -o $publishDir
 
+    # Sync the .sav presets into publish\Assets.
+    #
+    # The publish step only copies what existed at build time; renaming a .sav (e.g. bumping
+    # _v2 -> _v3) used to leave the OLD file in publish\Assets forever, and the app - whose
+    # BundledSaveDirectory resolves to publish\Assets - served a stale preset with no warning.
+    # Mirroring the .sav set makes the publish folder always agree with src\Assets.
+    $srcAssets = "src/GameLoopOptimizer/Assets"
+    $publishAssets = Join-Path $publishDir "Assets"
+    if (Test-Path $srcAssets) {
+        if (-not (Test-Path $publishAssets)) { New-Item -ItemType Directory -Path $publishAssets | Out-Null }
+        Get-ChildItem $publishAssets -Filter *.sav -ErrorAction SilentlyContinue | Remove-Item -Force
+        Get-ChildItem $srcAssets -Filter *.sav | Copy-Item -Destination $publishAssets -Force
+
+        Write-Host "`nPreset save files in publish\Assets:" -ForegroundColor Yellow
+        Get-ChildItem $publishAssets -Filter *.sav | ForEach-Object { Write-Host "  $($_.Name) ($([math]::Round($_.Length / 1KB, 1)) KB)" }
+    }
+
     Write-Host "`nBuild Completed Successfully!" -ForegroundColor Green
     Write-Host "Application executable location: $publishDir/GameLoopOptimizer.exe" -ForegroundColor Cyan
 }

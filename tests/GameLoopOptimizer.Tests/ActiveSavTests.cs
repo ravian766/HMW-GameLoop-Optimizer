@@ -2,12 +2,52 @@ using System.IO;
 using System.Text;
 using GameLoopOptimizer.Core;
 using GameLoopOptimizer.Models;
+using GameLoopOptimizer.ViewModels;
 using Xunit;
 
 namespace GameLoopOptimizer.Tests;
 
 public class ActiveSavTests
 {
+    private static BundledSaveFile MakeSave(string fileName) => new()
+    {
+        FileName = fileName,
+        FullPath = Path.Combine(Path.GetTempPath(), fileName),
+        DisplayName = fileName,
+        Length = 15784
+    };
+
+    [Fact]
+    public void BundledSaveVersion_ParsesTrailingMarker()
+    {
+        Assert.Equal(3, ActiveSavViewModel.BundledSaveVersion("Active_UHD_120FPS_v3.sav"));
+        Assert.Equal(12, ActiveSavViewModel.BundledSaveVersion("Active_Smooth_60FPS_v12.sav"));
+        Assert.Equal(-1, ActiveSavViewModel.BundledSaveVersion("Active_UHD_120FPS.sav"));
+        Assert.Equal(-1, ActiveSavViewModel.BundledSaveVersion("Active_UHD_120FPS_vNone.sav"));
+    }
+
+    [Fact]
+    public void BundledSaveOrdering_NewestVersionFirst_ThenNextFamily()
+    {
+        var saves = new[]
+        {
+            MakeSave("Active_UHD_120FPS.sav"),       // base of first family
+            MakeSave("Active_UHD_120FPS_v3.sav"),
+            MakeSave("Active_UHD_120FPS_v2.sav"),
+            MakeSave("Active_Smooth_120FPS_v1.sav"), // alphabetically later family
+        };
+
+        var ordered = ActiveSavViewModel.OrderByPresetFamilyThenNewest(saves).ToList();
+
+        Assert.Equal(new[]
+        {
+            "Active_Smooth_120FPS_v1.sav",              // family names sort alphabetically
+            "Active_UHD_120FPS_v3.sav",                 // newest version of UHD family first
+            "Active_UHD_120FPS_v2.sav",
+            "Active_UHD_120FPS.sav",                    // unversioned sorts last in its family
+        }, ordered.Select(f => f.FileName).ToArray());
+    }
+
     private static void WriteUe4IntProperty(MemoryStream ms, string name, int value)
     {
         byte[] nameBytes = Encoding.ASCII.GetBytes(name + "\0");

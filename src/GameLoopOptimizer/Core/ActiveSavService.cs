@@ -370,6 +370,132 @@ public static class ActiveSavService
         }
     }
 
+    /// <summary>
+    /// Force-stops PUBG Mobile inside the VM. The game holds Active.sav in memory and rewrites
+    /// it on exit, so bundling a new save while it runs is silently undone. This is exposed as
+    /// a first-class command instead of only an error message, so a refused deploy has a
+    /// one-click remedy: stop the game, deploy, then relaunch.
+    /// </summary>
+    public static async Task<ActiveSavSyncResult> ForceStopPUBGAsync(GameLoopConfig gl)
+    {
+        var result = new ActiveSavSyncResult();
+
+        if (!AdbManager.IsAdbAvailable(gl))
+        {
+            result.Success = false;
+            result.Message = "ADB is not available on this system.";
+            return result;
+        }
+
+        try
+        {
+            await AdbManager.AutoConnectGameLoopAsync(gl);
+
+            string? pkg = await DetectActiveRemoteGamePackageAsync(gl);
+            if (string.IsNullOrEmpty(pkg))
+            {
+                result.Success = false;
+                result.Message = "Could not detect PUBG Mobile in the VM. GameLoop may not be running.";
+                return result;
+            }
+
+            result.TargetPackage = pkg;
+
+            string pidCheck = await AdbManager.ExecuteShellCommandAsync($"pidof {pkg}", config: gl);
+            if (string.IsNullOrWhiteSpace(pidCheck) || pidCheck.Trim().Length == 0)
+            {
+                result.Success = true;
+                result.Message = $"{pkg} is not running - ready to deploy.";
+                return result;
+            }
+
+            Logger.Info("ActiveSavService", $"Force-stopping {pkg} at user request...");
+            await AdbManager.ExecuteShellCommandAsync($"am force-stop {pkg}", config: gl);
+
+            // Same wait loop as PushActiveSavProfileAsync: the process must actually be gone
+            // before the user retries the deploy.
+            for (int i = 0; i < 10; i++)
+            {
+                await Task.Delay(300);
+                string after = await AdbManager.ExecuteShellCommandAsync($"pidof {pkg}", config: gl);
+                if (string.IsNullOrWhiteSpace(after) || after.Trim().Length == 0)
+                {
+                    result.Success = true;
+                    result.Message = $"{pkg} stopped. You can deploy the save now, then launch the game.";
+                    Logger.Success("ActiveSavService", result.Message);
+                    return result;
+                }
+            }
+
+            result.Success = false;
+            result.Message = $"{pkg} did not stop within 3s. Close it manually from the emulator and retry.";
+            Logger.Warn("ActiveSavService", result.Message);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.Message = $"Force-stop failed: {ex.Message}";
+            Logger.Error("ActiveSavService", result.Message);
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Launches PUBG Mobile inside the VM.
+    ///
+    /// Never call this automatically after a deploy: the game rewrites Active.sav on exit, and
+    /// an auto-launch hides whether the patch held. Launching is fine and useful ONCE the user
+    /// has been told to check the Graphics menu - this command is that one click.
+    /// </summary>
+    public static async Task<ActiveSavSyncResult> LaunchPUBGAsync(GameLoopConfig gl)
+    {
+        var result = new ActiveSavSyncResult();
+
+        if (!AdbManager.IsAdbAvailable(gl))
+        {
+            result.Success = false;
+            result.Message = "ADB is not available on this system.";
+            return result;
+        }
+
+        try
+        {
+            await AdbManager.AutoConnectGameLoopAsync(gl);
+
+            string? pkg = await DetectActiveRemoteGamePackageAsync(gl);
+            if (string.IsNullOrEmpty(pkg))
+            {
+                result.Success = false;
+                result.Message = "Could not detect PUBG Mobile in the VM. GameLoop may not be running.";
+                return result;
+            }
+
+            result.TargetPackage = pkg;
+
+            string launch = await AdbManager.ExecuteShellCommandAsync($"monkey -p {pkg} 1", config: gl);
+            if (string.IsNullOrWhiteSpace(launch) || launch.Contains("Error", StringComparison.OrdinalIgnoreCase))
+            {
+                result.Success = false;
+                result.Message = "The launch command failed. Start the game from the GameLoop window and retry.";
+                Logger.Warn("ActiveSavService", result.Message);
+                return result;
+            }
+
+            result.Success = true;
+            result.Message = "Launch command sent. Leave the game idle on the login screen for a few seconds, then confirm the Graphics menu shows the applied tier.";
+            Logger.Success("ActiveSavService", $"Launch request for {pkg} sent.");
+            return result;
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.Message = $"Launch failed: {ex.Message}";
+            Logger.Error("ActiveSavService", result.Message);
+            return result;
+        }
+    }
+
     #endregion
 
     #region Bytecode Parsing & Patching
