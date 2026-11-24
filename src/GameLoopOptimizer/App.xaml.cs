@@ -53,6 +53,7 @@ public partial class App : Application
         services.AddTransient<ActiveSavViewModel>();
         services.AddTransient<InGameGraphicsViewModel>();
         services.AddTransient<AimSensitivityViewModel>();
+        services.AddTransient<UpscalerViewModel>();
 
         return services.BuildServiceProvider();
     }
@@ -79,6 +80,9 @@ public partial class App : Application
         };
 
         ThemeManager.Instance.Initialize();
+
+        var mainWindow = new MainWindow();
+        mainWindow.Show();
     }
 
     protected override void OnExit(ExitEventArgs e)

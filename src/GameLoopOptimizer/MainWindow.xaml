@@ -179,6 +179,12 @@
                                              IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=Logs}"
                                              Command="{Binding NavigateCommand}"
                                              CommandParameter="Logs" />
+
+                                <RadioButton Content="🔮  FSR Upscaler"
+                                             Style="{StaticResource NavTabButton}"
+                                             IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=Upscaler}"
+                                             Command="{Binding NavigateCommand}"
+                                             CommandParameter="Upscaler" />
                             </StackPanel>
                         </ScrollViewer>
 

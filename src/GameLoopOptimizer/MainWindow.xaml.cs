@@ -117,6 +117,13 @@ public partial class MainWindow : Window
                 });
             });
         };
+        _hotkeyManager.UpscalerHotkeyPressed += () =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _viewModel.UpscalerVM.ToggleUpscaling();
+            });
+        };
 
         _viewModel.MonitorService.MetricsUpdated += (s, metrics) =>
         {
@@ -197,6 +204,7 @@ public partial class MainWindow : Window
             _trayManager?.Dispose();
             _hotkeyManager?.Dispose();
             _overlayWindow?.Close();
+            _viewModel.UpscalerVM.Cleanup();
             _viewModel.WatchdogService.Dispose();
             _viewModel.MonitorService.Dispose();
             base.OnClosing(e);

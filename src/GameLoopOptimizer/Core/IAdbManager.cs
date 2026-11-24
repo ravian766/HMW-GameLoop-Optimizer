@@ -20,6 +20,7 @@ public interface IAdbManager
     Task<bool> RestartAdbServerAsync(GameLoopConfig? config = null);
     Task<bool> Unlock120FpsAsync(GameLoopConfig? config = null);
     Task<bool> SpoofDeviceProfileAsync(DeviceProfile profile, GameLoopConfig? config = null);
+    Task<bool> SyncDeviceProfileWithGameLoopAsync(GameLoopConfig? config = null);
     Task<bool> ConnectCustomDeviceAsync(string ipPort, GameLoopConfig? config = null);
     Task<bool> LaunchGamePackageAsync(string packageName, GameLoopConfig? config = null);
     Task<bool> ForceStopGamePackageAsync(string packageName, GameLoopConfig? config = null);
@@ -71,6 +72,7 @@ public class DefaultAdbManager : IAdbManager
     public Task<bool> RestartAdbServerAsync(GameLoopConfig? config = null) => AdbManager.RestartAdbServerAsync(config);
     public Task<bool> Unlock120FpsAsync(GameLoopConfig? config = null) => AdbManager.Unlock120FpsAsync(config);
     public Task<bool> SpoofDeviceProfileAsync(DeviceProfile profile, GameLoopConfig? config = null) => AdbManager.SpoofDeviceProfileAsync(profile, config);
+    public Task<bool> SyncDeviceProfileWithGameLoopAsync(GameLoopConfig? config = null) => AdbManager.SyncDeviceProfileWithGameLoopAsync(config);
     public Task<bool> ConnectCustomDeviceAsync(string ipPort, GameLoopConfig? config = null) => AdbManager.ConnectCustomDeviceAsync(ipPort, config);
     public Task<bool> LaunchGamePackageAsync(string packageName, GameLoopConfig? config = null) => AdbManager.LaunchGamePackageAsync(packageName, config);
     public Task<bool> ForceStopGamePackageAsync(string packageName, GameLoopConfig? config = null) => AdbManager.ForceStopGamePackageAsync(packageName, config);

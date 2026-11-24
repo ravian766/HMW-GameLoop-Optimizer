@@ -4,6 +4,7 @@ using GameLoopOptimizer.Core.Navigation;
 using GameLoopOptimizer.Models;
 using GameLoopOptimizer.Monitoring;
 using GameLoopOptimizer.Optimizations;
+using GameLoopOptimizer.Upscaler;
 
 namespace GameLoopOptimizer.ViewModels;
 
@@ -34,6 +35,7 @@ public class MainViewModel : ViewModelBase
     public GamingSessionViewModel GamingSessionVM { get; }
     public BackupViewModel BackupVM { get; }
     public LogsViewModel LogsVM { get; }
+    public UpscalerViewModel UpscalerVM { get; }
 
     public object CurrentView => Navigation?.CurrentView ?? DashboardVM;
 
@@ -200,6 +202,7 @@ public class MainViewModel : ViewModelBase
 
         BackupVM = new BackupViewModel();
         LogsVM = new LogsViewModel();
+        UpscalerVM = new UpscalerViewModel(() => WindowDetector.DetectGameLoopWindow());
 
         // Initialize and configure decoupled Navigation Service
         Navigation = navigationService ?? new NavigationService();
@@ -212,6 +215,7 @@ public class MainViewModel : ViewModelBase
         Navigation.RegisterView("Monitor", () => MonitorVM);
         Navigation.RegisterView("GamingSession", () => GamingSessionVM);
         Navigation.RegisterView("Logs", () => LogsVM);
+        Navigation.RegisterView("Upscaler", () => UpscalerVM);
 
         Navigation.PropertyChanged += (s, e) =>
         {

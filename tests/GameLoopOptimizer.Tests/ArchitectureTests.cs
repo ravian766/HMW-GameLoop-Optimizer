@@ -4,6 +4,7 @@ using GameLoopOptimizer.Core;
 using GameLoopOptimizer.Core.Navigation;
 using GameLoopOptimizer.Models;
 using GameLoopOptimizer.Optimizations;
+using GameLoopOptimizer.Upscaler;
 using GameLoopOptimizer.ViewModels;
 
 namespace GameLoopOptimizer.Tests;
@@ -35,6 +36,11 @@ public class ArchitectureTests
         Assert.NotNull(mainVm.OptimizerVM);
         Assert.NotNull(mainVm.GameLoopVM);
         Assert.NotNull(mainVm.AdbStudioVM);
+        Assert.NotNull(mainVm.UpscalerVM);
+
+        mainVm.WatchdogService.Dispose();
+        mainVm.MonitorService.Dispose();
+        mainVm.UpscalerVM.Cleanup();
     }
 
     [Fact]
@@ -55,6 +61,10 @@ public class ArchitectureTests
         mainVm.GameLoopVM.OpenAdbStudioCommand.Execute(null);
         Assert.Equal("AdbStudio", mainVm.ActiveTab);
         Assert.Same(mainVm.AdbStudioVM, mainVm.CurrentView);
+
+        mainVm.WatchdogService.Dispose();
+        mainVm.MonitorService.Dispose();
+        mainVm.UpscalerVM.Cleanup();
     }
 
     [Fact]
@@ -181,13 +191,31 @@ public class ArchitectureTests
                 var monitor = new GameLoopOptimizer.Views.MonitorView();
                 var logs = new GameLoopOptimizer.Views.LogsView();
                 var session = new GameLoopOptimizer.Views.GamingSessionView();
+                var upscaler = new GameLoopOptimizer.Views.UpscalerView();
             }
             catch (Exception ex)
             {
                 caughtEx = ex;
             }
+            finally
+            {
+                try
+                {
+                    if (System.Windows.Application.Current != null)
+                    {
+                        typeof(System.Windows.Application)
+                            .GetField("_appCreatedInThisAppDomain", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+                            ?.SetValue(null, false);
+                        typeof(System.Windows.Application)
+                            .GetProperty("Current", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                            ?.SetValue(null, null);
+                    }
+                }
+                catch { }
+            }
         });
         thread.SetApartmentState(ApartmentState.STA);
+        thread.IsBackground = true;
         thread.Start();
         thread.Join();
 
@@ -203,7 +231,7 @@ public class ArchitectureTests
         var services = App.ConfigureServices();
         var mainVm = services.GetRequiredService<MainViewModel>();
 
-        string[] tabs = new[] { "Dashboard", "Optimizer", "GameLoop", "AdbStudio", "InGameGraphics", "KeymapResolution", "Monitor", "GamingSession", "Logs" };
+        string[] tabs = new[] { "Dashboard", "Optimizer", "GameLoop", "AdbStudio", "InGameGraphics", "KeymapResolution", "Monitor", "GamingSession", "Logs", "Upscaler" };
         foreach (var tab in tabs)
         {
             mainVm.NavigateCommand.Execute(tab);
@@ -213,5 +241,6 @@ public class ArchitectureTests
 
         mainVm.WatchdogService.Dispose();
         mainVm.MonitorService.Dispose();
+        mainVm.UpscalerVM.Cleanup();
     }
 }

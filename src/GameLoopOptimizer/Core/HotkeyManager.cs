@@ -9,6 +9,7 @@ public class HotkeyManager : IDisposable
     private const int WM_HOTKEY = 0x0312;
     private const uint MOD_CONTROL = 0x0002;
     private const uint MOD_SHIFT = 0x0004;
+    private const uint MOD_ALT = 0x0001;
     private const uint MOD_NOREPEAT = 0x4000;
 
     public const int HOTKEY_OVERLAY_ID = 9001;   // Ctrl + Shift + O
@@ -17,6 +18,7 @@ public class HotkeyManager : IDisposable
     public const int HOTKEY_FPS_ID = 9004;       // Ctrl + Shift + F (120 FPS Unlock)
     public const int HOTKEY_CLICKTHRU_ID = 9005; // Ctrl + Shift + K (Overlay Click-Through Lock)
     public const int HOTKEY_RES_SWITCH_ID = 9006; // Ctrl + Shift + R (Toggle Stretched / Native Res)
+    public const int HOTKEY_UPSCALER_ID = 9007;   // Ctrl + Alt + U (Toggle FSR Upscaler)
 
     private IntPtr _hwnd;
     private HwndSource? _source;
@@ -27,6 +29,7 @@ public class HotkeyManager : IDisposable
     public event Action? FpsHotkeyPressed;
     public event Action? ClickThruHotkeyPressed;
     public event Action? ResSwitchHotkeyPressed;
+    public event Action? UpscalerHotkeyPressed;
 
     public void Register(Window window)
     {
@@ -56,8 +59,9 @@ public class HotkeyManager : IDisposable
         RegisterHotKey(_hwnd, HOTKEY_FPS_ID, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x46);
         RegisterHotKey(_hwnd, HOTKEY_CLICKTHRU_ID, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x4B);
         RegisterHotKey(_hwnd, HOTKEY_RES_SWITCH_ID, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, 0x52);
+        RegisterHotKey(_hwnd, HOTKEY_UPSCALER_ID, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x55); // VK_U = 0x55
 
-        Logger.Info("HotkeyManager", "Global hotkeys active: Ctrl+Shift+O (HUD Overlay), Ctrl+Shift+K (Overlay Click-Through Lock), Ctrl+Shift+M (Trim RAM), Ctrl+Shift+T (0.5ms Timer), Ctrl+Shift+F (120 FPS Re-Inject), Ctrl+Shift+R (Stretched/Native Res Toggle).");
+        Logger.Info("HotkeyManager", "Global hotkeys active: Ctrl+Shift+O (HUD Overlay), Ctrl+Shift+K (Overlay Click-Through Lock), Ctrl+Shift+M (Trim RAM), Ctrl+Shift+T (0.5ms Timer), Ctrl+Shift+F (120 FPS Re-Inject), Ctrl+Shift+R (Stretched/Native Res Toggle), Ctrl+Alt+U (FSR Upscaler Toggle).");
     }
 
     private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -95,6 +99,11 @@ public class HotkeyManager : IDisposable
                 ResSwitchHotkeyPressed?.Invoke();
                 handled = true;
             }
+            else if (id == HOTKEY_UPSCALER_ID)
+            {
+                UpscalerHotkeyPressed?.Invoke();
+                handled = true;
+            }
         }
 
         return IntPtr.Zero;
@@ -110,6 +119,7 @@ public class HotkeyManager : IDisposable
             UnregisterHotKey(_hwnd, HOTKEY_FPS_ID);
             UnregisterHotKey(_hwnd, HOTKEY_CLICKTHRU_ID);
             UnregisterHotKey(_hwnd, HOTKEY_RES_SWITCH_ID);
+            UnregisterHotKey(_hwnd, HOTKEY_UPSCALER_ID);
         }
         _source?.RemoveHook(HwndHook);
     }

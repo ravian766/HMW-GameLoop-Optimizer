@@ -607,7 +607,13 @@ public class GameLoopViewModel : ViewModelBase
         _getHw = getHw;
         _getGl = getGl;
         _eventAggregator = eventAggregator ?? EventAggregator.Default;
-        _selectedDeviceProfile = DeviceProfiles.First();
+        var glInit = _getGl();
+        var initialProfile = DeviceProfile.ResolveFromGameLoop(glInit.DeviceModel, glInit.DeviceManufacturer);
+        if (!DeviceProfiles.Any(p => p.Model.Equals(initialProfile.Model, StringComparison.OrdinalIgnoreCase)))
+        {
+            DeviceProfiles.Insert(0, initialProfile);
+        }
+        _selectedDeviceProfile = DeviceProfiles.FirstOrDefault(p => p.Model.Equals(initialProfile.Model, StringComparison.OrdinalIgnoreCase)) ?? initialProfile;
 
         // Initialize sub-viewmodels
         AdbStudio = new AdbStudioViewModel(getGl, adbManager, _eventAggregator);
@@ -673,8 +679,9 @@ public class GameLoopViewModel : ViewModelBase
             StatusMessage = "Benchmarking regional game servers...";
             
             void ClearAction() => PingResults.Clear();
-            if (System.Windows.Application.Current?.Dispatcher != null && !System.Windows.Application.Current.Dispatcher.CheckAccess())
-                System.Windows.Application.Current.Dispatcher.Invoke(ClearAction);
+            var disp = System.Windows.Application.Current?.Dispatcher;
+            if (disp != null && disp.Thread.IsAlive && !disp.HasShutdownStarted && !disp.CheckAccess())
+                disp.Invoke(ClearAction);
             else
                 ClearAction();
 
@@ -685,8 +692,8 @@ public class GameLoopViewModel : ViewModelBase
                 {
                     foreach (var r in results) PingResults.Add(r);
                 }
-                if (System.Windows.Application.Current?.Dispatcher != null && !System.Windows.Application.Current.Dispatcher.CheckAccess())
-                    System.Windows.Application.Current.Dispatcher.Invoke(AddAction);
+                if (disp != null && disp.Thread.IsAlive && !disp.HasShutdownStarted && !disp.CheckAccess())
+                    disp.Invoke(AddAction);
                 else
                     AddAction();
 
@@ -811,9 +818,10 @@ public class GameLoopViewModel : ViewModelBase
             }
         }
 
-        if (System.Windows.Application.Current?.Dispatcher != null && !System.Windows.Application.Current.Dispatcher.CheckAccess())
+        var disp = System.Windows.Application.Current?.Dispatcher;
+        if (disp != null && disp.Thread.IsAlive && !disp.HasShutdownStarted && !disp.CheckAccess())
         {
-            System.Windows.Application.Current.Dispatcher.Invoke(UpdateAction);
+            disp.Invoke(UpdateAction);
         }
         else
         {
@@ -863,12 +871,14 @@ public class GameLoopViewModel : ViewModelBase
 
         SelectedResolutionString = $"{ResWidth}x{ResHeight}";
 
-        var matched = DeviceProfiles.FirstOrDefault(p => p.DevicePhoneString.Equals(gl.DeviceModel, StringComparison.OrdinalIgnoreCase)
-                                                      || p.Model.Equals(gl.DeviceModel, StringComparison.OrdinalIgnoreCase));
-        if (matched != null)
+        var matched = DeviceProfile.ResolveFromGameLoop(gl.DeviceModel, gl.DeviceManufacturer);
+        if (!DeviceProfiles.Any(p => p.Model.Equals(matched.Model, StringComparison.OrdinalIgnoreCase)))
         {
-            SelectedDeviceProfile = matched;
+            DeviceProfiles.Insert(0, matched);
         }
+        var selected = DeviceProfiles.FirstOrDefault(p => p.Model.Equals(matched.Model, StringComparison.OrdinalIgnoreCase)) ?? matched;
+        _selectedDeviceProfile = selected;
+        OnPropertyChanged(nameof(SelectedDeviceProfile));
 
         OnPropertyChanged(nameof(Hardware));
         OnPropertyChanged(nameof(Config));
@@ -910,6 +920,8 @@ public class GameLoopViewModel : ViewModelBase
 
                 if (SelectedDeviceProfile != null)
                 {
+                    gl.DeviceModel = SelectedDeviceProfile.Model;
+                    gl.DeviceManufacturer = SelectedDeviceProfile.Manufacturer;
                     await AdbManager.SpoofDeviceProfileAsync(SelectedDeviceProfile, gl);
                 }
 

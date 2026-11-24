@@ -1066,7 +1066,7 @@ public static class ActiveSavService
 
             // 5. Trigger Android VM 120 FPS unlock props & sync high-refresh device profile
             await AdbManager.Unlock120FpsAsync(gl);
-            var devProfile = deviceProfile ?? DeviceProfile.Profiles.FirstOrDefault(p => p.MaxSupportedFps >= 120) ?? DeviceProfile.Profiles.First();
+            var devProfile = deviceProfile ?? DeviceProfile.ResolveFromGameLoop(gl.DeviceModel, gl.DeviceManufacturer);
             await AdbManager.SpoofDeviceProfileAsync(devProfile, gl);
 
             // Per user directive: Do NOT touch GameLoop Windows Registry when applying in-game settings.

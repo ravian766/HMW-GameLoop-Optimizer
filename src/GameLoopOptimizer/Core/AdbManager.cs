@@ -511,6 +511,7 @@ public static class AdbManager
         {
             _activeDeviceSerial = active.Serial;
             Logger.Success("AdbManager", $"Connected to active GameLoop Android VM: {active.Serial}");
+            _ = Task.Run(async () => await SyncDeviceProfileWithGameLoopAsync(config));
             return true;
         }
 
@@ -532,6 +533,7 @@ public static class AdbManager
             {
                 _activeDeviceSerial = matched.Serial;
                 Logger.Success("AdbManager", $"Successfully established ADB connection to {matched.Serial} (Port {port})");
+                _ = Task.Run(async () => await SyncDeviceProfileWithGameLoopAsync(config));
                 return true;
             }
             else
@@ -1205,13 +1207,30 @@ public static class AdbManager
         }
     }
 
+    public static async Task<bool> SyncDeviceProfileWithGameLoopAsync(GameLoopConfig? config = null)
+    {
+        try
+        {
+            var gl = config ?? GameLoopDetector.DetectGameLoop();
+            if (string.IsNullOrWhiteSpace(gl.DeviceModel)) return false;
+
+            var profile = DeviceProfile.ResolveFromGameLoop(gl.DeviceModel, gl.DeviceManufacturer);
+            return await SpoofDeviceProfileAsync(profile, gl);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn("AdbManager", $"Failed to sync device profile with GameLoop settings: {ex.Message}");
+            return false;
+        }
+    }
+
     public static async Task<bool> SpoofDeviceProfileAsync(DeviceProfile profile, GameLoopConfig? config = null)
     {
         if (profile == null) return false;
         try
         {
             await AutoConnectGameLoopAsync(config);
-            string brand = profile.Manufacturer.ToLowerInvariant();
+            string brand = !string.IsNullOrWhiteSpace(profile.Manufacturer) ? profile.Manufacturer.Trim() : "Samsung";
             var props = new Dictionary<string, string>
             {
                 { "ro.product.model", profile.Model },

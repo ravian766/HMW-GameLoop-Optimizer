@@ -389,9 +389,10 @@ public class DashboardViewModel : ViewModelBase
             }
         }
 
-        if (global::System.Windows.Application.Current?.Dispatcher != null && !global::System.Windows.Application.Current.Dispatcher.CheckAccess())
+        var disp = global::System.Windows.Application.Current?.Dispatcher;
+        if (disp != null && disp.Thread.IsAlive && !disp.HasShutdownStarted && !disp.CheckAccess())
         {
-            global::System.Windows.Application.Current.Dispatcher.Invoke(UpdateExplanations);
+            disp.Invoke(UpdateExplanations);
         }
         else
         {

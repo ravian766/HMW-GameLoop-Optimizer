@@ -4,8 +4,7 @@
              xmlns:local="clr-namespace:GameLoopOptimizer"
              xmlns:vm="clr-namespace:GameLoopOptimizer.ViewModels"
              xmlns:views="clr-namespace:GameLoopOptimizer.Views"
-             xmlns:models="clr-namespace:GameLoopOptimizer.Models"
-             StartupUri="MainWindow.xaml">
+             xmlns:models="clr-namespace:GameLoopOptimizer.Models">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -86,6 +85,10 @@
 
             <DataTemplate DataType="{x:Type vm:LogsViewModel}">
                 <views:LogsView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:UpscalerViewModel}">
+                <views:UpscalerView />
             </DataTemplate>
 
         </ResourceDictionary>

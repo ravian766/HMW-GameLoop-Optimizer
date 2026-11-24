@@ -138,8 +138,18 @@ public static class GameLoopDetector
                 config.PubgRenderQuality = ConvertToInt(targetKey.GetValue("com.tencent.ig_RenderQuality"), 2);
                 config.PubgContentScale = ConvertToInt(targetKey.GetValue("com.tencent.ig_ContentScale"), 1);
 
-                var device = targetKey.GetValue("VMPhoneDevice") as string;
-                if (!string.IsNullOrEmpty(device)) config.DeviceModel = device;
+                // Read GameLoop device model and manufacturer from registry
+                var vmModel = targetKey.GetValue("VMDeviceModel") as string;
+                var vmManuf = targetKey.GetValue("VMDeviceManufacturer") as string;
+                var vmPhone = targetKey.GetValue("VMPhoneDevice") as string;
+
+                if (!string.IsNullOrWhiteSpace(vmModel))
+                    config.DeviceModel = vmModel.Trim();
+                else if (!string.IsNullOrWhiteSpace(vmPhone))
+                    config.DeviceModel = vmPhone.Trim();
+
+                if (!string.IsNullOrWhiteSpace(vmManuf))
+                    config.DeviceManufacturer = vmManuf.Trim();
 
                 var brand = targetKey.GetValue("brand") as string;
                 if (!string.IsNullOrEmpty(brand)) config.Brand = brand;

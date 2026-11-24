@@ -45,7 +45,8 @@ public class GameLoopConfig
     public bool PubgShadowsEnabled { get; set; } = false;
     public bool PubgAutoAdjustGraphics { get; set; } = false;
     public int PubgAntiAliasing { get; set; } = 0;
-    public string DeviceModel { get; set; } = "ROG 2";
+    public string DeviceModel { get; set; } = "SM-S948B";
+    public string DeviceManufacturer { get; set; } = "SAMSUNG";
 
     public bool IsAdbAvailable { get; set; } = false;
     public bool IsRootEnabled { get; set; } = false;

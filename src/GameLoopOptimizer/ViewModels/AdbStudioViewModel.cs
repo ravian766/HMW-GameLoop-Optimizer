@@ -757,7 +757,10 @@ public class AdbStudioViewModel : ViewModelBase, IDisposable
                 ? $"{active.Serial} (Port 5555)"
                 : active.Serial;
             AdbDeviceName = displayName;
-            AdbStatusText = $"Connected ({displayName} - {active.Model})";
+            string displayModel = !string.IsNullOrWhiteSpace(gl.DeviceModel)
+                ? gl.DeviceModel
+                : (!string.IsNullOrWhiteSpace(active.Model) ? active.Model.Replace('_', '-') : "GameLoop VM");
+            AdbStatusText = $"Connected ({displayName} - {displayModel})";
         }
         else
         {
@@ -770,7 +773,10 @@ public class AdbStudioViewModel : ViewModelBase, IDisposable
                     ? $"{serial} (Port 5555)"
                     : serial;
                 AdbDeviceName = displayName;
-                AdbStatusText = $"Connected ({displayName})";
+                string displayModel = !string.IsNullOrWhiteSpace(gl.DeviceModel)
+                    ? gl.DeviceModel
+                    : "GameLoop VM";
+                AdbStatusText = $"Connected ({displayName} - {displayModel})";
             }
             else
             {
@@ -793,9 +799,10 @@ public class AdbStudioViewModel : ViewModelBase, IDisposable
                 }
             }
 
-            if (System.Windows.Application.Current?.Dispatcher != null && !System.Windows.Application.Current.Dispatcher.CheckAccess())
+            var disp = System.Windows.Application.Current?.Dispatcher;
+            if (disp != null && disp.Thread.IsAlive && !disp.HasShutdownStarted && !disp.CheckAccess())
             {
-                System.Windows.Application.Current.Dispatcher.Invoke(UpdatePkgsAction);
+                disp.Invoke(UpdatePkgsAction);
             }
             else
             {

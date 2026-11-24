@@ -1,0 +1,256 @@
+<UserControl x:Class="GameLoopOptimizer.Views.UpscalerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="780" d:DesignWidth="1020">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="28,24,28,28">
+
+            <!-- ==================== HERO FSR UPSCALER CARD ==================== -->
+            <Border Style="{StaticResource GlowingHeroCard}" Margin="0,0,0,22">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock Text="🔮 FSR Spatial Upscaler" FontSize="21" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" />
+                            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentCyan}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                                <TextBlock Text="AMD FSR 1.0" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                            </Border>
+                            <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="6" Padding="8,2" VerticalAlignment="Center" Margin="6,0,0,0"
+                                    Visibility="{Binding IsUpscaling, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="● ACTIVE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" />
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="Edge-Adaptive Spatial Upsampling (EASU) with Robust Contrast-Adaptive Sharpening (RCAS). Captures the GameLoop window, upscales to native monitor resolution via GPU shaders, and renders onto a click-through overlay."
+                                   FontSize="12.5" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,14" />
+
+                        <!-- Status + Resolution Display -->
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="14,8" HorizontalAlignment="Left">
+                            <TextBlock Text="{Binding StatusMessage}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" TextWrapping="Wrap" />
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Start / Stop Buttons -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="20,0,0,0">
+                        <Button Content="⚡ Start Upscaler"
+                                Command="{Binding StartUpscalingCommand}"
+                                Style="{StaticResource SuccessButton}"
+                                Padding="24,14"
+                                FontSize="13"
+                                Margin="0,0,0,10" />
+
+                        <Button Content="⏹ Stop Upscaler"
+                                Command="{Binding StopUpscalingCommand}"
+                                Style="{StaticResource DangerButton}"
+                                Padding="20,10"
+                                FontSize="12"
+                                Margin="0,0,0,10" />
+
+                        <Button Content="🔍 Detect Window"
+                                Command="{Binding DetectWindowCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                Padding="14,8"
+                                FontSize="11" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ==================== DETECTED WINDOW INFO ==================== -->
+            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,22">
+                <StackPanel>
+                    <TextBlock Text="Target Window Detection" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,8" />
+                    <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14,10">
+                        <TextBlock Text="{Binding DetectedWindowInfo}" FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" />
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- ==================== RESOLUTION TIP & DOWNSCALE ASSISTANT ==================== -->
+            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,22">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="💡 GameLoop Resolution Tip &amp; Downscale Assistant" FontSize="14.5" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" />
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentAmber}" BorderThickness="1" CornerRadius="6" Padding="8,2" Margin="10,0,0,0" VerticalAlignment="Center"
+                                Visibility="{Binding IsResolutionSuboptimal, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="DOWNSCALE RECOMMENDED" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" />
+                        </Border>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding ResolutionTipMessage}" FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,10" />
+
+                    <!-- Status / Analysis Banner -->
+                    <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,14">
+                        <TextBlock Text="{Binding ResolutionStatusMessage}" FontSize="11.5" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{DynamicResource BrushTextPrimary}" />
+                    </Border>
+
+                    <!-- Downscale Controls -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Select Target Render Resolution:" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
+                            <ComboBox ItemsSource="{Binding DownscalePresets}"
+                                      SelectedIndex="{Binding SelectedDownscalePresetIndex}"
+                                      DisplayMemberPath="Name"
+                                      Padding="10,8"
+                                      FontSize="12"
+                                      Margin="0,0,12,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
+                            <Button Content="🎯 Apply Downscale"
+                                    Command="{Binding ApplyDownscaleCommand}"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Padding="16,8"
+                                    FontSize="11.5"
+                                    Margin="0,0,8,0" />
+
+                            <Button Content="⚡ Quick 720p"
+                                    Command="{Binding Set720pCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="14,8"
+                                    FontSize="11.5"
+                                    Margin="0,0,8,0" />
+
+                            <Button Content="⚡ Quick 900p"
+                                    Command="{Binding Set900pCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="14,8"
+                                    FontSize="11.5" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Auto-Downscale Checkbox -->
+                    <CheckBox Content="Automatically downscale GameLoop to lower resolution when starting upscaler"
+                              IsChecked="{Binding AutoDownscaleOnStart}"
+                              Margin="0,12,0,0"
+                              FontSize="11.5"
+                              Foreground="{DynamicResource BrushTextSecondary}" />
+                </StackPanel>
+            </Border>
+
+            <!-- ==================== LIVE UPSCALER METRICS ==================== -->
+            <Grid Margin="0,0,0,22">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Style="{StaticResource MetricTile}" Margin="0,0,6,0">
+                    <StackPanel>
+                        <TextBlock Text="INSTANT FPS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding FpsDisplay}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,4,0,2" />
+                        <TextBlock Text="Upscaled output" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1" Style="{StaticResource MetricTile}" Margin="3,0,3,0">
+                    <StackPanel>
+                        <TextBlock Text="FRAME TIME" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding FrameTimeDisplay}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" Margin="0,4,0,2" />
+                        <TextBlock Text="Per-frame latency" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Style="{StaticResource MetricTile}" Margin="3,0,3,0">
+                    <StackPanel>
+                        <TextBlock Text="AVERAGE FPS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding AvgFpsDisplay}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" Margin="0,4,0,2" />
+                        <TextBlock Text="Rolling 120-frame avg" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="3" Style="{StaticResource MetricTile}" Margin="6,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="RESOLUTION" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding ResolutionDisplay}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,8,0,2" />
+                        <TextBlock Text="Input → Output" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- ==================== CONFIGURATION ==================== -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Quality Mode -->
+                <Border Grid.Column="0" Style="{StaticResource GlassCard}" Margin="0,0,8,0">
+                    <StackPanel>
+                        <TextBlock Text="Upscale Quality Mode" FontSize="14.5" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,4" />
+                        <TextBlock Text="Controls the upscale ratio — lower ratios preserve more detail, higher ratios gain more performance." FontSize="11.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,0,14" TextWrapping="Wrap" />
+
+                        <ComboBox ItemsSource="{Binding QualityModes}"
+                                  SelectedIndex="{Binding SelectedQualityIndex}"
+                                  Padding="10,8"
+                                  FontSize="12"
+                                  Margin="0,0,0,12" />
+
+                        <StackPanel Margin="0,6,0,0">
+                            <TextBlock Text="RCAS Sharpness" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,6" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Slider Minimum="0" Maximum="1" Value="{Binding Sharpness}" TickFrequency="0.05" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding SharpnessLabel}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="12,0,0,0" VerticalAlignment="Center" MinWidth="45" TextAlignment="Right" />
+                            </Grid>
+                            <TextBlock Text="Left = maximum sharpening, Right = no sharpening" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Info / Instructions -->
+                <Border Grid.Column="1" Style="{StaticResource GlassCard}" Margin="8,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="How It Works" FontSize="14.5" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,0,8" />
+
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="1️⃣ " FontSize="12" />
+                                <TextBlock Text="Captures GameLoop's render window via DXGI/GDI" FontSize="11.5" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="2️⃣ " FontSize="12" />
+                                <TextBlock Text="EASU pass upscales with edge-aware filtering" FontSize="11.5" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="3️⃣ " FontSize="12" />
+                                <TextBlock Text="RCAS pass applies contrast-adaptive sharpening" FontSize="11.5" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="4️⃣ " FontSize="12" />
+                                <TextBlock Text="Renders to transparent click-through overlay" FontSize="11.5" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentCyan}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,10,0,0">
+                            <TextBlock Text="⌨️ Toggle Hotkey: Ctrl + Alt + U" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" />
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

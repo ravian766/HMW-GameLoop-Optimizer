@@ -83,4 +83,63 @@ public class DeviceProfile
             Description = "Enables wide tablet perspective aspect ratio."
         }
     };
+
+    /// <summary>
+    /// Resolves or synthesizes a DeviceProfile matching the GameLoop Settings Center configuration.
+    /// Ensures In-VM device properties match GameLoop's VMDeviceModel and VMDeviceManufacturer.
+    /// </summary>
+    public static DeviceProfile ResolveFromGameLoop(string model, string manufacturer = "")
+    {
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            return Profiles.First();
+        }
+
+        string cleanModel = model.Trim();
+        string cleanManuf = manufacturer.Trim();
+
+        // 1. Exact match by Model or DevicePhoneString
+        var matched = Profiles.FirstOrDefault(p =>
+            p.Model.Equals(cleanModel, StringComparison.OrdinalIgnoreCase) ||
+            p.DevicePhoneString.Equals(cleanModel, StringComparison.OrdinalIgnoreCase));
+
+        if (matched != null)
+        {
+            return matched;
+        }
+
+        // 2. Partial match (e.g. S948B vs S928B, or ROG Phone 2 vs Asus ROG 2)
+        var partial = Profiles.FirstOrDefault(p =>
+            p.Model.Contains(cleanModel, StringComparison.OrdinalIgnoreCase) ||
+            cleanModel.Contains(p.Model, StringComparison.OrdinalIgnoreCase) ||
+            p.DevicePhoneString.Contains(cleanModel, StringComparison.OrdinalIgnoreCase) ||
+            cleanModel.Contains(p.DevicePhoneString, StringComparison.OrdinalIgnoreCase));
+
+        if (partial != null)
+        {
+            return new DeviceProfile
+            {
+                Id = partial.Id,
+                DisplayName = $"{partial.DisplayName} ({cleanModel})",
+                Manufacturer = !string.IsNullOrWhiteSpace(cleanManuf) ? cleanManuf : partial.Manufacturer,
+                Model = cleanModel,
+                DevicePhoneString = partial.DevicePhoneString,
+                MaxSupportedFps = partial.MaxSupportedFps,
+                Description = partial.Description
+            };
+        }
+
+        // 3. Dynamic profile matching the exact custom/preset model configured in GameLoop settings
+        string brand = !string.IsNullOrWhiteSpace(cleanManuf) ? cleanManuf : "Samsung";
+        return new DeviceProfile
+        {
+            Id = $"gameloop_{cleanModel.ToLowerInvariant().Replace(' ', '_')}",
+            DisplayName = $"{brand} {cleanModel} (GameLoop Settings)",
+            Manufacturer = brand,
+            Model = cleanModel,
+            DevicePhoneString = $"{brand} {cleanModel}",
+            MaxSupportedFps = 120,
+            Description = "Synchronized directly from GameLoop Settings Center."
+        };
+    }
 }
