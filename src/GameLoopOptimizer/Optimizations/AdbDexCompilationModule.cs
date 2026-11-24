@@ -67,6 +67,19 @@ public class AdbDexCompilationModule : IOptimizationModule
             var activePkg = packages.FirstOrDefault(p => p.IsInstalled) ?? packages.FirstOrDefault();
             string pkgName = activePkg?.PackageName ?? "com.tencent.ig";
 
+            // Record backup before AOT compilation (changes system properties)
+            BackupManager.RecordBackup(new BackupEntry
+            {
+                ModuleId = Id,
+                Title = Title,
+                Category = Category,
+                TargetType = "AdbProp",
+                TargetPath = "dalvik.vm.dexopt-flags",
+                PreviousValue = "v=n,o=v",
+                NewValue = "v=n,o=v (pre-compiled)",
+                Description = "AOT Dex2Oat Native Code Pre-Compilation backup"
+            });
+
             string res = await AdbManager.CompilePackageSpeedAsync(pkgName, gl);
 
             IsOptimized = true;

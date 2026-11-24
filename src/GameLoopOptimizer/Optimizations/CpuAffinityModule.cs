@@ -32,11 +32,18 @@ public class CpuAffinityModule : IOptimizationModule
             return Task.FromResult(State);
         }
 
-        long optimalMask = ProcessManager.CalculateOptimalAffinityMask(hw.LogicalProcessors, hw.PhysicalCores, hw.CpuName);
-        RecommendedStateDisplay = $"Threads 0–{Math.Min(15, hw.LogicalProcessors - 1)} (Mask: 0x{optimalMask:X})";
+        long optimalMask = ProcessManager.CalculateAffinityMaskForProfile(
+            hw.CurrentCpuProfile,
+            hw.LogicalProcessors,
+            hw.PhysicalCores,
+            hw.CpuName,
+            hw,
+            hw.CustomAffinityMask);
+
+        RecommendedStateDisplay = $"{hw.CurrentCpuProfile} (Mask: 0x{optimalMask:X})";
 
         IsOptimized = _isAffinityApplied;
-        CurrentStateDisplay = _isAffinityApplied ? "Pinned to Performance Cores" : $"{hw.LogicalProcessors} Logical Cores (Unpinned)";
+        CurrentStateDisplay = _isAffinityApplied ? $"Active: {hw.CurrentCpuProfile} (0x{optimalMask:X})" : $"{hw.LogicalProcessors} Logical Cores (Unpinned)";
         State = IsOptimized ? OptimizationState.Optimized : OptimizationState.Recommended;
 
         return Task.FromResult(State);
@@ -44,19 +51,38 @@ public class CpuAffinityModule : IOptimizationModule
 
     public Task<OptimizationResult> ApplyAsync(HardwareInfo hw, SystemInfo sys, GameLoopConfig gl)
     {
-        long optimalMask = ProcessManager.CalculateOptimalAffinityMask(hw.LogicalProcessors, hw.PhysicalCores, hw.CpuName);
+        long optimalMask = ProcessManager.CalculateAffinityMaskForProfile(
+            hw.CurrentCpuProfile,
+            hw.LogicalProcessors,
+            hw.PhysicalCores,
+            hw.CpuName,
+            hw,
+            hw.CustomAffinityMask);
+
+        BackupManager.RecordBackup(new BackupEntry
+        {
+            ModuleId = Id,
+            Title = $"{Title} ({hw.CurrentCpuProfile})",
+            Category = Category,
+            TargetType = "ProcessAffinity",
+            TargetPath = "GameLoopProcessAffinity",
+            PreviousValue = "AllCores",
+            NewValue = $"0x{optimalMask:X}",
+            Description = $"Set CPU Affinity to {hw.CurrentCpuProfile} (0x{optimalMask:X})"
+        });
+
         bool applied = ProcessManager.SetGameLoopAffinity(optimalMask);
         _isAffinityApplied = true;
 
         IsOptimized = true;
-        CurrentStateDisplay = $"Performance Cores Only (0x{optimalMask:X})";
+        CurrentStateDisplay = $"{hw.CurrentCpuProfile} (0x{optimalMask:X})";
         State = OptimizationState.Optimized;
 
         Logger.Success(Title, applied 
-            ? $"Applied Performance Core Affinity (0x{optimalMask:X}) to running GameLoop processes." 
-            : $"Performance Core Affinity armed (Mask 0x{optimalMask:X} will apply when GameLoop is running).");
+            ? $"Applied {hw.CurrentCpuProfile} Core Affinity (0x{optimalMask:X}) to running GameLoop processes." 
+            : $"Performance Core Affinity armed ({hw.CurrentCpuProfile} Mask 0x{optimalMask:X} will apply when GameLoop is running).");
 
-        return Task.FromResult(OptimizationResult.Ok(Id, $"P-Core affinity mask (0x{optimalMask:X}) configured."));
+        return Task.FromResult(OptimizationResult.Ok(Id, $"{hw.CurrentCpuProfile} affinity mask (0x{optimalMask:X}) configured."));
     }
 
     public Task<OptimizationResult> RollbackAsync(BackupEntry? backup)

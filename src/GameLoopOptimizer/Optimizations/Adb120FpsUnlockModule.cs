@@ -69,10 +69,27 @@ public class Adb120FpsUnlockModule : IOptimizationModule
                 Description = "SurfaceFlinger refresh rate unlock"
             });
 
-            await AdbManager.SetPropAsync("debug.sf.fps", "120", gl);
-            await AdbManager.SetPropAsync("ro.surface_flinger.max_frame_rate", "120", gl);
+            // Android treats `ro.*` as write-once at boot, so setprop on
+            // ro.surface_flinger.max_frame_rate / ro.vendor.display.default_fps is always refused.
+            // Only properties that actually change at runtime are written here.
+            bool coreApplied = await AdbManager.SetPropAsync("debug.sf.fps", "120", gl);
+            await AdbManager.SetPropAsync("persist.sys.display.rate", "120", gl);
             await AdbManager.SetPropAsync("persist.vendor.dfps.level", "120", gl);
-            await AdbManager.SetPropAsync("ro.vendor.display.default_fps", "120", gl);
+            await AdbManager.SetPropAsync("debug.sf.swaprect", "1", gl);
+
+            // Force Android Display Manager peak and min refresh rate ceilings to 120Hz
+            try
+            {
+                await AdbManager.ExecuteAdbCommandAsync("shell settings put system peak_refresh_rate 120.0", 3000, gl);
+                await AdbManager.ExecuteAdbCommandAsync("shell settings put system min_refresh_rate 120.0", 3000, gl);
+            }
+            catch { }
+
+            if (!coreApplied)
+            {
+                Logger.Error(Title, "The Android VM refused debug.sf.fps=120; refresh rate unchanged.");
+                return OptimizationResult.Fail(Id, "Android VM refused debug.sf.fps=120 (property is locked on this image).");
+            }
 
             IsOptimized = true;
             CurrentStateDisplay = "120Hz High-Refresh Active";
@@ -95,7 +112,10 @@ public class Adb120FpsUnlockModule : IOptimizationModule
         if (string.IsNullOrWhiteSpace(restoreVal)) restoreVal = "60";
 
         await AdbManager.SetPropAsync("debug.sf.fps", restoreVal);
-        await AdbManager.SetPropAsync("ro.surface_flinger.max_frame_rate", restoreVal);
+
+        // `ro.surface_flinger.max_frame_rate` used to be reset here, but adbd refuses every
+        // `ro.*` write after boot, so it only produced a bogus failure warning.
+        await AdbManager.SetPropAsync("persist.sys.display.rate", "60");
 
         IsOptimized = false;
         CurrentStateDisplay = "Default (60Hz)";
@@ -106,6 +126,13 @@ public class Adb120FpsUnlockModule : IOptimizationModule
     public async Task<bool> VerifyAsync()
     {
         string sfFps = await AdbManager.GetPropAsync("debug.sf.fps");
-        return sfFps.Trim() == "120";
+        string dfpsLevel = await AdbManager.GetPropAsync("persist.vendor.dfps.level");
+        string eglHw = await AdbManager.GetPropAsync("debug.egl.hw");
+
+        bool fpsOk = sfFps.Trim() == "120";
+        bool dfpsOk = dfpsLevel.Trim() == "120";
+        bool eglOk = eglHw.Trim() == "1";
+
+        return fpsOk && dfpsOk && eglOk;
     }
 }

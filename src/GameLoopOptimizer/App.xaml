@@ -43,6 +43,7 @@
             <local:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
             <local:BooleanToStatusIconConverter x:Key="BooleanToStatusIconConverter" />
             <local:StringNotEmptyToVisibilityConverter x:Key="StringNotEmptyToVisibilityConverter" />
+            <local:IntGreaterThanZeroToVisibilityConverter x:Key="IntGreaterThanZeroToVisibilityConverter" />
             <local:BooleanToTextConverter x:Key="BooleanToTextConverter" />
 
 

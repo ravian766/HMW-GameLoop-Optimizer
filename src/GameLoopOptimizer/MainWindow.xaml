@@ -174,12 +174,6 @@
                                              Command="{Binding NavigateCommand}"
                                              CommandParameter="GamingSession" />
 
-                                <RadioButton Content="🔄  Backup &amp; Rollback"
-                                             Style="{StaticResource NavTabButton}"
-                                             IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=Backup}"
-                                             Command="{Binding NavigateCommand}"
-                                             CommandParameter="Backup" />
-
                                 <RadioButton Content="📋  Audit Event Logs"
                                              Style="{StaticResource NavTabButton}"
                                              IsChecked="{Binding ActiveTab, Converter={StaticResource StringToBooleanConverter}, ConverterParameter=Logs}"

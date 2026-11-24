@@ -63,4 +63,30 @@ public class AdbOptimizationTests
         Assert.True(device2.IsEmulator);
         Assert.False(device3.IsEmulator);
     }
+
+    [Theory]
+    [InlineData("setprop: failed to set property 'ro.product.model' to 'SM-X910'")]
+    [InlineData("avc: denied { set } for property=debug.sf.fps Permission denied")]
+    [InlineData("setprop: could not set property 'ro.product.brand'")]
+    [InlineData("Error: The system cannot find the file specified.")]
+    [InlineData("Command timed out")]
+    [InlineData("mount: Read-only file system")]
+    public void AdbFailureDetection_FlagsRefusedPropertyWrites(string output)
+    {
+        // adb reports refused setprop calls on stderr without a non-zero exit code, so the old
+        // `!StartsWith("Error")` check treated every one of these as a success.
+        Assert.True(AdbManager.IsAdbFailure(output));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("120")]
+    [InlineData("Success")]
+    [InlineData("512m")]
+    [InlineData("SIM-S918B")]
+    public void AdbFailureDetection_DoesNotFlagNormalValues(string output)
+    {
+        Assert.False(AdbManager.IsAdbFailure(output));
+    }
 }

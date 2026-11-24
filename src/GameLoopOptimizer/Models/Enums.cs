@@ -53,7 +53,16 @@ public enum HardwareTier
 {
     LowEnd,
     MidRange,
-    HighEnd
+    HighEnd,
+    Enthusiast
+}
+
+public enum CpuAffinityProfile
+{
+    MaximumPerformance,
+    BalancedGaming,
+    LowLatency,
+    Custom
 }
 
 public enum GpuVendor

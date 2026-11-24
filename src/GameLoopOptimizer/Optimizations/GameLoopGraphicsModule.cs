@@ -60,6 +60,7 @@ public class GameLoopGraphicsModule : IOptimizationModule
             BackupRegistryValue(key, gl.RegistryKeyPath, "ForceDirectX", targetDirectXVal.ToString());
             BackupRegistryValue(key, gl.RegistryKeyPath, "LocalShaderCacheEnabled", "1");
             BackupRegistryValue(key, gl.RegistryKeyPath, "ShaderCacheEnabled", "1");
+            BackupRegistryValue(key, gl.RegistryKeyPath, "RenderCacheEnabled", "1");
             BackupRegistryValue(key, gl.RegistryKeyPath, "RenderOptimizeEnabled", "1");
             BackupRegistryValue(key, gl.RegistryKeyPath, "VSyncEnabled", "0");
             BackupRegistryValue(key, gl.RegistryKeyPath, "EnableGLESv3", "1");
@@ -80,6 +81,7 @@ public class GameLoopGraphicsModule : IOptimizationModule
                         subKey.SetValue("ForceDirectX", targetDirectXVal, RegistryValueKind.DWord);
                         subKey.SetValue("LocalShaderCacheEnabled", 1, RegistryValueKind.DWord);
                         subKey.SetValue("ShaderCacheEnabled", 1, RegistryValueKind.DWord);
+                        subKey.SetValue("RenderCacheEnabled", 1, RegistryValueKind.DWord);
                         subKey.SetValue("RenderOptimizeEnabled", 1, RegistryValueKind.DWord);
                         subKey.SetValue("VSyncEnabled", 0, RegistryValueKind.DWord);
                         subKey.SetValue("EnableGLESv3", 1, RegistryValueKind.DWord);
@@ -95,6 +97,7 @@ public class GameLoopGraphicsModule : IOptimizationModule
                         hklmKey.SetValue("ForceDirectX", targetDirectXVal, RegistryValueKind.DWord);
                         hklmKey.SetValue("LocalShaderCacheEnabled", 1, RegistryValueKind.DWord);
                         hklmKey.SetValue("ShaderCacheEnabled", 1, RegistryValueKind.DWord);
+                        hklmKey.SetValue("RenderCacheEnabled", 1, RegistryValueKind.DWord);
                         hklmKey.SetValue("RenderOptimizeEnabled", 1, RegistryValueKind.DWord);
                         hklmKey.SetValue("VSyncEnabled", 0, RegistryValueKind.DWord);
                         hklmKey.SetValue("EnableGLESv3", 1, RegistryValueKind.DWord);

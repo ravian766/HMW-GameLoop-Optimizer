@@ -250,7 +250,12 @@ public static class AdbManager
         if (properties == null || properties.Count == 0) return true;
         var cmds = properties.Select(kvp => $"setprop {kvp.Key} {kvp.Value}");
         var res = await ExecuteBatchShellCommandAsync(cmds, targetDevice, 8000, config);
-        return !res.Contains("Error:", StringComparison.OrdinalIgnoreCase);
+        if (IsAdbFailure(res))
+        {
+            Logger.Warn("AdbManager", $"Batched setprop was refused by the VM: {res.Trim()}");
+            return false;
+        }
+        return true;
     }
 
     public static async Task<List<AdbDeviceInfo>> GetConnectedDevicesAsync(GameLoopConfig? config = null)
@@ -628,10 +633,42 @@ public static class AdbManager
         return await ExecuteShellCommandAsync($"getprop {propKey}", null, 4000, config);
     }
 
+    /// <summary>
+    /// True when an ADB command's combined output means the command failed rather than returned a value.
+    ///
+    /// WHY THIS EXISTS
+    /// <c>adb shell setprop ro.product.model X</c> does not raise an exception: it prints
+    /// "setprop: failed to set property 'ro.product.model' to 'X'" on stderr, which
+    /// <see cref="ExecuteAdbCommandAsync"/> hands back as an ordinary string (only real process
+    /// exceptions get the "Error:" prefix). Callers that tested <c>!result.StartsWith("Error")</c>
+    /// therefore reported success for every refused write - which is how the read-only
+    /// <c>ro.*</c> spoofing and refresh-rate writes kept "succeeding" while changing nothing.
+    /// </summary>
+    public static bool IsAdbFailure(string? output)
+    {
+        if (string.IsNullOrWhiteSpace(output)) return false;
+        var text = output.Trim();
+
+        return text.StartsWith("Error", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("Command timed out", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("failed to set property", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("could not set property", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("error:", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("Permission denied", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("Read-only file system", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static async Task<bool> SetPropAsync(string propKey, string value, GameLoopConfig? config = null)
     {
+        if (string.IsNullOrWhiteSpace(propKey)) return false;
+
         var res = await ExecuteShellCommandAsync($"setprop {propKey} {value}", null, 4000, config);
-        return !res.StartsWith("Error", StringComparison.OrdinalIgnoreCase);
+        if (IsAdbFailure(res))
+        {
+            Logger.Warn("AdbManager", $"setprop {propKey}={value} was refused by the VM: {res.Trim()}");
+            return false;
+        }
+        return true;
     }
 
     public static async Task<string> GetGlobalSettingAsync(string key, GameLoopConfig? config = null)
@@ -642,7 +679,12 @@ public static class AdbManager
     public static async Task<bool> PutGlobalSettingAsync(string key, string value, GameLoopConfig? config = null)
     {
         var res = await ExecuteShellCommandAsync($"settings put global {key} {value}", null, 4000, config);
-        return !res.StartsWith("Error", StringComparison.OrdinalIgnoreCase);
+        if (IsAdbFailure(res))
+        {
+            Logger.Warn("AdbManager", $"settings put global {key}={value} was refused by the VM: {res.Trim()}");
+            return false;
+        }
+        return true;
     }
 
     public static async Task<bool> SetInVmResolutionAsync(int width, int height, int dpi, GameLoopConfig? config = null)
@@ -904,7 +946,8 @@ public static class AdbManager
             await SetPropAsync("audio.deep_buffer.media", "false", config);
             await SetPropAsync("af.resampler.quality", "2", config);
             await SetPropAsync("media.stagefright.audio.sink", "256", config);
-            await SetPropAsync("ro.audio.flinger_standbytime_ms", "1000", config);
+            // ro.audio.flinger_standbytime_ms used to be set here. `ro.*` is write-once at boot,
+            // so the write was always refused and the property never changed.
             Logger.Success("AdbManager", "Configured In-VM Low-Latency Fast Track Audio (Deep Buffer Disabled).");
             return true;
         }
@@ -1137,12 +1180,14 @@ public static class AdbManager
         try
         {
             await AutoConnectGameLoopAsync(config);
+            // Only writable properties belong here. `ro.*` values are write-once at boot, so
+            // setprop is refused for them (see IsAdbFailure) and listing them made this method
+            // look like it had failed when the writable half had actually taken effect.
             var props = new Dictionary<string, string>
             {
                 { "debug.sf.fps", "120" },
                 { "persist.sys.display.rate", "120" },
                 { "persist.vendor.dfps.level", "120" },
-                { "ro.vendor.display.default_fps", "120" },
                 { "debug.egl.hw", "1" },
                 { "debug.sf.swaprect", "1" }
             };
@@ -1176,12 +1221,30 @@ public static class AdbManager
                 { "ro.product.device", profile.Model },
                 { "ro.build.product", profile.Model }
             };
-            var ok = await BatchSetPropsAsync(props, null, config);
-            if (ok)
+
+            // `ro.*` is write-once at boot, so adbd refuses every one of these on a running VM.
+            // Report that honestly instead of inheriting a blanket "true" from the batch call.
+            var refused = new List<string>();
+            foreach (var kvp in props)
+            {
+                if (!await SetPropAsync(kvp.Key, kvp.Value, config))
+                {
+                    refused.Add(kvp.Key);
+                }
+            }
+
+            if (refused.Count == 0)
             {
                 Logger.Success("AdbManager", $"Synchronized In-VM Device Profile to {profile.DisplayName} ({profile.Model}).");
+                return true;
             }
-            return ok;
+
+            Logger.Warn("AdbManager",
+                $"Device profile {profile.DisplayName} ({profile.Model}) could not be applied in-VM: " +
+                $"{refused.Count}/{props.Count} read-only properties were refused ({string.Join(", ", refused)}). " +
+                "Android exposes ro.* as write-once, so the game will not see the spoofed model until the " +
+                "profile is baked into the VM image or GameLoop's own device config.");
+            return false;
         }
         catch (Exception ex)
         {
@@ -1358,7 +1421,14 @@ public static class AdbManager
             };
             bool ok = await BatchSetPropsAsync(props, null, config);
             await ExecuteShellCommandAsync("setprop ctl.restart surfaceflinger", null, 4000, config);
-            Logger.Success("AdbManager", "Configured In-VM GPU Render Pipeline (Triple-Buffering & Low-Jitter Phase Offsets).");
+            if (ok)
+            {
+                Logger.Success("AdbManager", "Configured In-VM GPU Render Pipeline (Triple-Buffering & Low-Jitter Phase Offsets).");
+            }
+            else
+            {
+                Logger.Warn("AdbManager", "In-VM GPU render pipeline was only partially applied; some SurfaceFlinger properties were refused.");
+            }
             return ok;
         }
         catch (Exception ex)
@@ -1429,6 +1499,21 @@ public static class AdbManager
 
             bool prioritized = await ElevateGameProcessPriorityAsync(targetPkg, config);
             if (prioritized) steps.Add($"Elevated {targetPkg} to Real-Time (nice -20)");
+
+            // PUBG 4.7 Arctic Chronicles in-VM render pipeline & dirty-region tuning:
+            // 1. debug.egl.force_msaa 0: Disables redundant Android VM-side MSAA on snow particle passes
+            // 2. debug.hwui.render_dirty_regions true: Restricts rasterization to damaged framebuffer regions
+            // 3. debug.sf.latch_unsignaled 1: Minimizes SurfaceFlinger buffer presentation latency at 90/120 FPS
+            // 4. ro.config.low_ram false: Prevents aggressive background GC sweeps and texture unloads
+            try
+            {
+                await ExecuteShellCommandAsync("setprop debug.egl.force_msaa 0", null, 1200, config);
+                await ExecuteShellCommandAsync("setprop debug.hwui.render_dirty_regions true", null, 1200, config);
+                await ExecuteShellCommandAsync("setprop debug.sf.latch_unsignaled 1", null, 1200, config);
+                await ExecuteShellCommandAsync("setprop ro.config.low_ram false", null, 1200, config);
+                steps.Add("Applied PUBG 4.7 fillrate & SurfaceFlinger optimizations");
+            }
+            catch { }
 
             try
             {

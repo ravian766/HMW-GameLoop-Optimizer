@@ -238,7 +238,7 @@
                         <TextBlock Text="{Binding CurrentCpu, StringFormat='{}{0:F1}%'}" FontSize="25" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" Margin="0,4,0,4" />
                         <ProgressBar Value="{Binding CurrentCpu}" Maximum="100" Height="4" Foreground="{DynamicResource BrushAccentCyan}" Background="{DynamicResource BrushBgInput}" BorderThickness="0" Margin="0,0,0,6" />
                         <TextBlock Text="{Binding Hardware.CpuName}" FontSize="10" Foreground="{DynamicResource BrushTextMuted}" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="{Binding Hardware.PhysicalCores, StringFormat='Topology: {0}C / {Binding Hardware.LogicalProcessors}T'}" FontSize="9.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                        <TextBlock Text="{Binding Hardware.CpuTopologySummary, StringFormat='Topology: {0}'}" FontSize="9.5" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
                     </StackPanel>
                 </Border>
 

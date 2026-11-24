@@ -113,16 +113,68 @@ public static class HardwareDetector
         info.Has3dVcache = info.CpuName.Contains("X3D", StringComparison.OrdinalIgnoreCase) ||
                            info.CpuName.Contains("3D V-Cache", StringComparison.OrdinalIgnoreCase);
 
-        // Intel Hybrid Architecture Detection (Performance Cores + Efficient Cores)
-        // Hybrid CPUs have physical cores < logical processors < physical cores * 2
-        if (info.CpuVendor == "Intel" && info.PhysicalCores > 0 && info.LogicalProcessors > info.PhysicalCores && info.LogicalProcessors < info.PhysicalCores * 2)
+        // Detect AMD Ryzen CCD Topology (Dual-CCD has high cross-die latency)
+        if (info.CpuVendor == "AMD")
         {
-            int pCores = info.LogicalProcessors - info.PhysicalCores;
-            int eCores = info.PhysicalCores - pCores;
-            if (pCores > 0 && eCores > 0)
+            if (info.PhysicalCores >= 12 || info.LogicalProcessors >= 24 ||
+                info.CpuName.Contains("5900", StringComparison.OrdinalIgnoreCase) ||
+                info.CpuName.Contains("5950", StringComparison.OrdinalIgnoreCase) ||
+                info.CpuName.Contains("7900", StringComparison.OrdinalIgnoreCase) ||
+                info.CpuName.Contains("7950", StringComparison.OrdinalIgnoreCase) ||
+                info.CpuName.Contains("9900", StringComparison.OrdinalIgnoreCase) ||
+                info.CpuName.Contains("9950", StringComparison.OrdinalIgnoreCase) ||
+                info.CpuName.Contains("Threadripper", StringComparison.OrdinalIgnoreCase))
             {
-                info.PerformanceCoresCount = pCores;
-                info.EfficientCoresCount = eCores;
+                info.CcdCount = 2;
+            }
+            else
+            {
+                info.CcdCount = 1;
+            }
+        }
+
+        // Intel Hybrid Architecture Detection (Performance Cores + Efficient Cores)
+        // Hybrid CPUs have physical cores < logical processors < physical cores * 2 (or Core Ultra Arrow Lake without HT on P-cores)
+        if (info.CpuVendor == "Intel")
+        {
+            if (info.CpuName.Contains("Ultra", StringComparison.OrdinalIgnoreCase))
+            {
+                // Intel Core Ultra (Arrow Lake / Meteor Lake)
+                if (info.CpuName.Contains("Ultra 9", StringComparison.OrdinalIgnoreCase) || info.PhysicalCores >= 24)
+                {
+                    info.PerformanceCoresCount = 8;
+                    info.EfficientCoresCount = Math.Max(0, info.PhysicalCores - 8);
+                }
+                else if (info.CpuName.Contains("Ultra 7", StringComparison.OrdinalIgnoreCase) || info.PhysicalCores >= 20)
+                {
+                    info.PerformanceCoresCount = 8;
+                    info.EfficientCoresCount = Math.Max(0, info.PhysicalCores - 8);
+                }
+                else if (info.CpuName.Contains("Ultra 5", StringComparison.OrdinalIgnoreCase) || info.PhysicalCores >= 14)
+                {
+                    info.PerformanceCoresCount = 6;
+                    info.EfficientCoresCount = Math.Max(0, info.PhysicalCores - 6);
+                }
+                else
+                {
+                    info.PerformanceCoresCount = Math.Min(6, info.PhysicalCores);
+                    info.EfficientCoresCount = Math.Max(0, info.PhysicalCores - info.PerformanceCoresCount);
+                }
+            }
+            else if (info.PhysicalCores > 0 && info.LogicalProcessors > info.PhysicalCores && info.LogicalProcessors < info.PhysicalCores * 2)
+            {
+                int pCores = info.LogicalProcessors - info.PhysicalCores;
+                int eCores = info.PhysicalCores - pCores;
+                if (pCores > 0 && eCores > 0)
+                {
+                    info.PerformanceCoresCount = pCores;
+                    info.EfficientCoresCount = eCores;
+                }
+            }
+            else
+            {
+                info.PerformanceCoresCount = info.PhysicalCores;
+                info.EfficientCoresCount = 0;
             }
         }
         else
@@ -130,6 +182,20 @@ public static class HardwareDetector
             info.PerformanceCoresCount = info.PhysicalCores;
             info.EfficientCoresCount = 0;
         }
+
+        // Native Instruction Set Architecture Detection via .NET Hardware Intrinsics
+        try
+        {
+            if (System.Runtime.Intrinsics.X86.X86Base.IsSupported)
+            {
+                info.SupportsSse42 = System.Runtime.Intrinsics.X86.Sse42.IsSupported;
+                info.SupportsAvx = System.Runtime.Intrinsics.X86.Avx.IsSupported;
+                info.SupportsAvx2 = System.Runtime.Intrinsics.X86.Avx2.IsSupported;
+                info.SupportsAvx512 = System.Runtime.Intrinsics.X86.Avx512F.IsSupported;
+                info.SupportsFma = System.Runtime.Intrinsics.X86.Fma.IsSupported;
+            }
+        }
+        catch { }
 
         info.Architecture = Environment.Is64BitOperatingSystem ? "x64" : "x86";
     }
@@ -324,6 +390,7 @@ public static class HardwareDetector
         try
         {
             using var searcher = new ManagementObjectSearcher("SELECT Name, AdapterRAM, DriverVersion, DriverDate FROM Win32_VideoController");
+            var detectedGpus = new List<string>();
             foreach (var item in searcher.Get())
             {
                 var name = item["Name"]?.ToString() ?? string.Empty;
@@ -334,6 +401,8 @@ public static class HardwareDetector
                 {
                     continue;
                 }
+
+                detectedGpus.Add(name.Trim());
 
                 if (info.GpuName == "Unknown GPU")
                 {
@@ -354,6 +423,10 @@ public static class HardwareDetector
                     {
                         info.DriverDate = $"{rawDate[0..4]}-{rawDate[4..6]}-{rawDate[6..8]}";
                     }
+                    else
+                    {
+                        info.DriverDate = rawDate;
+                    }
                 }
 
                 if (info.DedicatedVramMb <= 0 && item["AdapterRAM"] != null)
@@ -370,18 +443,31 @@ public static class HardwareDetector
                     }
                     catch { }
                 }
+            }
 
-                // If dedicated GPU found (NVIDIA/AMD), prioritize over integrated
-                if (info.GpuVendor == GpuVendor.Nvidia || info.GpuVendor == GpuVendor.Amd)
-                {
-                    break;
-                }
+            if (detectedGpus.Count > 1)
+            {
+                info.HasMultiGpu = true;
+                info.MultiGpuSummary = string.Join(" + ", detectedGpus.Distinct());
             }
         }
         catch (Exception ex)
         {
             Logger.Warn("HardwareDetector", $"WMI GPU query warning: {ex.Message}");
         }
+
+        // 4. Check Hardware-Accelerated GPU Scheduling (HAGS) status
+        try
+        {
+            using var schedKey = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\GraphicsDrivers");
+            if (schedKey != null)
+            {
+                var hagsVal = schedKey.GetValue("HwSchMode");
+                info.IsHagsEnabled = (hagsVal is int m && m == 2);
+                info.IsHagsSupported = true;
+            }
+        }
+        catch { }
     }
 
     private static void DetectDisplay(HardwareInfo info)
@@ -577,13 +663,15 @@ public static class HardwareDetector
         int points = 0;
 
         // CPU Points
-        if (hw.LogicalProcessors >= 12) points += 35;
+        if (hw.LogicalProcessors >= 20) points += 45;
+        else if (hw.LogicalProcessors >= 12) points += 35;
         else if (hw.LogicalProcessors >= 8) points += 28;
         else if (hw.LogicalProcessors >= 6) points += 20;
         else points += 10;
 
         // RAM Points
-        if (hw.TotalRamGb >= 31) points += 30;
+        if (hw.TotalRamGb >= 60) points += 40;
+        else if (hw.TotalRamGb >= 31) points += 30;
         else if (hw.TotalRamGb >= 15) points += 25;
         else if (hw.TotalRamGb >= 7.5) points += 15;
         else points += 5;
@@ -591,7 +679,11 @@ public static class HardwareDetector
         // GPU Points
         if (hw.IsDedicatedGpu)
         {
-            if (hw.DedicatedVramMb >= 6000 || hw.GpuName.Contains("RTX") || hw.GpuName.Contains("RX 6") || hw.GpuName.Contains("RX 7"))
+            if (hw.DedicatedVramMb >= 16000 || hw.GpuName.Contains("4090") || hw.GpuName.Contains("7900 XTX"))
+            {
+                points += 45;
+            }
+            else if (hw.DedicatedVramMb >= 6000 || hw.GpuName.Contains("RTX") || hw.GpuName.Contains("RX 6") || hw.GpuName.Contains("RX 7"))
             {
                 points += 35;
             }
@@ -605,6 +697,7 @@ public static class HardwareDetector
             points += 10;
         }
 
+        if (points >= 115) return HardwareTier.Enthusiast;
         if (points >= 75) return HardwareTier.HighEnd;
         if (points >= 45) return HardwareTier.MidRange;
         return HardwareTier.LowEnd;

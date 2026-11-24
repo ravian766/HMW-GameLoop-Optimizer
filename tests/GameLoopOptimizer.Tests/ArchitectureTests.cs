@@ -156,4 +156,62 @@ public class ArchitectureTests
         double load = NativeMethods.GetMemoryLoadPercent();
         Assert.True(load >= 0 && load <= 100, $"Expected memory load between 0-100, got {load}");
     }
+
+    [Fact]
+    public void AllViews_CanBeInstantiated_WithoutXamlException()
+    {
+        Exception? caughtEx = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                if (System.Windows.Application.Current == null)
+                {
+                    var app = new GameLoopOptimizer.App();
+                    app.InitializeComponent();
+                }
+
+                // Instantiate all views to verify XAML resources and markup compile/parse cleanly
+                var dashboard = new GameLoopOptimizer.Views.DashboardView();
+                var optimizer = new GameLoopOptimizer.Views.OptimizerView();
+                var gameloop = new GameLoopOptimizer.Views.GameLoopView();
+                var ingame = new GameLoopOptimizer.Views.InGameGraphicsView();
+                var keymap = new GameLoopOptimizer.Views.KeymapResolutionView();
+                var adbStudio = new GameLoopOptimizer.Views.AdbStudioView();
+                var monitor = new GameLoopOptimizer.Views.MonitorView();
+                var logs = new GameLoopOptimizer.Views.LogsView();
+                var session = new GameLoopOptimizer.Views.GamingSessionView();
+            }
+            catch (Exception ex)
+            {
+                caughtEx = ex;
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (caughtEx != null)
+        {
+            throw new Exception($"Failed instantiating view: {caughtEx.InnerException?.Message ?? caughtEx.Message}", caughtEx);
+        }
+    }
+
+    [Fact]
+    public void MainViewModel_CanNavigateToAllTabs_WithoutException()
+    {
+        var services = App.ConfigureServices();
+        var mainVm = services.GetRequiredService<MainViewModel>();
+
+        string[] tabs = new[] { "Dashboard", "Optimizer", "GameLoop", "AdbStudio", "InGameGraphics", "KeymapResolution", "Monitor", "GamingSession", "Logs" };
+        foreach (var tab in tabs)
+        {
+            mainVm.NavigateCommand.Execute(tab);
+            Assert.Equal(tab, mainVm.ActiveTab);
+            Assert.NotNull(mainVm.CurrentView);
+        }
+
+        mainVm.WatchdogService.Dispose();
+        mainVm.MonitorService.Dispose();
+    }
 }

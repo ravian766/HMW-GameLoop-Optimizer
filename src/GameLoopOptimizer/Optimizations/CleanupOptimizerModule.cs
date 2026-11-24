@@ -35,6 +35,21 @@ public class CleanupOptimizerModule : IOptimizationModule
                 long cleanedBytes = 0;
                 int filesDeleted = 0;
 
+                // Record backup before cleanup
+                BackupManager.RecordBackup(new BackupEntry
+                {
+                    ModuleId = Id,
+                    Title = Title,
+                    Category = Category,
+                    TargetType = "FileSystem",
+                    TargetPath = "Temp directories",
+                    ValueName = "Cached files",
+                    PreviousValue = "Active",
+                    PreviousValueKind = "String",
+                    NewValue = "Pending cleanup",
+                    Description = "Clean temporary and emulator cache files"
+                });
+
                 // Safe paths to clean
                 var pathsToClean = new List<string>
                 {

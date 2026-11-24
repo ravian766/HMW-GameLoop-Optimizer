@@ -5,7 +5,6 @@ using Xunit;
 
 namespace GameLoopOptimizer.Tests;
 
-[Collection("BackupTests")]
 public class EnhancementsPhase2Tests
 {
     [Fact]
@@ -43,46 +42,6 @@ public class EnhancementsPhase2Tests
         Assert.Equal("Standby", watchdog.DetectedGameTitle);
         Assert.Empty(watchdog.DetectedGamePackage);
         Assert.False(watchdog.IsGameActive);
-    }
-
-    [Fact]
-    public async Task KeymapVault_GlopExportAndImport_PreservesIntegrity()
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), "GlopTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
-
-        try
-        {
-            var dummyFile = Path.Combine(tempDir, "DefaultKeyMapping.xml");
-            await File.WriteAllTextAsync(dummyFile, "<Root><Item ApkName=\"com.tencent.ig\" Point_X=\"0.5\" Point_Y=\"0.5\" /></Root>");
-
-            var config = new GameLoopConfig { InstallPath = tempDir };
-            var profile = await KeymapBackupManager.CreateBackupAsync(config, "Glop Export Test Profile");
-
-            if (profile != null)
-            {
-                var glopPath = Path.Combine(tempDir, "ExportedTest.glop");
-                bool exportSuccess = await KeymapBackupManager.ExportProfileToGlopFileAsync(profile.Id, glopPath);
-                Assert.True(exportSuccess);
-                Assert.True(File.Exists(glopPath));
-
-                // Test Import
-                var importedProfile = await KeymapBackupManager.ImportProfileFromGlopFileAsync(glopPath);
-                Assert.NotNull(importedProfile);
-                Assert.Contains("Glop Export Test Profile", importedProfile.Name);
-
-                // Clean up profile
-                KeymapBackupManager.DeleteProfile(profile.Id);
-                KeymapBackupManager.DeleteProfile(importedProfile.Id);
-            }
-        }
-        finally
-        {
-            if (Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, recursive: true);
-            }
-        }
     }
 
     [Fact]

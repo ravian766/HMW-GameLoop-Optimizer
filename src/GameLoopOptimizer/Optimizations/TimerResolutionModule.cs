@@ -42,6 +42,21 @@ public class TimerResolutionModule : IOptimizationModule
     {
         try
         {
+            // Record backup before changing timer resolution
+            BackupManager.RecordBackup(new BackupEntry
+            {
+                ModuleId = Id,
+                Title = Title,
+                Category = Category,
+                TargetType = "SystemSetting",
+                TargetPath = "Timer Resolution",
+                ValueName = "Timer Period",
+                PreviousValue = sys.CurrentTimerResolutionMs.ToString("F1"),
+                PreviousValueKind = "Float",
+                NewValue = "0.5 ms",
+                Description = "Set high-precision system timer for gameplay"
+            });
+
             // Set 1ms via winmm
             TimeBeginPeriod(1);
 

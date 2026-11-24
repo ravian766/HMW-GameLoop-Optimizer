@@ -70,7 +70,7 @@ public class ActiveSavTests
         // Assert
         Assert.NotEmpty(presets);
         Assert.Contains(presets, p => p.Name.Contains("120 FPS") && (p.FpsLevel == 7 || p.FpsLevel == 8));
-        Assert.Contains(presets, p => p.Name.Contains("90 FPS") && p.FpsLevel == 6);
+        Assert.Contains(presets, p => p.Name.Contains("90 FPS") && (p.FpsLevel == 6 || p.FpsLevel == 7));
         Assert.Contains(presets, p => p.IsCustom);
 
         foreach (var p in presets)

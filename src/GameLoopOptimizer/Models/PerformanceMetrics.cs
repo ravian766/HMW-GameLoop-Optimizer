@@ -10,8 +10,13 @@ public class PerformanceMetrics
     public double GpuPercent { get; set; }
     public double GpuVramUsedMb { get; set; }
     public double GpuVramTotalMb { get; set; }
+    public double VramPercent => GpuVramTotalMb > 0 ? Math.Clamp((GpuVramUsedMb / GpuVramTotalMb) * 100, 0, 100) : 0;
     public double? GpuTemperatureC { get; set; }
+    public double? GpuClockMhz { get; set; }
     public double? CpuTemperatureC { get; set; }
+    public bool IsThermalThrottling { get; set; } = false;
+    public bool IsPowerThrottling { get; set; } = false;
+    public string ActiveBottleneckHeadline { get; set; } = "Balanced";
 
     public double RamUsedGb { get; set; }
     public double RamTotalGb { get; set; }

@@ -5,6 +5,18 @@ using GameLoopOptimizer.Monitoring;
 
 namespace GameLoopOptimizer.ViewModels;
 
+public class CoreLoadItem : ViewModelBase
+{
+    public int CoreIndex { get; set; }
+    public string CoreLabel { get; set; } = string.Empty;
+    private double _loadPercent;
+    public double LoadPercent
+    {
+        get => _loadPercent;
+        set => SetProperty(ref _loadPercent, value);
+    }
+}
+
 public class MonitorViewModel : ViewModelBase
 {
     private readonly PerformanceMonitorService _monitor;
@@ -21,6 +33,7 @@ public class MonitorViewModel : ViewModelBase
     public ObservableCollection<double> GpuHistory { get; } = new();
     public ObservableCollection<double> RamHistory { get; } = new();
     public ObservableCollection<double> DiskHistory { get; } = new();
+    public ObservableCollection<CoreLoadItem> CoreLoads { get; } = new();
 
     public MonitorViewModel(PerformanceMonitorService monitor)
     {
@@ -46,6 +59,24 @@ public class MonitorViewModel : ViewModelBase
                 PushMetric(GpuHistory, m.GpuPercent);
                 PushMetric(RamHistory, m.RamPercent);
                 PushMetric(DiskHistory, Math.Min(100, (m.DiskReadMbSec + m.DiskWriteMbSec) * 2));
+
+                if (m.CpuCoresPercent != null && m.CpuCoresPercent.Length > 0)
+                {
+                    while (CoreLoads.Count < m.CpuCoresPercent.Length)
+                    {
+                        int idx = CoreLoads.Count;
+                        CoreLoads.Add(new CoreLoadItem
+                        {
+                            CoreIndex = idx,
+                            CoreLabel = $"T{idx}",
+                            LoadPercent = m.CpuCoresPercent[idx]
+                        });
+                    }
+                    for (int i = 0; i < m.CpuCoresPercent.Length && i < CoreLoads.Count; i++)
+                    {
+                        CoreLoads[i].LoadPercent = m.CpuCoresPercent[i];
+                    }
+                }
             });
         };
     }

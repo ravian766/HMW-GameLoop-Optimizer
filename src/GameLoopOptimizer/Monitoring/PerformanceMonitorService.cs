@@ -21,6 +21,8 @@ public class PerformanceMonitorService : IDisposable
     private PerformanceCounter? _diskReadCounter;
     private PerformanceCounter? _diskWriteCounter;
     private PerformanceCounter? _gpuCounter;
+    private PerformanceCounter? _vramCounter;
+    private readonly List<PerformanceCounter> _coreCounters = new();
 
     public event EventHandler<PerformanceMetrics>? MetricsUpdated;
     public IReadOnlyList<PerformanceMetrics> History
@@ -92,6 +94,30 @@ public class PerformanceMonitorService : IDisposable
         {
             // Graceful fallback
         }
+
+        try
+        {
+            var vramCategory = new PerformanceCounterCategory("GPU Adapter Memory");
+            var inst = vramCategory.GetInstanceNames().FirstOrDefault();
+            if (inst != null)
+            {
+                _vramCounter = new PerformanceCounter("GPU Adapter Memory", "Dedicated Usage", inst);
+                _vramCounter.NextValue();
+            }
+        }
+        catch { }
+
+        try
+        {
+            int coreCount = Math.Min(32, Environment.ProcessorCount);
+            for (int i = 0; i < coreCount; i++)
+            {
+                var pc = new PerformanceCounter("Processor", "% Processor Time", i.ToString());
+                pc.NextValue();
+                _coreCounters.Add(pc);
+            }
+        }
+        catch { }
 
         NativeMethods.GetSystemTimes(out _prevIdleTime, out _prevKernelTime, out _prevUserTime);
     }
@@ -202,12 +228,46 @@ public class PerformanceMonitorService : IDisposable
             }
             catch { }
 
-            // 4. GPU Usage
+            // 4. GPU & VRAM Usage
             try
             {
                 if (_gpuCounter != null)
                 {
                     metrics.GpuPercent = Math.Clamp(Math.Round(_gpuCounter.NextValue(), 1), 0, 100);
+                }
+                if (_vramCounter != null)
+                {
+                    double vramBytes = _vramCounter.NextValue();
+                    metrics.GpuVramUsedMb = Math.Round(vramBytes / (1024 * 1024), 0);
+                }
+            }
+            catch { }
+
+            // 4b. Individual CPU Core Utilization
+            try
+            {
+                if (_coreCounters.Count > 0)
+                {
+                    var coreLoads = new double[_coreCounters.Count];
+                    for (int i = 0; i < _coreCounters.Count; i++)
+                    {
+                        try
+                        {
+                            coreLoads[i] = Math.Clamp(Math.Round(_coreCounters[i].NextValue(), 1), 0, 100);
+                        }
+                        catch
+                        {
+                            coreLoads[i] = metrics.CpuTotalPercent;
+                        }
+                    }
+                    metrics.CpuCoresPercent = coreLoads;
+                }
+                else
+                {
+                    int envCount = Environment.ProcessorCount;
+                    var coreLoads = new double[envCount];
+                    for (int i = 0; i < envCount; i++) coreLoads[i] = metrics.CpuTotalPercent;
+                    metrics.CpuCoresPercent = coreLoads;
                 }
             }
             catch { }
@@ -215,10 +275,8 @@ public class PerformanceMonitorService : IDisposable
             // 5. GameLoop Process Metrics
             try
             {
-                var glProcs = Process.GetProcessesByName("AppMarket")
-                    .Concat(Process.GetProcessesByName("AndroidEmulator"))
-                    .Concat(Process.GetProcessesByName("AndroidEmulatorEn"))
-                    .Concat(Process.GetProcessesByName("aow_exe"))
+                var glProcs = ProcessManager.AllGameLoopProcessNames
+                    .SelectMany(name => { try { return Process.GetProcessesByName(name); } catch { return Array.Empty<Process>(); } })
                     .ToList();
 
                 if (glProcs.Count > 0)
@@ -246,6 +304,11 @@ public class PerformanceMonitorService : IDisposable
 
             // Temperature monitoring (honest WMI thermal zone check; null if unavailable)
             DetectTemperatures(metrics);
+
+            // Thermal and Power Throttling Status
+            metrics.IsThermalThrottling = (metrics.CpuTemperatureC.HasValue && metrics.CpuTemperatureC.Value >= 90.0) ||
+                                         (metrics.GpuTemperatureC.HasValue && metrics.GpuTemperatureC.Value >= 88.0);
+            metrics.IsPowerThrottling = metrics.CpuTotalPercent >= 95.0 && metrics.GpuPercent < 20.0;
 
             // 6. In-VM Telemetry Bridge (Non-invasive via surfaceflinger frame timestamps)
             if (metrics.IsGameLoopActive && _getGlConfig != null)
@@ -327,5 +390,11 @@ public class PerformanceMonitorService : IDisposable
         _diskReadCounter?.Dispose();
         _diskWriteCounter?.Dispose();
         _gpuCounter?.Dispose();
+        _vramCounter?.Dispose();
+        foreach (var c in _coreCounters)
+        {
+            try { c.Dispose(); } catch { }
+        }
+        _coreCounters.Clear();
     }
 }

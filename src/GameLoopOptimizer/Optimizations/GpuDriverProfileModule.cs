@@ -125,6 +125,7 @@ public class GpuDriverProfileModule : IOptimizationModule
 
                             nvtweakKey.SetValue("LowLatencyMode", 1, RegistryValueKind.DWord);
                             nvtweakKey.SetValue("PreferMaximumPerformance", 1, RegistryValueKind.DWord);
+                            nvtweakKey.SetValue("ShaderCacheMaxSizeInMB", 10240, RegistryValueKind.DWord);
                             appliedCount++;
                         }
                     }

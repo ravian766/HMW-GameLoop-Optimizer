@@ -375,7 +375,27 @@ public static class ProcessManager
             return (1L << 16) - 1; // 8 cores on CCD0 = 16 threads (0xFFFF)
         }
 
-        // 2. Intel Hybrid Architecture (12th, 13th, 14th Gen, Core Ultra)
+        // 2. AMD Dual-CCD Standard Processors (Ryzen 9 5900X, 5950X, 7900X, 7950X, 9900X, 9950X)
+        // Pin strictly to CCD0 to eliminate 70-80ns cross-CCD Infinity Fabric latency penalty
+        // 16-Core / 32-Thread models (5950X, 7950X, 9950X) have 8 cores / 16 threads on CCD0
+        if (cpu.Contains("5950X", StringComparison.OrdinalIgnoreCase) || 
+            cpu.Contains("7950X", StringComparison.OrdinalIgnoreCase) || 
+            cpu.Contains("9950X", StringComparison.OrdinalIgnoreCase) ||
+            (cpu.Contains("Ryzen 9", StringComparison.OrdinalIgnoreCase) && (physicalCores >= 16 || logicalProcessors >= 32)))
+        {
+            return (1L << 16) - 1; // CCD0 = 16 threads (0xFFFF)
+        }
+
+        // 12-Core / 24-Thread models (5900X, 7900X, 9900X, generic Ryzen 9) have 6 cores / 12 threads on CCD0
+        if (cpu.Contains("Ryzen 9", StringComparison.OrdinalIgnoreCase) || 
+            cpu.Contains("5900X", StringComparison.OrdinalIgnoreCase) || 
+            cpu.Contains("7900X", StringComparison.OrdinalIgnoreCase) || 
+            cpu.Contains("9900X", StringComparison.OrdinalIgnoreCase))
+        {
+            return (1L << 12) - 1; // CCD0 = 12 threads (0x0FFF)
+        }
+
+        // 3. Intel Hybrid Architecture (12th, 13th, 14th Gen, Core Ultra)
         // P-cores reside on the lowest logical processor IDs.
         bool isIntelHybrid = cpu.Contains("Intel", StringComparison.OrdinalIgnoreCase) && 
             (cpu.Contains("12th", StringComparison.OrdinalIgnoreCase) || 
@@ -403,13 +423,101 @@ public static class ProcessManager
             }
         }
 
-        // 3. Fallback for standard CPUs without hybrid naming:
+        // 4. Fallback for standard CPUs without hybrid naming:
         // Bind to first 8 threads (0xFF = 255) to maintain full backwards compatibility with standard architecture
         int targetThreads = Math.Min(8, logicalProcessors);
         if (logicalProcessors >= 8) targetThreads = 8;
         else if (logicalProcessors >= 6) targetThreads = 6;
 
         return (1L << targetThreads) - 1;
+    }
+
+    /// <summary>
+    /// Calculates affinity mask based on user-selected CPU Profile:
+    /// MaximumPerformance (Full P-Cores/CCD0), BalancedGaming (P-Cores minus OS threads),
+    /// LowLatency (Physical cores only without SMT contention), Custom.
+    /// </summary>
+    public static long CalculateAffinityMaskForProfile(
+        CpuAffinityProfile profile,
+        int logicalProcessors,
+        int physicalCores,
+        string? cpuName = null,
+        HardwareInfo? hw = null,
+        long customMask = 0)
+    {
+        long baseMaxMask = CalculateOptimalAffinityMask(logicalProcessors, physicalCores, cpuName ?? hw?.CpuName);
+
+        switch (profile)
+        {
+            case CpuAffinityProfile.MaximumPerformance:
+                return baseMaxMask;
+
+            case CpuAffinityProfile.BalancedGaming:
+                // Keep the lowest threads for the game while freeing the top 2 threads of the mask
+                // for Windows host OS background worker tasks and Discord/audio drivers.
+                if (logicalProcessors > 6)
+                {
+                    // Count set bits in baseMaxMask
+                    int bitCount = System.Numerics.BitOperations.PopCount((ulong)baseMaxMask);
+                    if (bitCount >= 8)
+                    {
+                        // Mask out the highest 2 bits of the active set
+                        long balanced = baseMaxMask & ~((1L << (bitCount - 1)) | (1L << (bitCount - 2)));
+                        return balanced > 0 ? balanced : baseMaxMask;
+                    }
+                }
+                return baseMaxMask;
+
+            case CpuAffinityProfile.LowLatency:
+                // Isolate strictly to physical cores (every even bit 0, 2, 4, 6...)
+                // Disabling Hyper-Threading / SMT sibling pairs completely eliminates
+                // pipeline execution port contention, yielding the lowest frame-time variance.
+                long physicalOnlyMask = baseMaxMask & 0x5555555555555555L;
+                return physicalOnlyMask > 0 ? physicalOnlyMask : baseMaxMask;
+
+            case CpuAffinityProfile.Custom:
+                return customMask > 0 ? customMask : baseMaxMask;
+
+            default:
+                return baseMaxMask;
+        }
+    }
+
+    public static List<CoreTopologyInfo> GetCoreTopologyDetails(HardwareInfo hw, long activeMask)
+    {
+        var list = new List<CoreTopologyInfo>();
+        int totalThreads = Math.Clamp(hw.LogicalProcessors, 1, 64);
+
+        for (int i = 0; i < totalThreads; i++)
+        {
+            bool isSelected = (activeMask & (1L << i)) != 0;
+            string type = "Standard Core";
+
+            if (hw.HasHybridArchitecture)
+            {
+                int pThreads = hw.PerformanceCoresCount * 2;
+                type = i < pThreads ? "P-Core" : "E-Core";
+            }
+            else if (hw.IsDualCcdRyzen)
+            {
+                int half = totalThreads / 2;
+                type = i < half ? "CCD0 (Primary)" : "CCD1 (Secondary)";
+            }
+            else if (hw.Has3dVcache)
+            {
+                type = "3D V-Cache Core";
+            }
+
+            list.Add(new CoreTopologyInfo
+            {
+                CoreIndex = i / 2,
+                LogicalThreadIndex = i,
+                CoreType = type,
+                IsSelected = isSelected
+            });
+        }
+
+        return list;
     }
 
     public static bool SetGameLoopAffinity(long affinityMask)

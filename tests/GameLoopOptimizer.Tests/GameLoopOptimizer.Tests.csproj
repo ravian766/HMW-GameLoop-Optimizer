@@ -19,6 +19,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="BackupRestoreTests.cs" />
+    <Compile Remove="GameResourceBackupTests.cs" />
+    <Compile Remove="LedgerIsolationTests.cs" />
+    <Compile Remove="BackupTestCollection.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 

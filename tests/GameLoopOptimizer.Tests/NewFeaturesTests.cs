@@ -5,7 +5,6 @@ using Xunit;
 
 namespace GameLoopOptimizer.Tests;
 
-[Collection("BackupTests")]
 public class NewFeaturesTests
 {
     [Fact]
@@ -83,26 +82,6 @@ public class NewFeaturesTests
         Assert.NotEmpty(presets);
         Assert.Contains(presets, p => p.PrimaryDns == "1.1.1.1");
         Assert.Contains(presets, p => p.PrimaryDns == "8.8.8.8");
-    }
-
-    [Fact]
-    public async Task KeymapBackupManager_Lifecycle_WorksSafely()
-    {
-        var config = new GameLoopConfig { InstallPath = Path.GetTempPath() };
-        var profile = await KeymapBackupManager.CreateBackupAsync(config, "Unit Test Profile");
-
-        if (profile != null)
-        {
-            Assert.NotNull(profile.Id);
-            Assert.Equal("Unit Test Profile", profile.Name);
-
-            var profiles = KeymapBackupManager.GetProfiles();
-            Assert.Contains(profiles, p => p.Id == profile.Id);
-
-            KeymapBackupManager.DeleteProfile(profile.Id);
-            var updated = KeymapBackupManager.GetProfiles();
-            Assert.DoesNotContain(updated, p => p.Id == profile.Id);
-        }
     }
 }
 

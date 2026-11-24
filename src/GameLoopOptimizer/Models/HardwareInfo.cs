@@ -16,6 +16,14 @@ public class MonitorInfo
     public string ResolutionSummary => $"{ResolutionWidth}x{ResolutionHeight} @ {RefreshRateHz}Hz ({DpiScalingPercent}%)";
 }
 
+public class CoreTopologyInfo
+{
+    public int CoreIndex { get; set; }
+    public int LogicalThreadIndex { get; set; }
+    public string CoreType { get; set; } = "Standard Core"; // P-Core, E-Core, CCD0, CCD1, 3D V-Cache
+    public bool IsSelected { get; set; }
+}
+
 public class HardwareInfo
 {
     // CPU
@@ -30,6 +38,18 @@ public class HardwareInfo
     public int EfficientCoresCount { get; set; } = 0;
     public bool HasHybridArchitecture => PerformanceCoresCount > 0 && EfficientCoresCount > 0;
     public bool Has3dVcache { get; set; } = false;
+    public string CpuTopologySummary => $"{PhysicalCores}C / {LogicalProcessors}T{(HasHybridArchitecture ? $" ({PerformanceCoresCount}P+{EfficientCoresCount}E)" : (IsDualCcdRyzen ? " (Dual-CCD)" : (Has3dVcache ? " (3D V-Cache)" : "")))}";
+    public int PhysicalSockets { get; set; } = 1;
+    public int CcdCount { get; set; } = 1;
+    public bool IsDualCcdRyzen => CpuVendor == "AMD" && CcdCount > 1;
+    public bool SupportsSse42 { get; set; } = true;
+    public bool SupportsAvx { get; set; } = true;
+    public bool SupportsAvx2 { get; set; } = true;
+    public bool SupportsAvx512 { get; set; } = false;
+    public bool SupportsFma { get; set; } = true;
+    public string InstructionSetsDisplay => $"SSE4.2{(SupportsAvx ? ", AVX" : "")}{(SupportsAvx2 ? ", AVX2" : "")}{(SupportsFma ? ", FMA3" : "")}{(SupportsAvx512 ? ", AVX-512" : "")}";
+    public CpuAffinityProfile CurrentCpuProfile { get; set; } = CpuAffinityProfile.MaximumPerformance;
+    public long CustomAffinityMask { get; set; } = 0;
     public double? CpuTemperatureC { get; set; }
     public double? CpuPackagePowerWatts { get; set; }
     public string Architecture { get; set; } = "x64";
@@ -45,6 +65,11 @@ public class HardwareInfo
     public double CurrentGpuUtilizationPercent { get; set; } = 0;
     public double? GpuTemperatureC { get; set; }
     public double? GpuClockMhz { get; set; }
+    public double? GpuPowerWatts { get; set; }
+    public bool IsHagsSupported { get; set; } = true;
+    public bool IsHagsEnabled { get; set; } = false;
+    public bool HasMultiGpu { get; set; } = false;
+    public string MultiGpuSummary { get; set; } = string.Empty;
     public bool IsDedicatedGpu => GpuVendor == GpuVendor.Nvidia || GpuVendor == GpuVendor.Amd || DedicatedVramMb >= 2048;
 
     // RAM

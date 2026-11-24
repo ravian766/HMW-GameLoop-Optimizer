@@ -36,6 +36,7 @@ public static class OptimizationProfileManager
             HardwareTier.LowEnd => OptimizationProfile.LowEndPC,
             HardwareTier.MidRange => OptimizationProfile.Balanced,
             HardwareTier.HighEnd => OptimizationProfile.CompetitiveFps,
+            HardwareTier.Enthusiast => OptimizationProfile.MaximumPerformance,
             _ => OptimizationProfile.Balanced
         };
     }

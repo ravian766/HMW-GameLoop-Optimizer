@@ -72,10 +72,24 @@ public class AdbVmHeapTuningModule : IOptimizationModule
                 Description = "Dalvik VM heap size expansion"
             });
 
+            // heapgrowthlimit is a second, independent property. It used to be modified without
+            // being recorded, so rollback had no choice but to guess "256m" and could leave the
+            // VM on a limit that never existed before this module ran.
+            BackupManager.RecordBackup(new BackupEntry
+            {
+                ModuleId = Id,
+                Title = Title,
+                Category = Category,
+                TargetType = "AdbProp",
+                TargetPath = "dalvik.vm.heapgrowthlimit",
+                PreviousValue = prevGrowth,
+                NewValue = "512m",
+                Description = "Dalvik VM per-app heap growth limit"
+            });
+
             await AdbManager.SetPropAsync("dalvik.vm.heapgrowthlimit", "512m", gl);
             await AdbManager.SetPropAsync("dalvik.vm.heapsize", "1024m", gl);
             await AdbManager.SetPropAsync("dalvik.vm.heaptargetutilization", "0.75", gl);
-            await AdbManager.SetPropAsync("dalvik.vm.dexopt-flags", "v=n,o=v", gl);
 
             IsOptimized = true;
             CurrentStateDisplay = "Tuned (1024M Heap / 512M Growth)";
@@ -93,12 +107,22 @@ public class AdbVmHeapTuningModule : IOptimizationModule
 
     public async Task<OptimizationResult> RollbackAsync(BackupEntry? backup)
     {
-        var target = backup ?? BackupManager.GetLatestForModule(Id);
-        string prevVal = target?.PreviousValue ?? "512m";
-        if (string.IsNullOrWhiteSpace(prevVal)) prevVal = "512m";
+        // This module records heapsize and heapgrowthlimit as two separate entries, so resolve each
+        // one by TargetPath rather than trusting the single "latest" entry for the module.
+        var moduleEntries = BackupManager.GetAllForModule(Id);
+        string? PreviousFor(string targetPath) => moduleEntries
+            .LastOrDefault(e => string.Equals(e.TargetPath, targetPath, StringComparison.OrdinalIgnoreCase))
+            ?.PreviousValue;
 
-        await AdbManager.SetPropAsync("dalvik.vm.heapsize", prevVal);
-        await AdbManager.SetPropAsync("dalvik.vm.heapgrowthlimit", "256m");
+        string? heapPrev = backup?.TargetPath == "dalvik.vm.heapsize" ? backup.PreviousValue : null;
+        heapPrev ??= PreviousFor("dalvik.vm.heapsize");
+        if (string.IsNullOrWhiteSpace(heapPrev)) heapPrev = "512m";
+
+        string? growthPrev = PreviousFor("dalvik.vm.heapgrowthlimit");
+        if (string.IsNullOrWhiteSpace(growthPrev)) growthPrev = "256m";
+
+        await AdbManager.SetPropAsync("dalvik.vm.heapsize", heapPrev);
+        await AdbManager.SetPropAsync("dalvik.vm.heapgrowthlimit", growthPrev);
 
         IsOptimized = false;
         CurrentStateDisplay = "Restored";

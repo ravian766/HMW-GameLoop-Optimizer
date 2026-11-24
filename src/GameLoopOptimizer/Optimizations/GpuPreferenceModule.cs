@@ -72,6 +72,31 @@ public class GpuPreferenceModule : IOptimizationModule
                 exeCandidates.Add(Path.Combine(gl.InstallPath, "ui", "AndroidEmulator.exe"));
                 exeCandidates.Add(Path.Combine(gl.InstallPath, "ui", "AndroidEmulatorEx.exe"));
                 exeCandidates.Add(Path.Combine(gl.InstallPath, "ui", "aow_exe.exe"));
+                exeCandidates.Add(Path.Combine(gl.InstallPath, "ui", "AndroidProcess.exe"));
+                exeCandidates.Add(Path.Combine(gl.InstallPath, "ui", "QMEmulatorService.exe"));
+                exeCandidates.Add(Path.Combine(gl.InstallPath, "ui", "TxEx.exe"));
+                exeCandidates.Add(Path.Combine(gl.InstallPath, "vms", "AndroidEmulator", "aow_exe.exe"));
+            }
+
+            // Arm GameLoop internal dedicated GPU preference keys
+            var glPaths = new[]
+            {
+                @"Software\Tencent\MobileGamePC",
+                @"Software\Tencent\TxGameAssistant"
+            };
+
+            foreach (var p in glPaths)
+            {
+                try
+                {
+                    using var subKey = Registry.CurrentUser.CreateSubKey(p);
+                    if (subKey != null)
+                    {
+                        subKey.SetValue("SetGraphicsCard", 1, RegistryValueKind.DWord);
+                        subKey.SetValue("GraphicsCardEnabled", 1, RegistryValueKind.DWord);
+                    }
+                }
+                catch { }
             }
 
             int configuredCount = 0;

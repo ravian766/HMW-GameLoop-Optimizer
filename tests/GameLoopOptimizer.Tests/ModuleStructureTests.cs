@@ -45,11 +45,13 @@ public class ModuleStructureTests
             new NetworkQoSModule(),
             new NetworkDnsModule(),
             new VisualEffectsModule(),
-            new BackgroundThrottleModule()
+            new BackgroundThrottleModule(),
+            new GpuDriverProfileModule(),
+            new StandbyListCleanerModule()
         };
 
         // Assert
-        Assert.Equal(34, modules.Count);
+        Assert.Equal(36, modules.Count);
 
         var ids = modules.Select(m => m.Id).ToList();
         Assert.Equal(ids.Count, ids.Distinct().Count()); // All IDs unique

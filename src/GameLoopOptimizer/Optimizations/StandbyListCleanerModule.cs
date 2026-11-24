@@ -30,6 +30,18 @@ public class StandbyListCleanerModule : IOptimizationModule
     {
         return await Task.Run(() =>
         {
+            BackupManager.RecordBackup(new BackupEntry
+            {
+                ModuleId = Id,
+                Title = Title,
+                Category = Category,
+                TargetType = "MemoryState",
+                TargetPath = "WindowsStandbyList",
+                PreviousValue = "Active",
+                NewValue = "Purged",
+                Description = "Purged Windows Standby Memory Cache pages"
+            });
+
             var result = StandbyListCleanerService.PurgeStandbyList();
             if (result.Success)
             {

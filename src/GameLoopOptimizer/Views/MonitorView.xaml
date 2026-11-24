@@ -26,13 +26,35 @@
                         <TextBlock Text="Real-time 1-second system resource monitoring and emulator frame-time pacing analytics." FontSize="12.5" Foreground="{DynamicResource BrushTextSecondary}" />
                     </StackPanel>
 
-                    <!-- Frame-Time Variance Status -->
-                    <Border Grid.Column="1" Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="14,8" VerticalAlignment="Center" Margin="16,0,0,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="EST. JITTER: " FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding Metrics.EstimatedFrametimeVarianceMs, StringFormat='{}{0:F1} ms'}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyanBright}" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Border>
+                    <!-- Real-Time Frame Metrics & Throttling Status -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                        <!-- FPS Status Chip -->
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentGreen}" BorderThickness="1" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="LIVE FPS" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding Metrics.FpsDisplayLabel}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource BrushAccentGreen}" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding Metrics.OnePercentLowFps, StringFormat='1% Low: {0:F0}'}" FontSize="9.5" Foreground="{DynamicResource BrushTextSecondary}" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Frame Pacing Jitter Chip -->
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="EST. JITTER" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding Metrics.EstimatedFrametimeVarianceMs, StringFormat='{}{0:F1} ms'}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyanBright}" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding Metrics.StutterIndexPercent, StringFormat='Stutter: {0:F0}%'}" FontSize="9.5" Foreground="{DynamicResource BrushTextSecondary}" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Throttling Alert Badge -->
+                        <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushAccentAmber}" BorderThickness="1" CornerRadius="8" Padding="10,6"
+                                Visibility="{Binding Metrics.IsThermalThrottling, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="⚠️ THERMAL" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" HorizontalAlignment="Center" />
+                                <TextBlock Text="THROTTLING" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentAmber}" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </Grid>
             </Border>
 
@@ -92,10 +114,40 @@
                 </Border>
             </Grid>
 
-            <!-- Detailed Telemetry Card -->
+            <!-- Individual CPU Core / Thread Load Strip -->
+            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,18"
+                    Visibility="{Binding CoreLoads.Count, Converter={StaticResource IntGreaterThanZeroToVisibilityConverter}, FallbackValue=Visible}">
+                <StackPanel>
+                    <Grid Margin="0,0,0,10">
+                        <TextBlock Text="INDIVIDUAL CPU LOGICAL PROCESSOR THREAD LOADS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding Metrics.CpuTotalPercent, StringFormat='Aggregate: {0:F1}%'}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" HorizontalAlignment="Right" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding CoreLoads}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource BrushBgInput}" BorderBrush="{DynamicResource BrushBorderLight}" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,6,6" Width="68">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="{Binding CoreLabel}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" />
+                                        <TextBlock Text="{Binding LoadPercent, StringFormat='{}{0:F0}%'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrushAccentCyan}" HorizontalAlignment="Center" Margin="0,1,0,2" />
+                                        <ProgressBar Value="{Binding LoadPercent}" Maximum="100" Height="3" Width="50" Foreground="{DynamicResource BrushAccentCyan}" Background="{DynamicResource BrushBgCard}" BorderThickness="0" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Detailed Telemetry Card (4 Columns) -->
             <Border Style="{StaticResource GlassCard}">
                 <Grid>
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
@@ -107,16 +159,22 @@
                         <TextBlock Text="{Binding Metrics.RamAvailableGb, StringFormat='Available: {0:F1} GB'}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentGreen}" />
                     </StackPanel>
 
-                    <StackPanel Grid.Column="1">
-                        <TextBlock Text="GAMELOOP PROCESS FOOTPRINT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
-                        <TextBlock Text="{Binding Metrics.GameLoopRamMb, StringFormat='Memory: {0:F0} MB'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,4,0,2" />
+                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                        <TextBlock Text="GPU VRAM FOOTPRINT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding Metrics.GpuVramUsedMb, StringFormat='Used: {0:F0} MB'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,4,0,2" />
+                        <TextBlock Text="{Binding Metrics.VramPercent, StringFormat='Saturation: {0:F0}%'}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentViolet}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Margin="8,0,0,0">
+                        <TextBlock Text="GAMELOOP ENGINE MEMORY" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding Metrics.GameLoopRamMb, StringFormat='Process: {0:F0} MB'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,4,0,2" />
                         <TextBlock Text="{Binding Metrics.IsGameLoopActive, Converter={StaticResource BooleanToStatusTextConverter}, FallbackValue='Running'}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushAccentCyan}" />
                     </StackPanel>
 
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="STORAGE I/O ACTIVITY" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
-                        <TextBlock Text="{Binding Metrics.DiskReadMbSec, StringFormat='Read: {0:F1} MB/s'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,4,0,2" />
-                        <TextBlock Text="{Binding Metrics.DiskWriteMbSec, StringFormat='Write: {0:F1} MB/s'}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextSecondary}" />
+                    <StackPanel Grid.Column="3" Margin="8,0,0,0">
+                        <TextBlock Text="STORAGE &amp; TEMPERATURES" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BrushTextMuted}" />
+                        <TextBlock Text="{Binding Metrics.DiskReadMbSec, StringFormat='Disk I/O: {0:F1} MB/s'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,4,0,2" />
+                        <TextBlock Text="{Binding Metrics.CpuTemperatureC, StringFormat='CPU Temp: {0:F0}°C', FallbackValue='Sensor Standby'}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextSecondary}" />
                     </StackPanel>
                 </Grid>
             </Border>

@@ -19,15 +19,20 @@ public class MemoryOptimizerModule : IOptimizationModule
     public bool RequiresAdmin => false;
 
     public string CurrentStateDisplay { get; private set; } = "Ready";
-    public string RecommendedStateDisplay => "Clean Working Set";
+    public string RecommendedStateDisplay { get; private set; } = "Clean Working Set";
     public bool IsOptimized { get; private set; } = false;
     public OptimizationState State { get; private set; } = OptimizationState.Recommended;
 
     public Task<OptimizationState> AnalyzeAsync(HardwareInfo hw, SystemInfo sys, GameLoopConfig gl)
     {
-        CurrentStateDisplay = $"{hw.TotalRamGb:F1} GB Total RAM";
-        IsOptimized = false;
-        State = OptimizationState.Recommended;
+        double available = hw.AvailableRamGb;
+        bool isPressureHigh = hw.MemoryPressureStatus == "High" || available < 2.0;
+
+        CurrentStateDisplay = $"{hw.UsedRamGb:F1}/{hw.TotalRamGb:F1} GB ({hw.RamUtilizationPercent:F0}% - Pressure: {hw.MemoryPressureStatus})";
+        RecommendedStateDisplay = isPressureHigh ? "Trim Recommended" : "Optimal (No Trim Needed)";
+
+        IsOptimized = !isPressureHigh;
+        State = isPressureHigh ? OptimizationState.Recommended : OptimizationState.Optimized;
         return Task.FromResult(State);
     }
 
@@ -37,6 +42,18 @@ public class MemoryOptimizerModule : IOptimizationModule
         {
             try
             {
+                BackupManager.RecordBackup(new BackupEntry
+                {
+                    ModuleId = Id,
+                    Title = Title,
+                    Category = Category,
+                    TargetType = "MemoryState",
+                    TargetPath = "HostProcessWorkingSets",
+                    PreviousValue = $"{hw.UsedRamGb:F1} GB",
+                    NewValue = "Trimmed",
+                    Description = $"Working set trim executed (Pressure: {hw.MemoryPressureStatus})"
+                });
+
                 long bytesBefore = GC.GetTotalMemory(false);
                 int trimmedCount = 0;
                 var procs = Process.GetProcesses();
@@ -45,9 +62,13 @@ public class MemoryOptimizerModule : IOptimizationModule
                 {
                     try
                     {
-                        // Skip emulator itself
-                        if (proc.ProcessName.Contains("Android", StringComparison.OrdinalIgnoreCase) ||
-                            proc.ProcessName.Contains("aow", StringComparison.OrdinalIgnoreCase))
+                        // Skip emulator itself and system critical processes
+                        string name = proc.ProcessName;
+                        if (name.Contains("Android", StringComparison.OrdinalIgnoreCase) ||
+                            name.Contains("aow", StringComparison.OrdinalIgnoreCase) ||
+                            name.Contains("AppMarket", StringComparison.OrdinalIgnoreCase) ||
+                            name.Equals("System", StringComparison.OrdinalIgnoreCase) ||
+                            name.Equals("dwm", StringComparison.OrdinalIgnoreCase))
                         {
                             continue;
                         }
@@ -70,11 +91,11 @@ public class MemoryOptimizerModule : IOptimizationModule
                 GC.WaitForPendingFinalizers();
 
                 IsOptimized = true;
-                CurrentStateDisplay = "Cleaned";
+                CurrentStateDisplay = "Cleaned (Pressure Eased)";
                 State = OptimizationState.Optimized;
 
-                Logger.Success(Title, $"Successfully trimmed working sets across {trimmedCount} background processes.");
-                return OptimizationResult.Ok(Id, $"Trimmed memory across {trimmedCount} processes.");
+                Logger.Success(Title, $"Successfully trimmed working sets across {trimmedCount} background processes without impacting GameLoop or Windows kernel.");
+                return OptimizationResult.Ok(Id, $"Trimmed memory across {trimmedCount} processes safely.");
             }
             catch (Exception ex)
             {

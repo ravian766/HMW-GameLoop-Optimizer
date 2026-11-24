@@ -211,7 +211,6 @@ public class MainViewModel : ViewModelBase
         Navigation.RegisterView("KeymapResolution", () => KeymapResolutionVM);
         Navigation.RegisterView("Monitor", () => MonitorVM);
         Navigation.RegisterView("GamingSession", () => GamingSessionVM);
-        Navigation.RegisterView("Backup", () => BackupVM);
         Navigation.RegisterView("Logs", () => LogsVM);
 
         Navigation.PropertyChanged += (s, e) =>
@@ -508,26 +507,7 @@ public class MainViewModel : ViewModelBase
         var report = await OptimizerVM.OptimizeSelectedAsync();
 
         // Apply specialized low-latency modules via module pipeline for scoring & rollback tracking
-        var standbyModule = Modules.OfType<StandbyListCleanerModule>().FirstOrDefault();
-        if (standbyModule != null)
-        {
-            await standbyModule.ApplyAsync(_hardware, _system, _gameLoop);
-        }
-        else
-        {
-            StandbyListCleanerService.PurgeStandbyList();
-        }
-
-        var timerModule = Modules.OfType<TimerResolutionModule>().FirstOrDefault();
-        if (timerModule != null)
-        {
-            await timerModule.ApplyAsync(_hardware, _system, _gameLoop);
-        }
-        else
-        {
-            Optimizations.TimerResolutionModule.SetHighPrecision(0.5);
-        }
-
+        // using the Competitive profile's selected modules
         if (AdbManager.IsAdbAvailable(_gameLoop))
         {
             var adb120Module = Modules.OfType<Adb120FpsUnlockModule>().FirstOrDefault();

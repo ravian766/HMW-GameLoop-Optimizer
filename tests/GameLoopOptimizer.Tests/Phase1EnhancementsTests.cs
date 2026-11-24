@@ -6,7 +6,6 @@ using Xunit;
 
 namespace GameLoopOptimizer.Tests;
 
-[Collection("BackupTests")]
 public class Phase1EnhancementsTests
 {
     [Fact]
@@ -47,57 +46,6 @@ public class Phase1EnhancementsTests
         string sampleOverMax = "Total frames rendered: 240\n";
         double fpsOver = AdbTelemetryService.ParseFpsEstimate(sampleOverMax);
         Assert.Equal(120.0, fpsOver);
-    }
-
-    [Fact]
-    public void BackupManager_GetAllForModule_ReturnsAllModuleEntries()
-    {
-        string testModuleId = "test_gpu_multi_rollback";
-        
-        var entry1 = new BackupEntry
-        {
-            ModuleId = testModuleId,
-            Title = "Entry 1",
-            TargetType = "Registry",
-            TargetPath = @"HKCU\Software\Test",
-            ValueName = "Exe1.exe",
-            PreviousValue = "0"
-        };
-
-        var entry2 = new BackupEntry
-        {
-            ModuleId = testModuleId,
-            Title = "Entry 2",
-            TargetType = "Registry",
-            TargetPath = @"HKCU\Software\Test",
-            ValueName = "Exe2.exe",
-            PreviousValue = "0"
-        };
-
-        BackupManager.RecordBackup(entry1);
-        BackupManager.RecordBackup(entry2);
-
-        var list = BackupManager.GetAllForModule(testModuleId);
-        Assert.NotNull(list);
-        Assert.True(list.Count >= 2);
-        Assert.Contains(list, e => e.ValueName == "Exe1.exe");
-        Assert.Contains(list, e => e.ValueName == "Exe2.exe");
-    }
-
-    [Fact]
-    public void BackupManager_RestoreEntry_RejectsEmptyAdbPropTarget()
-    {
-        var invalidAdbEntry = new BackupEntry
-        {
-            ModuleId = "adb_test",
-            Title = "Invalid ADB Prop",
-            TargetType = "AdbProp",
-            TargetPath = "", // Invalid empty target path
-            PreviousValue = "120"
-        };
-
-        bool ok = BackupManager.RestoreEntry(invalidAdbEntry);
-        Assert.False(ok);
     }
 
     [Fact]

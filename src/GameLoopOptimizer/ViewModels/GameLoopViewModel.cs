@@ -98,6 +98,55 @@ public class GameLoopViewModel : ViewModelBase
         set => SetProperty(ref _shaderCacheEnabled, value);
     }
 
+    // Advanced CPU Affinity Profile
+    public ObservableCollection<CpuAffinityProfile> CpuProfiles { get; } = new(Enum.GetValues<CpuAffinityProfile>());
+
+    private CpuAffinityProfile _selectedCpuProfile = CpuAffinityProfile.MaximumPerformance;
+    public CpuAffinityProfile SelectedCpuProfile
+    {
+        get => _selectedCpuProfile;
+        set
+        {
+            if (SetProperty(ref _selectedCpuProfile, value))
+            {
+                OnPropertyChanged(nameof(CpuProfileDescription));
+                OnPropertyChanged(nameof(IsCustomCpuProfile));
+                UpdateCalculatedAffinityMask();
+            }
+        }
+    }
+
+    public bool IsCustomCpuProfile => SelectedCpuProfile == CpuAffinityProfile.Custom;
+
+    private string _customAffinityMaskText = "0x0FFF";
+    public string CustomAffinityMaskText
+    {
+        get => _customAffinityMaskText;
+        set
+        {
+            if (SetProperty(ref _customAffinityMaskText, value))
+            {
+                UpdateCalculatedAffinityMask();
+            }
+        }
+    }
+
+    private string _calculatedAffinityMaskDisplay = "0x0FFF";
+    public string CalculatedAffinityMaskDisplay
+    {
+        get => _calculatedAffinityMaskDisplay;
+        set => SetProperty(ref _calculatedAffinityMaskDisplay, value);
+    }
+
+    public string CpuProfileDescription => SelectedCpuProfile switch
+    {
+        CpuAffinityProfile.MaximumPerformance => "Pins all GameLoop render threads strictly to P-Cores / primary CCD with SMT for maximum throughput.",
+        CpuAffinityProfile.BalancedGaming => "Pins to P-Cores while reserving 2 logical threads for Windows host OS, audio driver, and Discord.",
+        CpuAffinityProfile.LowLatency => "Pins strictly to physical cores without Hyper-Threading sibling contention for the lowest frame-time variance.",
+        CpuAffinityProfile.Custom => "Custom user-defined bitmask for exact per-core thread affinity.",
+        _ => "Optimized CPU affinity."
+    };
+
     private int _fpsLevel = 120;
     public int FpsLevel
     {
@@ -470,6 +519,7 @@ public class GameLoopViewModel : ViewModelBase
     public ICommand BenchmarkPingCommand { get; }
     public ICommand FlushDnsCommand { get; }
     public ICommand OpenAdbStudioCommand { get; }
+    public ICommand ApplyCpuProfileCommand { get; }
 
     // Delegated Commands to Sub-ViewModels
     public ICommand ConnectAdbCommand => AdbStudio.ConnectAdbCommand;
@@ -657,6 +707,20 @@ public class GameLoopViewModel : ViewModelBase
 
         OpenAdbStudioCommand = new RelayCommand(() => _eventAggregator.Publish(new NavigateTabMessage("AdbStudio")));
 
+        ApplyCpuProfileCommand = new AsyncRelayCommand(async () =>
+        {
+            long mask = GetResolvedAffinityMask();
+            bool applied = ProcessManager.SetGameLoopAffinity(mask);
+            Hardware.CurrentCpuProfile = SelectedCpuProfile;
+            Hardware.CustomAffinityMask = mask;
+            StatusMessage = applied 
+                ? $"Applied {SelectedCpuProfile} CPU Affinity (0x{mask:X}) to running GameLoop processes." 
+                : $"{SelectedCpuProfile} CPU Affinity armed (0x{mask:X}) — will apply when GameLoop starts.";
+            Logger.Success("GameLoopEngine", StatusMessage);
+        });
+
+        UpdateCalculatedAffinityMask();
+
         SetInVmResolutionCommand = new AsyncRelayCommand(async () =>
         {
             AdbStudio.IsAdbBusy = true;
@@ -755,6 +819,29 @@ public class GameLoopViewModel : ViewModelBase
         {
             UpdateAction();
         }
+    }
+
+    public long GetResolvedAffinityMask()
+    {
+        long custom = 0;
+        if (IsCustomCpuProfile)
+        {
+            string hex = (CustomAffinityMaskText ?? "").Replace("0x", "", StringComparison.OrdinalIgnoreCase).Trim();
+            long.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out custom);
+        }
+        return ProcessManager.CalculateAffinityMaskForProfile(
+            SelectedCpuProfile,
+            Hardware.LogicalProcessors,
+            Hardware.PhysicalCores,
+            Hardware.CpuName,
+            Hardware,
+            custom);
+    }
+
+    private void UpdateCalculatedAffinityMask()
+    {
+        long mask = GetResolvedAffinityMask();
+        CalculatedAffinityMaskDisplay = $"0x{mask:X}";
     }
 
     public void RefreshData()
